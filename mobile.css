@@ -1,0 +1,378 @@
+/* 手機端優化樣式 */
+
+/* 通用手機端調整 */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: pan-y;
+  }
+
+  /* 主容器改為垂直滑動面板 */
+  #app-container {
+    display: flex;
+    width: 300vw;
+    height: 100vh;
+    grid-template-columns: none;
+    gap: 0;
+    padding: 0;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* 三個面板各佔滿螢幕 */
+  #control-panel,
+  #main-content,
+  #event-log-container {
+    min-width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    padding: 0.75rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 面板定位 */
+  #app-container[data-panel="0"] {
+    transform: translateX(0);
+  }
+
+  #app-container[data-panel="1"] {
+    transform: translateX(-100vw);
+  }
+
+  #app-container[data-panel="2"] {
+    transform: translateX(-200vw);
+  }
+
+  /* 底部導航 */
+  #mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: var(--panel-bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    border-top: 1px solid var(--border-color);
+    z-index: 1000;
+  }
+
+  .nav-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #555;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .nav-dot.active {
+    background: var(--primary-color);
+    transform: scale(1.3);
+  }
+
+  /* 調整所有面板的底部內邊距，避免被導航欄遮擋 */
+  #control-panel,
+  #main-content,
+  #event-log-container {
+    padding-bottom: 70px;
+  }
+
+  /* 標題調整 */
+  h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* 按鈕觸控優化 */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  /* 比分板優化 */
+  #scoreboard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -0.75rem;
+    padding: 0 0.75rem;
+  }
+
+  #scoreboard table {
+    font-size: 0.85rem;
+    min-width: 100%;
+  }
+
+  #scoreboard th,
+  #scoreboard td {
+    padding: 0.4rem 0.3rem;
+    min-width: 28px;
+  }
+
+  /* 當前打者顯示優化 */
+  #current-batter-display {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  #batter-info-text {
+    font-size: 0.9rem;
+  }
+
+  /* 主要操作按鈕 */
+  .main-actions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+
+  .main-action-btn {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+  }
+
+  /* 局數顯示 */
+  #inning-display {
+    font-size: 1.5rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  /* 比賽狀態容器 */
+  #game-state-container {
+    margin: 1rem 0;
+  }
+
+  #game-state-display {
+    padding: 1.5rem 1rem;
+  }
+
+  /* 壘包顯示優化 */
+  #bases-container {
+    transform: scale(0.9);
+  }
+
+  .base {
+    width: 50px;
+    height: 50px;
+  }
+
+  #play-ball-btn {
+    font-size: 1.2rem;
+    padding: 1rem 2rem;
+  }
+
+  /* 模態框優化 */
+  .draggable-modal-content {
+    width: 90vw;
+    max-width: 90vw;
+    max-height: 80vh;
+    margin: 10vh auto;
+    padding: 1rem;
+  }
+
+  .modal-options {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .modal-options button {
+    padding: 1rem 0.5rem;
+    font-size: 1rem;
+    min-height: 50px;
+  }
+
+  /* 球員名單輸入 */
+  .lineup-player-row {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 0.5rem;
+  }
+
+  .lineup-player-row input[type="text"],
+  .lineup-player-row input[type="number"],
+  .lineup-player-row select {
+    width: 100%;
+    font-size: 1rem;
+    padding: 0.75rem;
+  }
+
+  /* 球員照片上傳按鈕 */
+  .player-photo-label {
+    width: 50px;
+    height: 50px;
+  }
+
+  /* 隊伍名稱和顏色輸入 */
+  .team-name-input {
+    font-size: 1rem;
+    padding: 0.75rem;
+  }
+
+  /* 標籤按鈕 */
+  .tab-button {
+    font-size: 1.1rem;
+    padding: 1rem;
+  }
+
+  /* 事件日誌 */
+  #event-log {
+    font-size: 0.9rem;
+  }
+
+  #event-log li {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* 匯出按鈕 */
+  #export-log-btn {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+  }
+
+  /* 表單按鈕 */
+  #apply-lineup,
+  #view-box-score-btn,
+  #new-game-btn {
+    width: 100%;
+    margin: 0.5rem 0;
+    padding: 1rem;
+    font-size: 1.1rem;
+  }
+
+  /* 頭部輸入框 */
+  .header-input {
+    font-size: 1rem;
+    padding: 0.5rem;
+  }
+
+  #game-info {
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+  }
+
+  #game-info-center {
+    font-size: 1.2rem;
+  }
+
+  /* 總表模態框 */
+  #box-score-content {
+    width: 95vw;
+    max-width: 95vw;
+    padding: 0.75rem;
+  }
+
+  #box-score-tables {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #box-score-tables table {
+    font-size: 0.75rem;
+    min-width: 600px;
+  }
+
+  /* 管理模態框 */
+  .management-modal-content {
+    width: 95vw;
+    max-width: 95vw;
+    height: 85vh;
+    padding: 0.75rem;
+  }
+
+  .management-container {
+    font-size: 0.9rem;
+  }
+
+  /* 關閉按鈈 */
+  .draggable-modal-content button[id*="close"] {
+    width: 44px;
+    height: 44px;
+    font-size: 1.5rem;
+  }
+
+  /* 返回按鈕 */
+  .back-button,
+  .back-button-advanced,
+  #back-button-runner-action {
+    min-height: 44px;
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* 小手機優化 (iPhone SE 等) */
+@media (max-width: 375px) {
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  button {
+    font-size: 0.9rem;
+    padding: 0.6rem 0.8rem;
+  }
+
+  #scoreboard table {
+    font-size: 0.75rem;
+  }
+
+  #bases-container {
+    transform: scale(0.8);
+  }
+
+  .base {
+    width: 45px;
+    height: 45px;
+  }
+}
+
+/* 橫向模式優化 */
+@media (max-width: 768px) and (orientation: landscape) {
+  #game-state-display {
+    padding: 1rem 0.5rem;
+  }
+
+  #bases-container {
+    transform: scale(0.7);
+  }
+
+  .main-actions-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .main-action-btn {
+    flex: 1 1 45%;
+    min-width: 45%;
+  }
+}
+
+/* 防止縮放 */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

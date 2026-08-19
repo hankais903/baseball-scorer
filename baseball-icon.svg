@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 背景 -->
+  <rect width="512" height="512" fill="#2563eb" rx="80"/>
+  
+  <!-- 棒球 -->
+  <circle cx="256" cy="256" r="140" fill="#ffffff"/>
+  
+  <!-- 縫線 -->
+  <path d="M180 256 Q180 180, 256 180" stroke="#e63946" stroke-width="8" fill="none"/>
+  <path d="M180 260 Q180 190, 256 190" stroke="#e63946" stroke-width="8" fill="none"/>
+  
+  <path d="M332 256 Q332 332, 256 332" stroke="#e63946" stroke-width="8" fill="none"/>
+  <path d="M332 252 Q332 322, 256 322" stroke="#e63946" stroke-width="8" fill="none"/>
+  
+  <!-- 縫線細節 -->
+  <g stroke="#e63946" stroke-width="4" fill="none">
+    <line x1="190" y1="205" x2="200" y2="195"/>
+    <line x1="210" y1="185" x2="220" y2="180"/>
+    <line x1="230" y1="175" x2="245" y2="175"/>
+    
+    <line x1="322" y1="307" x2="312" y2="317"/>
+    <line x1="302" y1="327" x2="292" y2="332"/>
+    <line x1="282" y1="337" x2="267" y2="337"/>
+  </g>
+  
+  <!-- 文字 -->
+  <text x="256" y="450" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="#ffffff" text-anchor="middle">棒球</text>
+</svg>

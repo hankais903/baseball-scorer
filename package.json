@@ -1,0 +1,21 @@
+{
+  "name": "baseball-app-mobile",
+  "version": "1.0.0",
+  "description": "專業的棒球比賽記錄手機應用程式 (PWA)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "serve": "vite preview --host --port 3000"
+  },
+  "dependencies": {
+
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
