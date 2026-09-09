@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="棒球紀錄">
@@ -29,18 +29,23 @@
     <script src="./game-manager.js"></script>
     <script src="./game-list-ui.js"></script>
     <script src="./game-helpers.js"></script>
+    <script src="./official-sheet.js"></script>
 </head>
 <body>
     <div id="app-container">
         <!-- Left Panel: Controls -->
         <aside id="control-panel">
-            <h2>控制面板</h2>
+            <h2 class="panel-title">控制面板</h2>
             <div class="panel-section" id="lineup-section">
-                <h3>設定球員名單</h3>
                 <form id="lineup-form">
+                    <div id="top-actions">
+                        <button type="button" id="new-game-btn">新比賽</button>
+                    </div>
+                    <h3 class="section-title">設定球員名單</h3>
+                    <div id="lineup-lock-hint" class="lineup-lock-hint hidden">比賽進行中：換人請用主頁的「代打」「換投」、點壘上跑者「代跑」，或「球員調度」的守位圖；這裡只能改名字、背號、守位。</div>
                     <div id="team-settings-tabs">
-                        <button type="button" class="tab-button active" data-team="a">客隊</button>
-                        <button type="button" class="tab-button" data-team="b">主隊</button>
+                        <button type="button" class="tab-button active" data-team="a">客隊（先攻）</button>
+                        <button type="button" class="tab-button" data-team="b">主隊（後攻）</button>
                     </div>
                     <div id="team-settings-content">
                         <div id="team-a-tab-content" class="tab-content active">
@@ -54,9 +59,9 @@
                             </div>
                         </div>
                     </div>
-                    <button type="submit" id="apply-lineup">套用名單</button>
-                    <button type="button" id="view-box-score-btn">查看總表</button>
-                    <button type="button" id="new-game-btn">新比賽</button>
+                    <div id="lineup-save-status" aria-live="polite">變更會自動儲存</div>
+                    <button type="button" id="apply-lineup" class="visually-hidden" tabindex="-1">套用名單</button>
+                    <button type="button" id="view-box-score-btn" class="visually-hidden" tabindex="-1" aria-hidden="true">查看總表</button>
                 </form>
             </div>
         </aside>
@@ -64,13 +69,24 @@
         <!-- Main Content: Scoreboard and Game State -->
         <main id="main-content">
             <header id="game-info">
-                <input type="text" id="stadium-input" class="header-input" placeholder="比賽球場">
+                <div id="game-meta-row">
+                    <input type="text" id="stadium-input" class="header-input" placeholder="比賽球場">
+                    <input type="date" id="game-date-input" class="header-input">
+                    <select id="weather-input" class="header-input" aria-label="天氣">
+                        <option value="sunny">☀ 晴</option>
+                        <option value="cloudy">☁ 陰</option>
+                        <option value="rainy">☂ 雨</option>
+                    </select>
+                </div>
                 <div id="game-info-center">
                     <span id="info-team-a">客隊</span>
-                    <span id="info-score">0 - 0</span>
+                    <div id="info-score-group">
+                        <span id="info-score-a" class="info-score-num">0</span>
+                        <span id="info-status">進行中</span>
+                        <span id="info-score-b" class="info-score-num">0</span>
+                    </div>
                     <span id="info-team-b">主隊</span>
                 </div>
-                <input type="date" id="game-date-input" class="header-input">
             </header>
             <div id="scoreboard">
                 <table>
@@ -96,34 +112,84 @@
                  <button type="button" id="runner-action-btn" class="main-action-btn">壘間事件</button>
                  <button type="button" id="management-btn" class="main-action-btn">球員調度</button>
             </div>
-             <div id="inning-display">1局上</div>
             <div id="game-state-container">
                 <div id="game-state-display" role="button" aria-label="紀錄打席">
+                    <div id="inning-display">1局上</div>
+                    <div id="game-clock" class="hidden" aria-label="比賽經過時間">00:00</div>
                     <div id="sbo-display">
                          <div class="sbo-row">
                             <span>OUT</span><div class="sbo-light"></div><div class="sbo-light"></div>
                         </div>
                     </div>
+                    <!-- 可點擊的球場：點落點 → 依區域給結果選項 -->
+                    <svg id="main-field" viewBox="18 -35 370 425" aria-label="點擊標示擊球落點">
+                        <rect class="mf-wall-area" x="18" y="-35" width="370" height="36"/>
+                        <image href="./img/field.png" x="0" y="0" width="412" height="402"/>
+                        <!-- 整片球場（含圖上方的全壘打區）都是點擊區 -->
+                        <rect class="mf-zone" x="18" y="-35" width="370" height="425" data-zone="field"/>
+                        <g class="mf-base" id="mf-first" transform="translate(275,272)">
+                            <circle class="mf-base-dot" r="12"/>
+                            <g class="mf-runner">
+                                <text class="mf-runner-name" x="0" y="-30" text-anchor="middle"></text>
+                                <path class="mf-runner-body" d="M-13 14 A13 13 0 0 1 13 14 Z"/>
+                                <circle class="mf-runner-head" cx="0" cy="-6" r="8"/>
+                            </g>
+                        </g>
+                        <g class="mf-base" id="mf-second" transform="translate(202,198)">
+                            <circle class="mf-base-dot" r="12"/>
+                            <g class="mf-runner">
+                                <text class="mf-runner-name" x="0" y="-30" text-anchor="middle"></text>
+                                <path class="mf-runner-body" d="M-13 14 A13 13 0 0 1 13 14 Z"/>
+                                <circle class="mf-runner-head" cx="0" cy="-6" r="8"/>
+                            </g>
+                        </g>
+                        <g class="mf-base" id="mf-third" transform="translate(127,271)">
+                            <circle class="mf-base-dot" r="12"/>
+                            <g class="mf-runner">
+                                <text class="mf-runner-name" x="0" y="-30" text-anchor="middle"></text>
+                                <path class="mf-runner-body" d="M-13 14 A13 13 0 0 1 13 14 Z"/>
+                                <circle class="mf-runner-head" cx="0" cy="-6" r="8"/>
+                            </g>
+                        </g>
+                        <circle id="mf-mark" class="mf-mark" r="13" style="display:none"/>
+                    </svg>
                     <div id="bases-container">
-                        <div class="base" id="second-base"></div>
-                        <div class="base" id="first-base"></div>
-                        <div class="base" id="third-base"></div>
-                        <div class="base" id="home-plate"></div>
-                        <div id="play-ball-btn">PLAY BALL</div>
+                        <div id="play-ball-btn" role="button" tabindex="0"><span class="pb-main">PLAY BALL</span><span class="pb-sub">點此開始比賽並開始計時</span></div>
                     </div>
+                    <div id="field-result-panel" class="hidden"></div>
                 </div>
+            </div>
+            <div id="quick-plays">
+                <button type="button" data-play="三振">三振</button>
+                <button type="button" data-play="四壞">四壞</button>
+                <button type="button" data-play="觸身球">觸身</button>
+                <button type="button" data-play="__more">其他</button>
             </div>
         </main>
 
         <!-- Right Panel: Event Log -->
         <aside id="event-log-container">
-            <div class="event-log-header">
-                <h3>即時事件</h3>
-                <button id="export-log-btn">匯出紀錄</button>
+            <h2 class="panel-title">事件及記錄</h2>
+            <div id="log-actions" class="top-actions-row">
+                <button type="button" id="export-log-btn">匯出紀錄</button>
+                <button type="button" id="official-sheet-btn">正式記錄表</button>
             </div>
-            <ul id="event-log">
-                <!-- Log items will be generated by JS -->
-            </ul>
+            <div class="event-log-header">
+                <div id="panel-tabs">
+                    <button type="button" class="panel-tab active" data-tab="log">即時事件</button>
+                    <button type="button" class="panel-tab" data-tab="situation">戰況表</button>
+                    <button type="button" class="panel-tab" data-tab="batting">打擊</button>
+                    <button type="button" class="panel-tab" data-tab="pitching">投手</button>
+                </div>
+            </div>
+            <div id="pane-log" class="panel-pane">
+                <ul id="event-log">
+                    <!-- Log items will be generated by JS -->
+                </ul>
+            </div>
+            <div id="pane-situation" class="panel-pane panel-pane-hidden"></div>
+            <div id="pane-batting" class="panel-pane panel-pane-hidden"></div>
+            <div id="pane-pitching" class="panel-pane panel-pane-hidden"></div>
         </aside>
     </div>
 
@@ -151,6 +217,7 @@
                  <h3 id="modal-advanced-title" class="modal-drag-handle"></h3>
                  <div id="modal-advanced-options"></div>
                  <div id="modal-advanced-actions">
+                    <div id="modal-advanced-summary"></div>
                     <button id="modal-advanced-done">完成</button>
                  </div>
             </div>
@@ -194,10 +261,19 @@
     </div>
     
     <!-- Management/Substitution Modal (Redesigned) -->
+    <!-- 情境式換人：代打／代跑／換投的選人視窗 -->
+    <div id="picker-modal" class="modal-hidden">
+        <div class="picker-content draggable-modal-content">
+            <button id="picker-close" aria-label="Close">&times;</button>
+            <h3 id="picker-title" class="modal-drag-handle">選擇球員</h3>
+            <div id="picker-note" class="picker-note"></div>
+            <div id="picker-list" class="picker-list"></div>
+        </div>
+    </div>
     <div id="management-modal" class="modal-hidden">
         <div class="management-modal-content draggable-modal-content">
             <button id="close-management-modal" aria-label="Close">&times;</button>
-            <h3 class="modal-drag-handle">球隊管理</h3>
+            <h3 class="modal-drag-handle">球員調度（守位圖）</h3>
             <div class="management-team-tabs" id="management-team-tabs">
                 <!-- Tabs for Team A and B will be injected here -->
             </div>

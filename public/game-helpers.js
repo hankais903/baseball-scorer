@@ -41,7 +41,10 @@ function initHelperFunctions() {
         try {
             // 清除暫存的載入數據
             localStorage.removeItem('temp_game_load');
-            
+
+            // 必須一併清除主程式的存檔，否則重新整理後舊資料會被讀回來
+            localStorage.removeItem('baseballGameState');
+
             // 重新整理頁面以重置狀態
             location.reload();
             

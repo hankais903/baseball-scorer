@@ -179,9 +179,15 @@ input:checked + .slider:before {
 
 .lineup-player {
     display: grid;
-    /* handle, photo, order, jersey, name, pos */
-    grid-template-columns: 24px 36px 20px 40px 1fr 60px;
-    gap: 0.5rem;
+    /* handle, photo, order, jersey, name, pos —— 全部隨寬度縮放，避免窄機爆版 */
+    grid-template-columns:
+        clamp(18px, 5vw, 24px)
+        clamp(28px, 9vw, 36px)
+        clamp(16px, 4.5vw, 20px)
+        clamp(34px, 10vw, 40px)
+        minmax(0, 1fr)
+        clamp(56px, 17vw, 68px);
+    gap: clamp(0.25rem, 1.3vw, 0.5rem);
     margin-bottom: 0.5rem;
     align-items: center;
 }
@@ -213,21 +219,31 @@ input:checked + .slider:before {
     appearance: none;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23e0e0e0' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
     background-repeat: no-repeat;
-    background-position: right 0.5rem center;
-    background-size: 1em;
-    padding-right: 2rem;
-    width: 4rem;
+    background-position: right 0.35rem center;
+    background-size: 0.85em;
+    padding-right: 1.5rem;
+    /* 原本寫死 4rem(64px)，比格線欄位 60px 還寬，導致每一列都往右凸出 */
+    width: 100%;
+    min-width: 0;
 }
 
 .pitcher-input-container {
     display: grid;
-    grid-template-columns: 36px 20px 40px 1fr 60px;
-    gap: 0.5rem;
+    /* 前面比打序列少一個拖曳握把欄，補上等寬留白讓右邊緣對齊 */
+    grid-template-columns:
+        clamp(28px, 9vw, 36px)
+        clamp(16px, 4.5vw, 20px)
+        clamp(34px, 10vw, 40px)
+        minmax(0, 1fr)
+        clamp(56px, 17vw, 68px);
+    gap: clamp(0.25rem, 1.3vw, 0.5rem);
     align-items: center;
+    margin-left: calc(clamp(18px, 5vw, 24px) + clamp(0.25rem, 1.3vw, 0.5rem));
 }
 
 .pitcher-input-container input[data-type="pitcher-jersey"] {
-    width: 2.5rem;
+    width: 100%;
+    min-width: 0;
 }
 
 
@@ -313,7 +329,8 @@ input:checked + .slider:before {
 }
 
 .player-photo-container {
-    width: 36px;
+    width: 100%;
+    max-width: 36px;
     aspect-ratio: 3 / 4;
 }
 
@@ -376,13 +393,6 @@ input:checked + .slider:before {
     font-weight: bold;
 }
 
-#game-info-center {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 2rem;
-}
-
 .header-input {
     background-color: #3e3e3e;
     border: 1px solid var(--border-color);
@@ -409,10 +419,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 #info-team-a { color: var(--team-a-color); }
 #info-team-b { color: var(--team-b-color); }
-
-#info-score {
-    margin: 0;
-}
 
 #scoreboard table {
     width: 100%;
@@ -593,16 +599,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     width: 100%;
     height: 100%;
 }
-#bases-container::before { /* Diamond path */
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 60%;
-    height: 60%;
-    transform: translate(-50%, -50%) rotate(45deg);
-    border: 2px solid var(--border-color);
-}
+/* 舊的菱形線框已移除：球場改由 #main-field 的 SVG 繪製 */
 .base {
     position: absolute;
     width: 12%;
@@ -621,42 +618,56 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 #first-base { top: 50%; right: 10%; transform: translateY(-50%) rotate(45deg); }
 #home-plate { bottom: 10%; left: 50%; transform: translateX(-50%) rotate(45deg); }
 
+/* 開賽前：球場壓暗，PLAY BALL 是唯一亮點 */
+#game-state-display.pregame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: inherit;
+    z-index: 4;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+#game-state-display:not(.pregame)::after { opacity: 0; }
+
 #play-ball-btn {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: rgba(224, 224, 224, 0.8);
-    font-size: 2.5rem;
-    font-weight: bold;
-    letter-spacing: 2px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.9rem 2.4rem;
+    border-radius: 999px;
+    background: #fbbf24;
+    color: #1f1300;
     cursor: pointer;
-    transition: all 0.2s ease-in-out;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
     user-select: none;
-    text-align: center;
-    line-height: 1.1;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 0 0 0 rgba(251, 191, 36, 0.55);
+    animation: pb-breathe 2.2s ease-in-out infinite;
+    transition: transform 0.15s ease, opacity 0.25s ease;
 }
-
-#play-ball-btn:hover {
-    color: #ffffff;
-    transform: translate(-50%, -50%) scale(1.05);
+#play-ball-btn .pb-main { font-size: 1.9rem; font-weight: 900; letter-spacing: 3px; line-height: 1; white-space: nowrap; }
+#play-ball-btn { max-width: 92%; white-space: nowrap; }
+#play-ball-btn .pb-sub { font-size: 0.75rem; font-weight: 600; opacity: 0.8; letter-spacing: 1px; }
+#play-ball-btn:hover { transform: translate(-50%, -50%) scale(1.04); }
+#play-ball-btn:active { transform: translate(-50%, -50%) scale(0.97); }
+@keyframes pb-breathe {
+    0%, 100% { box-shadow: 0 8px 28px rgba(0,0,0,0.55), 0 0 0 0 rgba(251, 191, 36, 0.55); }
+    50%      { box-shadow: 0 8px 28px rgba(0,0,0,0.55), 0 0 0 14px rgba(251, 191, 36, 0); }
 }
-
-#play-ball-btn.hidden {
-    display: none;
-}
-
+#play-ball-btn.hidden { display: none; }
 #play-ball-btn.disabled {
     cursor: not-allowed;
-    color: #888;
+    background: #6b6b6b;
+    color: #2a2a2a;
+    animation: none;
 }
-
-#play-ball-btn.disabled:hover {
-    color: #888;
-    transform: translate(-50%, -50%) scale(1);
-}
-
+#play-ball-btn.disabled:hover { transform: translate(-50%, -50%); }
 
 /* --- Event Log --- */
 .event-log-header {
@@ -727,21 +738,38 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     z-index: 100;
 }
 
-#confirm-modal, #box-score-modal, #management-modal, #load-roster-modal {
+/* 所有事件視窗一律置中；原本 play/runner 是釘在計分板上方，手機上會跑版 */
+#play-modal, #confirm-modal, #box-score-modal, #runner-action-modal,
+#management-modal, #load-roster-modal {
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 1rem;
+}
+
+#play-modal.modal-hidden, #confirm-modal.modal-hidden, #box-score-modal.modal-hidden,
+#runner-action-modal.modal-hidden, #management-modal.modal-hidden,
+#load-roster-modal.modal-hidden {
+    display: none !important;
 }
 
 #modal-content, #runner-action-modal-content {
     background-color: var(--panel-bg-color);
     padding: 2rem;
     border-radius: 8px;
-    width: 90%;
+    width: 100%;
     max-width: 500px;
-    position: absolute;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;   /* 由外層 flex 置中，不再用 inline 座標定位 */
     cursor: move;
     user-select: none;
+}
+
+/* 拖曳時才切換成絕對定位（桌機用），行動裝置不啟用 */
+.draggable-modal-content.is-dragging {
+    position: fixed;
+    margin: 0;
 }
 
 #close-modal, #close-box-score-modal, #close-runner-action-modal, #close-management-modal, #close-load-roster-modal {
@@ -1076,9 +1104,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .management-team-tabs button.active.team-b { border-color: var(--team-b-color); }
 
 .management-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+    display: block;      /* 守位圖要吃滿整個視窗寬（原本是兩欄名單） */
     min-height: 50vh;
 }
 
@@ -1351,7 +1377,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .collapsible-content.expanded {
-    max-height: 650px; 
+    max-height: 2400px; 
     padding-top: 0.5rem;
 }
 
@@ -1635,3 +1661,1403 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     --team-a-color: #4a90e2;
     --team-b-color: #e24a4a;
 }
+/* === 打席確認摘要 === */
+#modal-advanced-summary {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 0.75rem;
+    border-radius: 4px;
+    text-align: left;
+}
+#modal-advanced-summary:empty {
+    display: none;
+}
+#modal-advanced-summary.summary-ok {
+    background-color: #2f3a2f;
+    border-left: 3px solid #4ade80;
+    color: #d7e8d7;
+}
+#modal-advanced-summary.summary-conflict {
+    background-color: #3a2f2f;
+    border-left: 3px solid #f87171;
+    color: #f8d7d7;
+    font-weight: 600;
+}
+#modal-advanced-done:disabled {
+    background-color: #444;
+    color: #888;
+    cursor: not-allowed;
+}
+
+/* === 計分板：無格線版面（參考 MLB Gameday） === */
+/* 靠留白、字重與顏色分層，不用邊框；覆寫上方的舊規則 */
+#scoreboard table {
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;  /* 數字等寬，欄位才會對齊 */
+    /* 固定佈局：欄寬依比例自動分配，不論 9 局或延長賽都不會撐破畫面 */
+    table-layout: fixed;
+    width: 100%;
+}
+
+#scoreboard th,
+#scoreboard td {
+    border: none;
+    padding: clamp(0.2rem, 1vw, 0.55rem) clamp(0.05rem, 0.5vw, 0.35rem);
+    text-align: center;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* 隊名欄佔固定比例，其餘欄位平均分配剩下的空間 */
+#scoreboard th.team-col,
+#scoreboard td.team-col {
+    /* 需容納 logo + 最多 4 字的隊名 */
+    width: 25%;
+}
+
+#scoreboard th {
+    background-color: transparent;
+    color: #8b9096;
+    font-weight: 500;
+    font-size: clamp(0.62rem, 2.1vw, 0.8rem);
+    letter-spacing: 0.02em;
+    padding-bottom: 0.4rem;
+}
+
+/* 表頭與內容之間只留一條細線 */
+#scoreboard thead tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+#scoreboard td {
+    font-size: clamp(0.72rem, 2.6vw, 1.05rem);
+    color: var(--text-color);
+}
+
+/* 隊伍欄靠左，其餘置中 */
+#scoreboard th.team-col,
+#scoreboard td.team-col {
+    text-align: left;
+    padding-left: 0;
+    white-space: nowrap;
+}
+
+/* R / H / E 與局數之間用間距區隔，不用線 */
+#scoreboard th.rhe-first,
+#scoreboard td.rhe-first {
+    padding-left: clamp(0.25rem, 1.8vw, 1.1rem);
+}
+
+#scoreboard th.rhe {
+    color: #b6bcc4;
+    font-weight: 700;
+}
+
+#scoreboard td.total-col {
+    font-weight: 700;
+    font-size: clamp(0.8rem, 2.9vw, 1.15rem);
+}
+
+#scoreboard td.rhe {
+    color: #c8cdd3;
+}
+
+/* 拿掉格線後，用底色標示目前進行中的局 */
+#scoreboard th.inning-now,
+#scoreboard td.inning-now {
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+#scoreboard th.inning-now {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+/* 兩隊之間的細分隔線 */
+#scoreboard-body tr:first-child {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.scoreboard-team-cell {
+    padding-left: 0;
+    gap: 0.45rem;
+}
+
+.scoreboard-team-logo {
+    width: clamp(14px, 4.5vw, 22px);
+    height: clamp(14px, 4.5vw, 22px);
+}
+
+.scoreboard-team-cell span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* === 上方比數列（參考 MLB Gameday） === */
+/* 全部用 clamp() 隨視窗連續縮放，避免在窄機種（如 360px）爆版 */
+.info-score-num {
+    font-size: clamp(1.35rem, 7vw, 2.1rem);
+    font-weight: 400;
+    color: #9aa0a6;
+    font-variant-numeric: tabular-nums;
+    min-width: 1.1em;
+    text-align: center;
+    transition: color 0.2s;
+}
+
+/* 領先方比數用白色加粗，落後方維持灰色 */
+.info-score-num.leading {
+    color: #fff;
+    font-weight: 700;
+}
+
+#info-status {
+    font-size: clamp(0.65rem, 2.6vw, 0.8rem);
+    font-weight: 700;
+    color: #8b9096;
+    letter-spacing: 0.04em;
+    min-width: 3.2em;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* === 右側面板分頁 === */
+#panel-tabs {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.panel-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #8b9096;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    border-radius: 0;
+}
+
+.panel-tab:hover {
+    color: var(--text-color);
+}
+
+.panel-tab.active {
+    color: var(--text-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.panel-pane {
+    overflow-x: auto;   /* 表格較寬時可左右捲；垂直捲動交給外層面板 */
+}
+
+.panel-pane-hidden {
+    display: none;
+}
+
+/* 分頁內的成績表：沿用無格線風格，字級縮小以塞進側欄 */
+.panel-pane table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 0.75rem;
+}
+
+.panel-pane th,
+.panel-pane td {
+    border: none;
+    padding: 0.35rem 0.3rem;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.panel-pane thead tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.panel-pane th {
+    color: #8b9096;
+    font-weight: 500;
+    font-size: 0.72rem;
+}
+
+.panel-pane th:first-child,
+.panel-pane td:first-child {
+    text-align: left;
+}
+
+.panel-pane tbody tr + tr {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.panel-pane .total-row {
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    font-weight: 700;
+}
+
+.panel-pane h4 {
+    margin: 0.75rem 0 0.4rem;
+    font-size: 0.9rem;
+    color: #b6bcc4;
+}
+
+.panel-pane .team-separator {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    margin: 1rem 0;
+}
+
+/* === 事件視窗統一：自適應寬高、超出內容可內部捲動 === */
+.draggable-modal-content,
+.management-modal-content,
+.load-roster-modal-content,
+#box-score-content,
+#confirm-modal > div {
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 0;
+}
+
+/* 內距在窄螢幕縮小，避免內容被擠成細長條 */
+@media (max-width: 768px), (orientation: portrait) {
+    #modal-content,
+    #runner-action-modal-content,
+    .management-modal-content,
+    .load-roster-modal-content,
+    #box-score-content {
+        padding: 1.25rem 1rem;
+        max-height: 88vh;
+        cursor: default;   /* 行動裝置不拖曳 */
+    }
+
+    /* 關閉鈕加大觸控範圍 */
+    #close-modal, #close-box-score-modal, #close-runner-action-modal,
+    #close-management-modal, #close-load-roster-modal {
+        top: 6px;
+        right: 8px;
+        padding: 0.25rem 0.5rem;
+        line-height: 1;
+    }
+
+    /* 視窗內的捲動也不顯示捲軸 */
+    .draggable-modal-content,
+    .management-modal-content,
+    .load-roster-modal-content,
+    #box-score-content,
+    .modal-options {
+        scrollbar-width: none;
+    }
+
+    .draggable-modal-content::-webkit-scrollbar,
+    .management-modal-content::-webkit-scrollbar,
+    .load-roster-modal-content::-webkit-scrollbar,
+    #box-score-content::-webkit-scrollbar,
+    .modal-options::-webkit-scrollbar {
+        width: 0;
+        display: none;
+    }
+}
+
+/* === 目前打者：分層排版，讓姓名與數據一眼可辨 === */
+#current-batter-display {
+    padding: clamp(0.5rem, 2.5vw, 0.9rem);
+    gap: clamp(0.5rem, 2.5vw, 0.9rem);
+    align-items: start;
+}
+
+.batter-photo-main {
+    /* 放大到接近卡片高度；用 aspect-ratio 固定 3:4，高度隨寬度自動換算 */
+    width: clamp(62px, 22vw, 88px);
+    height: auto;
+    aspect-ratio: 3 / 4;
+}
+
+#batter-info-text {
+    gap: 0.3rem;
+    min-width: 0;
+}
+
+/* 主要資訊區：取消整段同字重同顏色 */
+#batter-main-info {
+    font-size: inherit;
+    font-weight: 400;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+/* 第一層：棒次 + 姓名，姓名最大最亮 */
+.batter-name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.batter-order {
+    flex-shrink: 0;
+    font-size: clamp(0.68rem, 2.6vw, 0.8rem);
+    font-weight: 700;
+    color: #12151a;
+    background-color: var(--team-accent, var(--primary-color));
+    border-radius: 3px;
+    padding: 0.1rem 0.35rem;
+    line-height: 1.4;
+}
+
+.batter-name {
+    font-size: clamp(1.05rem, 4.6vw, 1.35rem);
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 第二層：隊名，退為輔助資訊 */
+.batter-team-name {
+    font-size: clamp(0.7rem, 2.8vw, 0.82rem);
+    font-weight: 500;
+    color: var(--team-accent, #8b9096);
+    line-height: 1.2;
+}
+
+/* 第三層：數據做成小方塊，數字大、標籤小 */
+.batter-stats {
+    /* 五等分撐滿整個寬度，與下方分隔線切齊 */
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    width: 100%;
+    gap: 0.2rem;
+    margin-top: 0.25rem;
+}
+
+.batter-stats .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.15;
+}
+
+.batter-stats .stat b {
+    font-size: clamp(0.82rem, 3.4vw, 1rem);
+    font-weight: 700;
+    color: #e8e8e8;
+    font-variant-numeric: tabular-nums;
+}
+
+.batter-stats .stat i {
+    font-style: normal;
+    font-size: clamp(0.58rem, 2.2vw, 0.68rem);
+    color: #8b9096;
+    white-space: nowrap;
+}
+
+/* 第四層：本場打席結果做成標籤 */
+#batter-last-ab {
+    font-size: inherit;
+    font-weight: 400;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 0;
+}
+
+.last-ab-label {
+    font-size: clamp(0.6rem, 2.3vw, 0.7rem);
+    color: #8b9096;
+    margin-right: 0.1rem;
+}
+
+.ab-chip {
+    font-size: clamp(0.68rem, 2.7vw, 0.8rem);
+    font-weight: 700;
+    color: #e8e8e8;
+    background-color: rgba(255, 255, 255, 0.09);
+    border-radius: 3px;
+    padding: 0.12rem 0.4rem;
+    white-space: nowrap;
+}
+
+.ab-chip-empty {
+    font-weight: 400;
+    color: #8b9096;
+    background-color: transparent;
+    padding-left: 0;
+}
+
+/* === 局數標籤移入戰況區右上角，與左上的 OUT 對稱 === */
+#inning-display {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    width: auto;
+    z-index: 2;
+    pointer-events: none;   /* 不擋住 PLAY BALL 的點擊範圍 */
+    background-color: var(--primary-color);
+    border-radius: 12px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.5;
+    padding: 0.15rem 0.75rem;
+    font-size: clamp(0.75rem, 3vw, 0.95rem);
+}
+
+/* === 上方版面：依截圖實測值設定（基準 360px 寬）=== */
+/* 量測結果：隊名 28px、比數 35px、局數 16px、
+   球場框 129×24、日期框 97×26、列間距 6-8px            */
+#game-info {
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(0.25rem, 1.7vw, 0.5rem);      /* 360px → 6px */
+}
+
+/* 球場 / 日期 / 天氣併為一列並縮小，減少頂部佔用高度 */
+#game-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.2rem, 1.4vw, 0.4rem);
+    width: 100%;
+    min-width: 0;
+}
+
+#game-meta-row .header-input {
+    font-size: clamp(0.5rem, 2.25vw, 0.7rem);   /* 360px → 8.1px */
+    padding: 0.18rem 0.25rem;
+    text-align: center;
+    min-width: 0;
+}
+
+/* 球場可壓縮，把空間讓給日期 */
+#stadium-input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 3.5em;
+    max-width: 9em;
+}
+
+/* 日期需完整顯示 YYYY/MM/DD，寬度以字級為基準推算 */
+#game-date-input {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 7.6em;
+    padding-right: 0.15rem;
+}
+
+/* 縮小原生日曆圖示，省下的寬度留給日期文字 */
+#game-date-input::-webkit-calendar-picker-indicator {
+    width: 0.85em;
+    height: 0.85em;
+    padding: 0;
+    margin-left: 0.15em;
+}
+
+#weather-input {
+    flex: 0 0 auto;
+    background-color: #3e3e3e;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: 4px;
+    font-family: inherit;
+    cursor: pointer;
+    min-width: 3.2em;
+    padding-right: 0.2rem;
+}
+
+/* 比數列 */
+/* 三欄格線：兩側等寬，中間那組（比數 / 局數 / 比數）永遠位於畫面正中央，
+   不會因為隊名長短不同而左右偏移。 */
+#game-info-center {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    font-weight: 400;
+    width: 100%;
+    gap: clamp(0.3rem, 1.8vw, 0.7rem);        /* 360px → 6.5px */
+    min-width: 0;
+}
+
+#info-score-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(0.3rem, 1.8vw, 0.7rem);
+}
+
+/* 隊名最多 4 字，且 1–4 字一律同尺寸（360px 時 28px）。
+   為了讓 4 字放得下，比數、局數與間距已相應縮小。 */
+#game-info-center #info-team-a,
+#game-info-center #info-team-b {
+    font-size: clamp(1.4rem, 7.78vw, 2.1rem);  /* 360px → 28px（1–3 字） */
+    font-weight: 700;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#game-info-center #info-team-a {
+    color: var(--team-a-color);
+    text-align: right;
+}
+
+#game-info-center #info-team-b {
+    color: var(--team-b-color);
+    text-align: left;
+}
+
+.info-score-num {
+    font-size: clamp(1.6rem, 8.6vw, 2.4rem);  /* 360px → 31px */
+    font-weight: 400;
+    color: #9aa0a6;
+    font-variant-numeric: tabular-nums;
+    min-width: 0.7em;
+    text-align: center;
+    transition: color 0.2s;
+}
+
+.info-score-num.leading {
+    color: #fff;
+    font-weight: 700;
+}
+
+#info-status {
+    font-size: clamp(0.7rem, 3.4vw, 0.95rem); /* 360px → 12px */
+    font-weight: 700;
+    color: #8b9096;
+    letter-spacing: 0.02em;
+    text-align: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* === 比分數字字型（Archivo ExtraBold，子集化僅含數字，自行託管）=== */
+@font-face {
+    font-family: 'ScoreNum';
+    src: url('./fonts/archivo-num-800.woff2') format('woff2');
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* 套用於所有比分與統計數字；中文仍走系統字型 */
+.info-score-num,
+#scoreboard td,
+#scoreboard th,
+.batter-stats .stat b,
+#inning-display {
+    /* 字型檔只含數字，中文與其他字元會自動落回系統字型 */
+    font-family: 'ScoreNum', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                 Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* 這個字型本身已是 800 粗度，字重交給字型檔 */
+.info-score-num {
+    font-weight: 800;
+}
+
+.info-score-num.leading {
+    font-weight: 800;
+}
+
+
+/* === 成績表：寬度自適應，窄螢幕也能看到全部欄位 === */
+.panel-pane table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+/* 欄距壓到最小，把省下的寬度換成更大的字 */
+.panel-pane th,
+.panel-pane td {
+    /* OPS 可能超過 1（如 1.933），欄距不能為 0 否則會與前一欄相黏 */
+    padding: 0.34rem 0.12rem;
+    font-size: clamp(0.72rem, 2.7vw, 0.95rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.02em;
+}
+
+.panel-pane th {
+    font-size: clamp(0.62rem, 2.3vw, 0.82rem);
+}
+
+/* 姓名欄依內容自動撐開，完整顯示姓名與守位，不截斷 */
+.panel-pane table {
+    table-layout: auto;
+}
+
+.panel-pane th:first-child,
+.panel-pane td:first-child {
+    width: 1%;
+    white-space: nowrap;
+    text-align: left;
+    padding-right: 0.35rem;
+}
+
+.panel-pane td:first-child .box-score-player-cell,
+.panel-pane td:first-child .box-score-player-cell span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+}
+
+/* 守位：空格分隔、亮度降低 */
+.box-pos {
+    font-style: normal;
+    font-weight: 400;
+    color: #8b9096;
+    margin-left: 0.15em;
+}
+
+.box-score-player-cell {
+    gap: 0;
+    min-width: 0;
+}
+
+.box-score-player-cell span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 姓名欄改為自動寬度後，萬一超出仍可橫向捲動，不會被裁掉 */
+.panel-pane {
+    overflow-x: auto;
+}
+/* === 擊球落點：球場圖點選 === */
+.hit-direction {
+    margin: 0.75rem 0 0.5rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hit-direction-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #8b9096;
+    margin-bottom: 0.35rem;
+    text-align: left;
+}
+
+.hit-direction-label em {
+    font-style: normal;
+    font-size: 0.72rem;
+    opacity: 0.8;
+}
+
+#hit-field {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    /* 高度隨寬度等比，並確保在小視窗也不會被壓到難以點選 */
+    min-height: 150px;
+    margin: 0 auto;
+    touch-action: manipulation;
+}
+
+.hf-grass { fill: #2f4632; }
+.hf-dirt  { fill: #6b4c33; }
+.hf-arc   { fill: none; stroke: rgba(255,255,255,0.25); stroke-width: 1; }
+.hf-line  { stroke: rgba(255,255,255,0.45); stroke-width: 1.2; }
+.hf-base  { fill: #e8e8e8; }
+
+/* 落點標記 */
+.hf-mark {
+    fill: #fbbf24;
+    stroke: #1a1a1a;
+    stroke-width: 1.5;
+    pointer-events: none;
+}
+
+/* 整片球場可點，只記落點 */
+.hf-hit {
+    fill: transparent;
+    cursor: crosshair;
+}
+
+/* 落點已在主畫面標好：小圖只作確認顯示 */
+.hit-direction-locked #hit-field {
+    cursor: default;
+    opacity: 0.92;
+    outline: 1px solid rgba(251, 191, 36, 0.35);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.hit-direction-locked .hf-mark {
+    stroke: #fff;
+    stroke-width: 2;
+}
+
+/* 處理野手按鈕 */
+.fielder-label {
+    margin-top: 0.6rem;
+}
+
+.hit-direction-row {
+    display: grid;
+    gap: 0.3rem;
+    margin-bottom: 0.3rem;
+}
+
+.hit-direction-row:first-of-type { grid-template-columns: repeat(3, 1fr); }
+.hit-direction-row:last-of-type  { grid-template-columns: repeat(6, 1fr); }
+
+.hit-direction .dir-btn {
+    padding: 0.45rem 0.2rem;
+    min-height: 40px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    background-color: #3e3e3e;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.hit-direction .dir-btn.selected {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+/* === 界外區 === */
+.hf-foul {
+    fill: rgba(120, 110, 100, 0.35);
+    stroke: rgba(255, 255, 255, 0.18);
+    stroke-width: 0.6;
+    cursor: crosshair;
+}
+
+.hf-foul:hover { fill: rgba(160, 150, 135, 0.5); }
+
+/* 不適用時變暗且不可點 */
+.hf-foul.off,
+.hf-hit.off {
+    fill: rgba(90, 90, 90, 0.12);
+    pointer-events: none;
+    cursor: default;
+}
+
+#official-sheet-btn {
+    background-color: #0f766e;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.35rem 0.6rem;
+    font-family: inherit;
+    font-size: clamp(0.7rem, 2.6vw, 0.85rem);
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* === 主畫面可點球場（位置優先流程）=== */
+#game-state-display { position: relative; }
+
+#main-field {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+}
+
+/* 球場改用圖片；以下只保留疊在圖上的互動元素 */
+.mf-foul { fill: transparent; }
+
+/* 可點區域：未開賽時不反應 */
+.mf-zone { fill: transparent; }
+#main-field.live .mf-zone,
+#main-field.live .mf-foul { cursor: crosshair; }
+#main-field.live .mf-zone:active,
+#main-field.live .mf-foul:active { fill: rgba(255,255,255,0.14); }
+
+/* 壘包：空壘只有小圓點，有人時換成半身人像 + 姓名 */
+.mf-base { pointer-events: none; }
+.mf-base-dot { fill: transparent; stroke: none; }
+.mf-base.occupied .mf-base-dot { display: none; }
+
+.mf-runner { display: none; }
+.mf-base.occupied .mf-runner { display: block; }
+
+.mf-runner-head,
+.mf-runner-body { fill: #fbbf24; stroke: #7c4a03; stroke-width: 2; }
+
+.mf-runner-name {
+    fill: #fff;
+    stroke: rgba(0, 0, 0, 0.85);
+    stroke-width: 4;
+    paint-order: stroke fill;
+    font-size: 20px;
+    font-weight: 700;
+}
+.mf-mark { fill: #e11d48; stroke: #fff; stroke-width: 3; }
+
+#bases-container { position: absolute; inset: 0; pointer-events: none; }
+#bases-container #play-ball-btn { pointer-events: auto; }
+#play-ball-btn.hidden { display: none; }
+
+/* 落點後的結果選單 */
+#field-result-panel {
+    position: absolute;
+    left: 50%;
+    bottom: 4%;
+    transform: translateX(-50%);
+    width: 92%;
+    background: rgba(20, 22, 26, 0.96);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.5rem;
+    z-index: 5;
+}
+
+#field-result-panel.hidden { display: none; }
+
+.frp-title {
+    font-size: clamp(0.7rem, 2.8vw, 0.85rem);
+    color: #8b9096;
+    margin-bottom: 0.4rem;
+}
+
+.frp-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.3rem;
+}
+
+.frp-options button {
+    padding: 0.5rem 0.2rem;
+    min-height: 42px;
+    font-size: clamp(0.72rem, 2.9vw, 0.9rem);
+    font-weight: 700;
+    background: #3e3e3e;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.frp-cancel {
+    margin-top: 0.35rem;
+    width: 100%;
+    padding: 0.35rem;
+    font-size: 0.8rem;
+    background: transparent;
+    color: #8b9096;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* 沒被打出去的結果：常駐快捷按鈕 */
+#quick-plays {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: clamp(0.25rem, 1.2vw, 0.5rem);
+    margin-top: 0.4rem;
+    flex-shrink: 0;
+}
+
+#quick-plays button {
+    padding: 0.5rem 0.2rem;
+    min-height: 44px;
+    font-size: clamp(0.75rem, 3vw, 0.95rem);
+    font-weight: 700;
+    background: #3e3e3e;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* 淺色球場上的 PLAY BALL 需要深色字才清楚 */
+#play-ball-btn {
+    color: #3d4a12;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+}
+
+/* 打者出局的唯讀列：讓使用者看得到這一個出局數 */
+.batter-out-row .static-out {
+    display: inline-block;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fca5a5;
+    background: rgba(220, 38, 38, 0.15);
+    border: 1px dashed rgba(248, 113, 113, 0.6);
+    border-radius: 4px;
+}
+
+/* 守備鏈：按鈕右上角標示點選順序 */
+.hit-direction .dir-btn { position: relative; }
+.hit-direction .dir-btn .dir-order {
+    position: absolute;
+    top: -6px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: #fbbf24;
+    color: #1f1300;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: 16px;
+    text-align: center;
+}
+
+.hit-direction .dir-clear {
+    margin-left: 6px;
+    padding: 1px 8px;
+    font-size: 11px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.hit-direction .dir-clear.selected {
+    background: #fbbf24;
+    color: #1f1300;
+    border-color: #fbbf24;
+    font-weight: 700;
+}
+
+/* ===== 名單頁：手機版卡片式排版 ===== */
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+#lineup-save-status {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #9a9a9a;
+    padding: 0.4rem 0;
+    transition: color 0.2s;
+}
+#lineup-save-status.show { color: #4ade80; font-weight: 700; }
+
+.bench-hidden { display: none !important; }
+.bench-count { font-weight: 400; color: #9a9a9a; font-size: 0.85em; }
+.bench-add-btn {
+    width: 100%;
+    padding: 0.7rem;
+    margin: 0.25rem 0 0.75rem;
+    border: 1px dashed rgba(255,255,255,0.35);
+    background: transparent;
+    color: var(--text-color);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+.bench-add-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* 觸控裝置沒有 hover：上傳照片的按鈕要一直看得到，改成右下角小相機 */
+@media (hover: none) {
+    .image-upload-label {
+        opacity: 1;
+        top: auto;
+        left: auto;
+        right: -4px;
+        bottom: -4px;
+        transform: none;
+        width: 18px;
+        height: 18px;
+        font-size: 13px;
+        background: #4f7cf5;
+        border: 1px solid #111;
+    }
+}
+
+
+
+/* 守位對調時閃一下，讓人知道另一位也被換了 */
+.lineup-player.pos-swapped { box-shadow: 0 0 0 2px #fbbf24 inset; transition: box-shadow 0.3s; }
+
+/* 手機版：單行緊湊列，先發九人在一個畫面內看完 */
+@media (max-width: 768px), (orientation: portrait) {
+    .lineup-player,
+    .pitcher-input-container {
+        display: grid;
+        grid-template-columns: 22px 38px 46px minmax(0, 1fr) 64px 20px;
+        grid-template-areas: "order photo jersey name pos handle";
+        gap: 0.3rem;
+        align-items: center;
+        padding: 0.25rem 0.3rem;
+        margin: 0 0 0.3rem;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+    }
+    .lineup-player .player-order-span,
+    .pitcher-input-container .pitcher-order-span {
+        grid-area: order;
+        justify-self: center;
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #fbbf24;
+        visibility: visible;
+    }
+    .pitcher-input-container .pitcher-order-span { color: #60a5fa; }
+    .lineup-player.bench-player .player-order-span { color: #777; font-size: 0.7rem; }
+    .lineup-player.bench-player .player-order-span:empty::before { content: '板'; }
+    .lineup-player .player-photo-container,
+    .pitcher-input-container .player-photo-container {
+        grid-area: photo;
+        width: 38px;
+        max-width: 38px;
+        aspect-ratio: 3 / 4;
+    }
+    .lineup-player input[data-type="name"],
+    .pitcher-input-container input[data-type="pitcher-name"] {
+        grid-area: name;
+        font-size: 1rem;
+        font-weight: 600;
+        min-height: 42px;
+        padding: 0.35rem 0.5rem;
+    }
+    .lineup-player input[data-type="jersey"],
+    .pitcher-input-container input[data-type="pitcher-jersey"] {
+        grid-area: jersey;
+        width: 100%;
+        min-height: 42px;
+        padding: 0.35rem 0.15rem;
+        text-align: center;
+    }
+    .lineup-player select[data-type="pos"],
+    .pitcher-input-container select[data-type="pitcher-pos"] {
+        grid-area: pos;
+        min-height: 42px;
+        padding: 0.35rem 1.3rem 0.35rem 0.4rem;
+        visibility: visible;
+    }
+    .lineup-player.bench-player select[data-type="pos"] { visibility: hidden; }
+    .lineup-player .drag-handle {
+        grid-area: handle;
+        justify-self: center;
+        font-size: 1.2rem;
+        padding: 0.4rem 0;
+        color: #888;
+    }
+    .pitcher-input-container::after { content: ''; grid-area: handle; }
+
+    /* 隊伍標題區與分隔標題也收緊，把高度讓給打線 */
+    #team-settings-container h4 { margin: 0.4rem 0; }
+    #team-settings-container h5 { margin: 0.5rem 0 0.3rem; font-size: 0.9rem; }
+    .roster-action-btn { padding: 0.4rem 0.6rem; font-size: 0.85rem; }
+}
+
+/* 名單頁最上方的操作列：比賽列表、新比賽 */
+#top-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+}
+#top-actions button {
+    flex: 1;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+#top-actions #new-game-btn { margin: 0; }
+
+/* 投手守位固定顯示 P，沒有下拉箭頭 */
+.pitcher-input-container .pos-fixed {
+    grid-area: pos;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    background: #2f3a4f;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: #93c5fd;
+    font-weight: 800;
+}
+
+/* ===== 面板主標／副標 ===== */
+.panel-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin: 0 0 0.75rem;
+    padding-bottom: 0.5rem;
+}
+aside h2.panel-title { font-size: 1.6rem; }
+#lineup-form .section-title {
+    font-size: 1.1rem;
+    margin: 0.75rem 0 0.6rem;
+    padding-bottom: 0.4rem;
+}
+
+/* 事件面板上方操作列：與名單頁「比賽記錄／新比賽」同樣的並排大小 */
+.top-actions-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+.top-actions-row button {
+    flex: 1;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+#log-actions #export-log-btn { background: #2980b9; color: #fff; }
+#log-actions #official-sheet-btn { background: #0f766e; color: #fff; }
+
+/* 隊伍標題列：隊徽（放大）、顏色、隊名 */
+#team-settings-container h4,
+.team-lineup > h4 {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.team-logo-container {
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+}
+.team-logo-container .image-upload-label {
+    width: 24px;
+    height: 24px;
+    font-size: 18px;
+}
+@media (hover: none) {
+    .team-logo-container .image-upload-label {
+        opacity: 1;
+        top: auto;
+        left: auto;
+        right: -4px;
+        bottom: -4px;
+        transform: none;
+        background: #4f7cf5;
+        border: 1px solid #111;
+    }
+}
+.team-color-input {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.team-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.team-color-input::-webkit-color-swatch { border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; }
+.team-name-input { flex: 1; min-width: 0; }
+
+/* 板凳列往右滑刪除：⛔ 藏在列的左側外面，列被推開時露出 */
+.lineup-player.bench-player {
+    position: relative;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.lineup-player.bench-player .swipe-reveal {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -84px;
+    width: 84px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #dc2626;
+    color: #fff;
+    font-size: 1.5rem;
+    border-radius: 8px 0 0 8px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, font-size 0.15s;
+}
+.lineup-player.bench-player[style*="translateX"] .swipe-reveal { opacity: 1; }
+.lineup-player.bench-player.will-delete .swipe-reveal { font-size: 2rem; background: #b91c1c; }
+.lineup-player:not(.bench-player) .swipe-reveal { display: none; }
+.collapsible-content { overflow: hidden; }
+
+/* 事件面板操作列的尺寸要贏過 mobile.css 針對 #export-log-btn 的縮小規則 */
+#log-actions button {
+    padding: 0.75rem;
+    font-size: 1rem;
+    border-radius: 6px;
+}
+
+/* ===== 戰況表 ===== */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 1rem; }
+.situation-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+.situation-table th, .situation-table td {
+    padding: 0.35rem 0.3rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.situation-table thead th {
+    background: #3a3a3a;
+    color: #fff;
+    font-weight: 700;
+    position: sticky;
+    top: 0;
+}
+.situation-table thead th.sit-name { text-align: center; }
+.situation-table td.sit-name {
+    text-align: left;
+    padding-left: 0.4rem;
+    border-right: 1px solid rgba(255,255,255,0.15);
+    position: sticky;
+    left: 0;
+    background: var(--panel-bg, #2a2a2a);
+}
+.situation-table thead th.sit-name { position: sticky; left: 0; z-index: 2; }
+.situation-table td.sit-name em { font-style: italic; color: #bbb; font-size: 0.85em; }
+.situation-table .sit-order { display: inline-block; width: 1.2em; color: #999; margin-right: 0.15em; }
+.situation-table tr.substitute-row td.sit-name { padding-left: 1.4rem; color: #ddd; }
+.situation-table td:nth-child(n+2):nth-child(-n+16) { min-width: 2.6em; }
+.situation-table tbody td:not(.sit-name) { border-left: 1px solid rgba(255,255,255,0.04); }
+.situation-table tfoot .total-row td { background: rgba(251, 191, 36, 0.12); font-weight: 700; color: #fbbf24; }
+.situation-table tfoot .total-row td.sit-name { color: #fbbf24; }
+
+/* ===== 情境式換人：主頁按鈕 ===== */
+.ctx-sub-btn {
+    margin-left: 0.5rem;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    cursor: pointer;
+    vertical-align: middle;
+}
+.ctx-sub-btn:hover { background: rgba(255,255,255,0.18); }
+.pitcher-now { margin-left: 0.75rem; color: #9ec5ff; font-size: 0.85em; }
+#mf-first.occupied, #mf-second.occupied, #mf-third.occupied { cursor: pointer; pointer-events: auto; }
+
+/* 選人視窗 */
+#picker-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+#picker-modal.modal-hidden { display: none; }
+.picker-content {
+    position: relative;
+    width: min(92vw, 420px);
+    max-height: 80vh;
+    overflow: auto;
+    background: var(--panel-bg, #2a2a2a);
+    border-radius: 12px;
+    padding: 1rem;
+}
+#picker-close { position: absolute; top: 0.5rem; right: 0.7rem; background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; }
+.picker-note { font-size: 0.8rem; color: #9a9a9a; margin: -0.5rem 0 0.6rem; }
+.picker-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.picker-item {
+    display: flex; align-items: center; gap: 0.7rem;
+    width: 100%; padding: 0.55rem 0.7rem;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+    color: #fff; font-size: 1rem; text-align: left; cursor: pointer;
+}
+.picker-item:hover { background: rgba(255,255,255,0.14); }
+.picker-item img { width: 36px; height: 48px; object-fit: cover; border-radius: 4px; background: #444; }
+.picker-name { font-weight: 700; flex: 1; }
+.picker-sub { color: #9a9a9a; font-size: 0.85rem; }
+
+/* 守位圖：沿用主頁球場圖，節點用壘上跑者的半身人像 */
+.def-hint { font-size: 0.85rem; color: #fbbf24; margin-bottom: 0.4rem; min-height: 1.2em; }
+.def-field { width: 100%; max-width: 640px; height: auto; display: block; margin: 0 auto 0.5rem; border-radius: 8px; }
+.def-node { cursor: pointer; }
+.def-node .def-hit { fill: transparent; }                 /* 加大點擊範圍 */
+.def-node .mf-runner-head, .def-node .mf-runner-body { fill: #fbbf24; stroke: #7c4a03; stroke-width: 2; }
+.def-node.selected .mf-runner-head, .def-node.selected .mf-runner-body { fill: #fff; stroke: #f59e0b; stroke-width: 3; }
+.def-node.selected .def-hit { fill: rgba(251, 191, 36, 0.25); }
+.def-node.on-base .mf-runner-head, .def-node.on-base .mf-runner-body { stroke-dasharray: 3 2; }
+.def-node .def-name { text-anchor: middle; font-size: 17px; }
+.def-node.selected .def-name { fill: #fbbf24; }
+@media (max-width: 768px), (orientation: portrait) {
+    .def-field { max-width: none; }
+}
+.def-group h4 { font-size: 0.8rem; color: #9a9a9a; margin: 0.5rem 0 0.3rem; border: none; padding: 0; }
+.def-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.def-chip {
+    display: flex; align-items: center; gap: 0.4rem;
+    padding: 0.3rem 0.6rem 0.3rem 0.3rem;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 999px;
+    color: #fff; font-size: 0.85rem; cursor: pointer;
+}
+.def-chip img { width: 24px; height: 32px; object-fit: cover; border-radius: 4px; }
+.def-chip em { color: #9a9a9a; font-style: normal; font-size: 0.75rem; }
+.def-chip.selected { background: #fbbf24; color: #1f1300; border-color: #fbbf24; }
+.def-empty { color: #9a9a9a; font-size: 0.85rem; }
+
+/* 比賽中鎖住名單頁拖曳 */
+#lineup-form.game-started .drag-handle { visibility: hidden; }
+.lineup-lock-hint {
+    font-size: 0.8rem; color: #fbbf24; background: rgba(251,191,36,0.1);
+    border: 1px solid rgba(251,191,36,0.35); border-radius: 6px; padding: 0.5rem 0.6rem; margin-bottom: 0.6rem;
+}
+.lineup-lock-hint.hidden { display: none; }
+
+/* 調度視窗上方的情境換人鈕 */
+.def-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.6rem; }
+.def-quick-btn {
+    padding: 0.55rem 0.5rem;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+}
+.def-quick-btn small { font-weight: 400; font-size: 0.72rem; color: #bbb; }
+
+/* 球場圖上方留白＝全壘打區，鋪一層深綠讓它像牆外看台 */
+.mf-wall-area { fill: #14231a; }
+/* 結果面板：安打／出局／其他分群 */
+.frp-group { margin: 0.25rem 0; }
+.frp-group-label { display: block; font-size: 0.7rem; color: #8b9096; margin: 0.2rem 0 0.15rem; }
+#field-result-panel button.is-out { border-color: rgba(248, 113, 113, 0.5); }
+
+/* 比賽計時：放在原本局數標籤的右上角 */
+#game-clock {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 2;
+    pointer-events: none;
+    padding: 0.35rem 0.7rem;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+    font-size: 0.95rem;
+}
+#game-clock.stopped { color: #fbbf24; }
+#game-clock.hidden { display: none; }

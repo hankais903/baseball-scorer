@@ -8,13 +8,12 @@
     "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "serve": "vite preview --host --port 3000"
-  },
-  "dependencies": {
-
+    "serve": "vite preview --host --port 3000",
+    "test": "node tests/run.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "jsdom": "^26.1.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

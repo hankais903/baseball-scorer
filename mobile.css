@@ -32,55 +32,19 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  /* 面板定位 */
-  #app-container[data-panel="0"] {
-    transform: translateX(0);
-  }
+  /* 面板位移由 index.tsx 的 navigateToPanel() 以 inline transform 控制 */
 
-  #app-container[data-panel="1"] {
-    transform: translateX(-100vw);
-  }
+  /* 底部指示點沿用 index.css 原本的置中膠囊樣式，此處不再覆寫。
+     先前用 left:0;right:0 卻沒取消 translateX(-50%)，會把整條往左推半個螢幕。 */
 
-  #app-container[data-panel="2"] {
-    transform: translateX(-200vw);
-  }
-
-  /* 底部導航 */
-  #mobile-nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 50px;
-    background: var(--panel-bg-color);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    border-top: 1px solid var(--border-color);
-    z-index: 1000;
-  }
-
-  .nav-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #555;
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-
-  .nav-dot.active {
-    background: var(--primary-color);
-    transform: scale(1.3);
-  }
-
-  /* 調整所有面板的底部內邊距，避免被導航欄遮擋 */
+  /* 調整所有面板的底部內邊距，避免被指示點遮擋 */
   #control-panel,
   #main-content,
   #event-log-container {
-    padding-bottom: 70px;
+    padding-bottom: 60px;
   }
+
+  /* 球場與日期欄位的尺寸改由 index.css 依實測值統一設定，此處不再覆寫 */
 
   /* 標題調整 */
   h2 {
@@ -93,12 +57,10 @@
     margin-bottom: 0.5rem;
   }
 
-  /* 按鈕觸控優化 */
+  /* 按鈕觸控優化：只保證可點擊面積，字級與內距交給各元件自己決定，
+     否則會把所有按鈕一起撐大 */
   button {
     min-height: 44px;
-    min-width: 44px;
-    font-size: 1rem;
-    padding: 0.75rem 1rem;
   }
 
   /* 比分板優化 */
@@ -107,6 +69,10 @@
     -webkit-overflow-scrolling: touch;
     margin: 0 -0.75rem;
     padding: 0 0.75rem;
+    /* #main-content 是固定 100vh 的直向 flex 容器。
+       一旦子元素的 overflow 不是 visible，它就失去「不得縮到比內容小」的保護，
+       內容超過一屏時會被壓成 0 高度而整個看不見。這行是必要的。 */
+    flex-shrink: 0;
   }
 
   #scoreboard table {
@@ -114,51 +80,41 @@
     min-width: 100%;
   }
 
-  #scoreboard th,
-  #scoreboard td {
-    padding: 0.4rem 0.3rem;
-    min-width: 28px;
-  }
+  /* 欄寬與字級已由 index.css 的 table-layout: fixed + clamp() 處理，
+     這裡不再指定固定 min-width，否則窄螢幕會被撐破 */
 
   /* 當前打者顯示優化 */
   #current-batter-display {
-    flex-direction: column;
-    padding: 1rem;
-  }
-
-  #batter-info-text {
-    font-size: 0.9rem;
+    flex-shrink: 0;   /* 這區塊是 grid，內距與字級由 index.css 的 clamp() 處理 */
   }
 
   /* 主要操作按鈕 */
+  /* 標籤都很短，橫排三欄比直排省掉約 2/3 的高度 */
   .main-actions-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin: 1rem 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    margin: 0.5rem 0;
   }
 
   .main-action-btn {
     width: 100%;
-    padding: 1rem;
-    font-size: 1.1rem;
+    min-width: 0;
+    padding: 0.5rem 0.15rem;
+    font-size: clamp(0.7rem, 3vw, 0.9rem);
+    line-height: 1.25;
+    min-height: 44px;   /* 仍維持可觸控的最小高度 */
+    word-break: keep-all;
+  }
+
+  .main-actions-container {
+    gap: clamp(0.25rem, 1.2vw, 0.5rem);
   }
 
   /* 局數顯示 */
-  #inning-display {
-    font-size: 1.5rem;
-    padding: 1rem;
-    text-align: center;
-  }
+  /* #inning-display 的手機尺寸由 index.css 的媒體查詢處理，此處不再放大 */
 
-  /* 比賽狀態容器 */
-  #game-state-container {
-    margin: 1rem 0;
-  }
-
-  #game-state-display {
-    padding: 1.5rem 1rem;
-  }
+  /* 比賽狀態容器的間距改由 #main-content 的 gap 統一控制 */
 
   /* 壘包顯示優化 */
   #bases-container {
@@ -170,10 +126,9 @@
     height: 50px;
   }
 
-  #play-ball-btn {
-    font-size: 1.2rem;
-    padding: 1rem 2rem;
-  }
+  #play-ball-btn { padding: 0.7rem 2.2rem; }
+  #play-ball-btn .pb-main { font-size: clamp(1.3rem, 6vw, 1.9rem); }
+  #play-ball-btn .pb-sub { font-size: 0.7rem; }
 
   /* 模態框優化 */
   .draggable-modal-content {
@@ -196,25 +151,8 @@
   }
 
   /* 球員名單輸入 */
-  .lineup-player-row {
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem 0.5rem;
-  }
-
-  .lineup-player-row input[type="text"],
-  .lineup-player-row input[type="number"],
-  .lineup-player-row select {
-    width: 100%;
-    font-size: 1rem;
-    padding: 0.75rem;
-  }
-
-  /* 球員照片上傳按鈕 */
-  .player-photo-label {
-    width: 50px;
-    height: 50px;
-  }
+  /* 註：先前這裡寫的是 .lineup-player-row，但實際 class 是 .lineup-player，
+     整組規則從未生效。欄寬改由 index.css 的 clamp() 格線處理，此處不再覆寫。 */
 
   /* 隊伍名稱和顏色輸入 */
   .team-name-input {
@@ -262,13 +200,11 @@
 
   #game-info {
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 1rem;
+    gap: 0.35rem;
+    padding: 0.4rem 0;
   }
 
-  #game-info-center {
-    font-size: 1.2rem;
-  }
+  /* #game-info-center 內各元件已各自指定字級，不再統一覆寫 */
 
   /* 總表模態框 */
   #box-score-content {
@@ -326,14 +262,7 @@
     font-size: 1rem;
   }
 
-  button {
-    font-size: 0.9rem;
-    padding: 0.6rem 0.8rem;
-  }
-
-  #scoreboard table {
-    font-size: 0.75rem;
-  }
+  /* 不再統一指定按鈕字級：各元件自己用 clamp() 縮放 */
 
   #bases-container {
     transform: scale(0.8);
@@ -356,13 +285,7 @@
   }
 
   .main-actions-container {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .main-action-btn {
-    flex: 1 1 45%;
-    min-width: 45%;
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -375,4 +298,216 @@
   textarea {
     font-size: 16px !important;
   }
+}
+
+/* === 手機版成績表：只留核心欄位（參考 MLB Box 的取捨）=== */
+@media (max-width: 768px), (orientation: portrait) {
+  /* 打擊：保留 打數 得分 安打 打點 四壞 三振 打擊率 長打率
+     隱藏 打席(2) 二安(7) 三安(8) 全壘打(9) 盜壘(10) 觸身(12) 高飛犧牲(14) 雙殺打(15) 上壘率(17) */
+  .box-batting th:nth-child(2),  .box-batting td:nth-child(2),
+  .box-batting th:nth-child(7),  .box-batting td:nth-child(7),
+  .box-batting th:nth-child(8),  .box-batting td:nth-child(8),
+  .box-batting th:nth-child(9),  .box-batting td:nth-child(9),
+  .box-batting th:nth-child(10), .box-batting td:nth-child(10),
+  .box-batting th:nth-child(12), .box-batting td:nth-child(12),
+  .box-batting th:nth-child(14), .box-batting td:nth-child(14),
+  .box-batting th:nth-child(15), .box-batting td:nth-child(15),
+  .box-batting th:nth-child(17), .box-batting td:nth-child(17) {
+    display: none;
+  }
+
+  /* 投球：保留 局數 被安打 失分 自責分 四壞 奪三振 防禦率
+     隱藏 被全壘打(8) 面對打席(9) 暴投(10) 投手犯規(11) 死球(12) 故意四壞(13) 每局被上壘率(15) */
+  .box-pitching th:nth-child(8),  .box-pitching td:nth-child(8),
+  .box-pitching th:nth-child(9),  .box-pitching td:nth-child(9),
+  .box-pitching th:nth-child(10), .box-pitching td:nth-child(10),
+  .box-pitching th:nth-child(11), .box-pitching td:nth-child(11),
+  .box-pitching th:nth-child(12), .box-pitching td:nth-child(12),
+  .box-pitching th:nth-child(13), .box-pitching td:nth-child(13) {
+    display: none;
+  }
+  /* 第 15 欄是 WHIP，保留顯示 */
+
+  /* 分頁標籤在窄螢幕縮小 */
+  .panel-tab {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.4rem;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .event-log-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* === 隱藏捲軸（手機 APP 不該露出捲動條，捲動功能保留）=== */
+@media (max-width: 768px), (orientation: portrait) {
+  #control-panel,
+  #main-content,
+  #event-log-container,
+  .panel-pane,
+  #scoreboard,
+  #event-log {
+    scrollbar-width: none;          /* Firefox */
+    -ms-overflow-style: none;       /* 舊版 Edge/IE */
+  }
+
+  #control-panel::-webkit-scrollbar,
+  #main-content::-webkit-scrollbar,
+  #event-log-container::-webkit-scrollbar,
+  .panel-pane::-webkit-scrollbar,
+  #scoreboard::-webkit-scrollbar,
+  #event-log::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;                  /* Safari / Chrome */
+  }
+}
+
+/* === 主畫面塞進一屏：局數縮小、戰況區自動撐滿剩餘空間 === */
+@media (max-width: 768px), (orientation: portrait) {
+  /* 區塊間距壓縮，把空間讓給戰況區 */
+  #main-content {
+    gap: clamp(0.25rem, 1.2vw, 0.5rem);
+  }
+
+  #game-info {
+    gap: 0.25rem;
+  }
+
+  /* 局數標籤在窄螢幕靠近邊角一點，與左上的 OUT 對齊 */
+  #inning-display {
+    top: 10px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+  #game-clock { top: 10px; right: 10px; font-size: 0.85rem; }
+
+  /* 戰況區吃掉所有剩餘高度，但保留可辨識的最小尺寸 */
+  #game-state-container {
+    flex: 1 1 auto;
+    min-height: min(48vw, 200px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.25rem 0;
+  }
+
+  /* 依可用高度決定大小，並維持正方形 */
+  #game-state-display {
+    height: 100%;
+    width: auto;
+    aspect-ratio: 1;
+    max-width: 100%;
+    max-height: none;
+    min-height: 0;
+    margin: 0;
+    padding: 0.5rem;
+  }
+
+  /* 壘包縮放交給容器，移除先前寫死的縮小比例 */
+  #bases-container {
+    transform: none;
+  }
+
+  #play-ball-btn .pb-main { font-size: clamp(1.4rem, 6.5vw, 2rem); }
+
+  /* 一般手機剛好一屏；極短螢幕（如 320×568）才會需要小幅捲動 */
+  #main-content {
+    overflow-y: auto;
+  }
+}
+
+/* === iPhone 安全區域（動態島 / 瀏海 / 底部 Home 指示條）=== */
+/* 目前未啟用 viewport-fit=cover，iOS 會自動把內容排在安全區內，
+   env() 此時回傳 0，這組規則不會有任何副作用；
+   若日後改成貼邊全螢幕，這裡就會自動生效，內容不會被動態島遮住。 */
+@media (max-width: 768px), (orientation: portrait) {
+  #control-panel,
+  #main-content,
+  #event-log-container {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-bottom: max(60px, calc(env(safe-area-inset-bottom) + 52px));
+  }
+
+  /* 底部指示點也要避開 Home 指示條 */
+  #mobile-nav {
+    bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+  }
+}
+
+/* === 總表彈窗：窄螢幕也要看得到全部欄位 === */
+@media (max-width: 768px), (orientation: portrait) {
+  #box-score-tables table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  #box-score-tables th,
+  #box-score-tables td {
+    padding: 0.3rem 0.1rem;
+    font-size: clamp(0.56rem, 2vw, 0.78rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #box-score-tables th:first-child,
+  #box-score-tables td:first-child {
+    width: 22%;
+  }
+}
+
+/* === 打擊／投手／戰況表分頁：表格維持原排版，手機左右滑動看完整（捲軸隱藏） === */
+@media (max-width: 768px), (orientation: portrait) {
+  #pane-batting, #pane-pitching, #pane-situation {
+    overflow-x: auto !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    scrollbar-width: none;
+  }
+  #pane-batting::-webkit-scrollbar, #pane-pitching::-webkit-scrollbar, #pane-situation::-webkit-scrollbar { display: none; }
+  /* 表格間距沿用 index.css 的原設定（0.35rem 0.3rem），這裡只讓它可以超出寬度 */
+  #pane-batting table, #pane-pitching table { width: max-content; min-width: 100%; }
+  .situation-table { width: max-content; min-width: 100%; }
+}
+
+/* ===== 主頁：球場滿版 ===== */
+@media (max-width: 768px), (orientation: portrait) {
+  /* 3. 球場滿版：寬度決定大小，不再看剩餘高度 */
+  #game-state-container {
+    flex: none;
+    display: block;
+    min-height: 0;
+    padding: 0.25rem 0;
+  }
+  #game-state-display {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 370 / 425;
+    max-height: none;
+    padding: 0.35rem;
+  }
+
+  /* 4. 底部操作區兩行：快捷 48px、三顆功能鈕 40px */
+  #quick-plays button { min-height: 48px; }
+  .main-action-btn { min-height: 40px; padding: 0.4rem 0.15rem; }
+  .main-actions-container { margin: 0.35rem 0; }
+}
+/* 主頁順序：球場之後才是快捷鍵，再來三顆功能鈕（上一動／壘間事件／球員調度） */
+@media (max-width: 768px), (orientation: portrait) {
+  #main-content > #game-info { order: 0; }
+  #main-content > #current-batter-display { order: 1; }
+  #main-content > #game-state-container { order: 2; }
+  #main-content > #quick-plays { order: 3; }
+  #main-content > .main-actions-container { order: 4; }
+}
+@media (max-width: 768px), (orientation: portrait) {
+  #main-content > #scoreboard { order: 0; }
 }

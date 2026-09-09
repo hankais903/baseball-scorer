@@ -49,11 +49,17 @@ class GameManager {
                 lastModified: new Date().toISOString(),
                 version: 2
             };
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(games));
-            
-            // 顯示儲存成功提示
-            this.showNotification('✓ 已自動儲存', 'success');
-            
+            const payload = JSON.stringify(games);
+            // 判斷內容是否真的變動時要排除時間戳，否則每次都會被當成有變
+            const { lastModified, timestamp, savedAt, ...compareData } = gameData || {};
+            const fingerprint = JSON.stringify(compareData);
+            const changed = fingerprint !== this._lastFingerprint;
+            this._lastFingerprint = fingerprint;
+            localStorage.setItem(this.STORAGE_KEY, payload);
+
+            if (changed && !this.silent) {
+                this.showNotification('✓ 已自動儲存', 'success');
+            }
             return true;
         } catch (error) {
             console.error('儲存遊戲失敗:', error);
@@ -246,13 +252,17 @@ class GameManager {
         notification.textContent = message;
         notification.style.display = 'block';
 
-        // 3秒後自動隱藏
-        setTimeout(() => {
+        // 自動隱藏；先清掉上一次的計時器，避免多則提示互相干擾
+        if (this._notifyTimer) clearTimeout(this._notifyTimer);
+        if (this._notifyHideTimer) clearTimeout(this._notifyHideTimer);
+        notification.style.animation = '';
+        const hold = type === 'success' ? 1400 : 2600;
+        this._notifyTimer = setTimeout(() => {
             notification.style.animation = 'slideOutRight 0.3s ease';
-            setTimeout(() => {
+            this._notifyHideTimer = setTimeout(() => {
                 notification.style.display = 'none';
             }, 300);
-        }, 3000);
+        }, hold);
     }
 
     // 確認對話框

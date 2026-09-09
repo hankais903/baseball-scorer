@@ -53,88 +53,32 @@
             }
         });
 
-        // 增強現有的「新比賽」按鈕
-        enhanceNewGameButton(gameManager);
+        // 註：不再攔截「新比賽」與「上一動」按鈕。
+        // 主程式已有自己的確認視窗與重置流程，之前的攔截寫法（cloneNode / onclick）
+        // 會把主程式的事件處理器砍掉或重複觸發，導致資料清不掉、復原被執行兩次。
+        // 這裡只保留「上一動」的滑鼠提示。
+        addUndoTooltip();
 
-        // 增強「上一動」按鈕，添加確認
-        enhanceUndoButton(gameManager);
-
-        // 嘗試載入上次的遊戲
-        loadLastGame(gameManager);
+        // 註：暫不自動載入上次的比賽。
+        // loadGameState 的做法是寫入暫存後 location.reload()，若在啟動時呼叫
+        // 會有無限重新整理的風險；且主程式本身已會從 baseballGameState 還原。
 
         // 顯示歡迎訊息
-        gameManager.showNotification('⚾ 遊戲管理系統已就緒', 'info');
+        // 開場提示對使用者沒有意義，移除
+        // gameManager.showNotification('⚾ 遊戲管理系統已就緒', 'info');
     }
 
-    // 增強「新比賽」按鈕
-    function enhanceNewGameButton(gameManager) {
-        const newGameBtn = document.getElementById('new-game-btn');
-        if (!newGameBtn) return;
-
-        // 移除原有的事件監聽器（通過替換元素）
-        const newBtn = newGameBtn.cloneNode(true);
-        newGameBtn.parentNode.replaceChild(newBtn, newGameBtn);
-
-        newBtn.addEventListener('click', () => {
-            gameManager.showConfirmDialog(
-                '確定要開始新比賽嗎？<br><br>目前的比賽將會被自動儲存到「比賽記錄」中。',
-                () => {
-                    // 先儲存當前遊戲
-                    const currentState = window.getCurrentGameState ? window.getCurrentGameState() : null;
-                    if (currentState) {
-                        gameManager.saveCurrentGame(currentState);
-                    }
-
-                    // 創建新遊戲
-                    gameManager.createNewGame();
-
-                    // 重置遊戲
-                    if (window.resetGameToDefault) {
-                        window.resetGameToDefault();
-                    }
-
-                    gameManager.showNotification('✓ 已開始新比賽', 'success');
-                }
-            );
-        });
-    }
-
-    // 增強「上一動」按鈕
-    function enhanceUndoButton(gameManager) {
+    // 「上一動」滑鼠提示（不攔截點擊行為）
+    function addUndoTooltip() {
         const undoBtn = document.getElementById('undo-btn');
         if (!undoBtn) return;
-
-        // 添加提示文字
         undoBtn.addEventListener('mouseenter', () => {
             const lastEvent = getLastEvent();
-            if (lastEvent) {
-                undoBtn.title = `復原：${lastEvent}`;
-            }
+            undoBtn.title = lastEvent ? `復原：${lastEvent}` : '';
         });
-
-        // 包裝原有的點擊事件
-        const originalClick = undoBtn.onclick;
-        undoBtn.onclick = function(e) {
-            const lastEvent = getLastEvent();
-            if (lastEvent) {
-                gameManager.showConfirmDialog(
-                    `確定要復原以下操作嗎？<br><br><strong>${lastEvent}</strong>`,
-                    () => {
-                        if (originalClick) {
-                            originalClick.call(this, e);
-                        }
-                        gameManager.showNotification('✓ 已復原', 'success');
-                    }
-                );
-            } else {
-                if (originalClick) {
-                    originalClick.call(this, e);
-                }
-            }
-        };
     }
 
-    // 獲取最後一個事件
+    //  // 獲取最後一個事件
     function getLastEvent() {
         try {
             const eventLog = document.getElementById('event-log');

@@ -18,9 +18,9 @@ class GameListUI {
         button.type = 'button';
         button.textContent = '比賽記錄';
         button.style.cssText = `
-            width: 100%;
-            margin: 0.5rem 0;
-            padding: 1rem;
+            flex: 1;
+            margin: 0;
+            padding: 0.75rem;
             background: #3b82f6;
             color: white;
             border: none;
@@ -42,11 +42,11 @@ class GameListUI {
             this.showGameList();
         });
 
-        // 插入到「查看總表」按鈕後面
-        const viewBoxScoreBtn = document.getElementById('view-box-score-btn');
-        if (viewBoxScoreBtn && viewBoxScoreBtn.parentNode) {
-            viewBoxScoreBtn.parentNode.insertBefore(button, viewBoxScoreBtn.nextSibling);
-        }
+        // 放在名單頁最上方的操作列，排在「新比賽」前面
+        const top = document.getElementById('top-actions');
+        const newGameBtn = document.getElementById('new-game-btn');
+        if (top && newGameBtn) top.insertBefore(button, newGameBtn);
+        else if (newGameBtn && newGameBtn.parentNode) newGameBtn.parentNode.insertBefore(button, newGameBtn);
     }
 
     // 創建模態框
