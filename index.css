@@ -3061,3 +3061,16 @@ aside h2.panel-title { font-size: 1.6rem; }
 }
 #game-clock.stopped { color: #fbbf24; }
 #game-clock.hidden { display: none; }
+
+/* ===== 即時事件：左側壘況圖示 + 出局燈，敘述兩行 ===== */
+#event-log li { display: flex; gap: 0.55rem; align-items: flex-start; }
+#event-log li.ev-inning { display: block; }
+.ev-sit { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; padding-top: 2px; }
+.ev-sit svg rect { fill: #4b4b4b; }
+.ev-sit svg rect.on { fill: #fbbf24; }
+.ev-outs { display: flex; gap: 3px; }
+.ev-outs i { width: 7px; height: 7px; border-radius: 50%; background: #4b4b4b; display: inline-block; }
+.ev-outs i.on { background: #ef4444; }
+.ev-text { flex: 1; min-width: 0; }
+.ev-title { font-weight: 700; margin-bottom: 0.1rem; }
+.ev-body { color: var(--text-color); line-height: 1.45; }

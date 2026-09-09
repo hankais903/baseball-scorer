@@ -129,4 +129,36 @@ export default async function (t) {
     q('#event-log').dispatchEvent(ev2);
     t.assert(app.style.transition === 'none', '事件列表上的滑動應該切換面板');
   });
+
+  await t('即時事件：左側壘況圖示（有人黃色）＋出局燈，敘述分兩行', async () => {
+    const { window: w, q } = await boot();
+    w.alert = () => {};
+    click(w, q('#play-ball-btn'));
+    click(w, q('#quick-plays button[data-play="四壞"]'));
+    clickZone(w, 'infield');
+    click(w, q('#field-result-panel button[data-play="滾地"]'));
+    click(w, q('#modal-advanced-done'));
+    const li = q('#event-log li');
+    const rects = [...li.querySelectorAll('.ev-sit svg rect')];
+    t.assert(rects.length === 3, '壘包圖示應有三個方塊');
+    t.assert(rects[2].classList.contains('on') && !rects[0].classList.contains('on') && !rects[1].classList.contains('on'), '一壘有人應只亮右下角');
+    // 圖示是「打者上場打擊時」的狀況：一壘有人、0 出局（出局是這個打席才造成的）
+    const outs = [...li.querySelectorAll('.ev-outs i')].filter(i => i.classList.contains('on')).length;
+    t.assert(outs === 0, `出局燈應為 0 顆（打席前），亮了 ${outs}`);
+    // 再打一個：這次圖示應顯示 1 出局
+    click(w, q('#quick-plays button[data-play="三振"]'));
+    const li2 = q('#event-log li');
+    const outs2 = [...li2.querySelectorAll('.ev-outs i')].filter(i => i.classList.contains('on')).length;
+    t.assert(outs2 === 1, `第二個打席前應為 1 出局，亮了 ${outs2}`);
+    t.assert(li2.querySelector('.ev-body').textContent.endsWith('2人出局。'), '敘述應寫 2人出局：' + li2.querySelector('.ev-body').textContent);
+    t.assert(/^第2棒 \S+ 客隊球員02$/.test(li.querySelector('.ev-title').textContent), '標題行不對：' + li.querySelector('.ev-title').textContent);
+    t.assert(/滾地球.*封殺出局.*1人出局。$/.test(li.querySelector('.ev-body').textContent), '敘述行不對：' + li.querySelector('.ev-body').textContent);
+    // 局數標題列不帶圖示
+    const inningLi = [...w.document.querySelectorAll('#event-log li')].find(x => x.classList.contains('ev-inning'));
+    t.assert(inningLi && !inningLi.querySelector('.ev-sit'), '局數列不該有圖示');
+    // 事件快照有存進狀態
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    const ev = gs.events[gs.events.length - 1];
+    t.assert(Array.isArray(ev.bases) && ev.bases[0] === true && ev.outs === 1, '事件沒有存打席前的壘況與出局數：' + JSON.stringify(ev));
+  });
 }

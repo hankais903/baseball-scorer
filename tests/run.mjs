@@ -11,6 +11,7 @@ import multiOut from './multi-out.test.mjs';
 import lineupUx from './lineup-ux.test.mjs';
 import situation from './situation.test.mjs';
 import subUx from './substitution-ux.test.mjs';
+import narration from './narration.test.mjs';
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -29,7 +30,7 @@ function makeRunner(suite) {
   return t;
 }
 
-const suites = [['名單套用', lineup], ['標題列', header], ['擊球落點', fieldPoint], ['棒次與照片', lineupOrder], ['責失分', earnedRuns], ['守備鏈', fielderChain], ['本壘攻防', homePlays], ['夾殺', rundown], ['雙殺三殺', multiOut], ['名單頁 UX', lineupUx], ['戰況表', situation], ['比賽中換人', subUx]];
+const suites = [['名單套用', lineup], ['標題列', header], ['擊球落點', fieldPoint], ['棒次與照片', lineupOrder], ['責失分', earnedRuns], ['守備鏈', fielderChain], ['本壘攻防', homePlays], ['夾殺', rundown], ['雙殺三殺', multiOut], ['名單頁 UX', lineupUx], ['戰況表', situation], ['比賽中換人', subUx], ['事件敘述', narration]];
 for (const [name, run] of suites) {
   console.log(`\n${name}`);
   await run(makeRunner(name));
