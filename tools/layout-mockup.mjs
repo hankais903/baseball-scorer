@@ -5,53 +5,82 @@ import { DEVICE, safeAreaCss } from './device-frame.mjs';
 // 兩案共用：打者卡瘦身（照片是把卡片撐到 143 高的元凶）
 const SLIM_BATTER = `
 [data-mock] #current-batter-display {
-  padding: 4px 8px;
+  padding: 3px 8px;
   gap: 8px;
   align-items: center;
 }
 [data-mock] #current-batter-display .player-photo-container,
 [data-mock] #current-batter-display img {
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  flex: 0 0 42px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  flex: 0 0 38px;
 }
 [data-mock] #batter-info-text { gap: 2px; min-width: 0; }
 [data-mock] .batter-team-name { display: none; }          /* 隊名在計分板已經有了 */
 [data-mock] .batter-name-row { gap: 6px; align-items: baseline; }
-[data-mock] .batter-name { font-size: 1.05rem; }
+[data-mock] .batter-name { font-size: 1rem; line-height: 1.2; }
 [data-mock] .batter-order { font-size: 0.7rem; padding: 1px 5px; }
 [data-mock] .batter-stats { gap: 8px; margin-top: 1px; }
-[data-mock] .batter-stats .stat b { font-size: 0.85rem; }
-[data-mock] .batter-stats .stat i { font-size: 0.58rem; }
-[data-mock] #batter-last-ab { margin-top: 1px; font-size: 0.62rem; }
+[data-mock] .batter-stats .stat b { font-size: 0.78rem; line-height: 1.15; }
+[data-mock] .batter-stats .stat i { font-size: 0.54rem; line-height: 1.1; }
+[data-mock] #batter-last-ab { margin-top: 0; font-size: 0.56rem; line-height: 1.3; }
 [data-mock] #batter-last-ab .ab-chip { padding: 0 4px; }
 `;
 
-// 乙案：大比分列和打者卡併成一行
+// 乙案改：左邊放「NEXT 下兩棒」，右邊放打者卡；大比分列收掉，比分回到計分板
 const PLAN_B = `
+[data-mock="b"] #game-info-center { display: none; }
 [data-mock="b"] #mock-row { display: flex; gap: 8px; align-items: stretch; }
-[data-mock="b"] #mock-row > #current-batter-display { flex: 1 1 auto; min-width: 0; }
-[data-mock="b"] #game-info-center {
-  flex: 0 0 34%;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: "ta sa" "tb sb" "st st";
-  align-content: center;
-  gap: 0 6px;
+[data-mock="b"] #mock-row > #current-batter-display { flex: 1 1 auto; min-width: 0; order: 2; }
+[data-mock="b"] #mock-next {
+  flex: 0 0 36%;
+  order: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
   padding: 4px 8px;
   background: rgba(255,255,255,0.04);
   border-radius: 8px;
+  min-width: 0;
 }
-[data-mock="b"] #info-score-group { display: contents; }
-[data-mock="b"] #info-team-a { grid-area: ta; }
-[data-mock="b"] #info-score-a { grid-area: sa; }
-[data-mock="b"] #info-team-b { grid-area: tb; }
-[data-mock="b"] #info-score-b { grid-area: sb; }
-[data-mock="b"] #info-status { grid-area: st; font-size: 0.6rem; opacity: 0.75; text-align: center; }
-[data-mock="b"] #info-team-a,
-[data-mock="b"] #info-team-b { font-size: 0.95rem !important; text-align: left; }
-[data-mock="b"] .info-score-num { font-size: 1.15rem !important; text-align: right; }
+[data-mock="b"] .next-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #7dd3fc;
+  line-height: 1;
+}
+[data-mock="b"] .next-item {
+  display: flex; align-items: baseline; gap: 5px;
+  min-width: 0; line-height: 1.25;
+}
+[data-mock="b"] .next-order {
+  font-size: 0.6rem; font-weight: 700; opacity: 0.7; flex: none;
+  font-variant-numeric: tabular-nums;
+}
+[data-mock="b"] .next-name {
+  font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+[data-mock="b"] .next-item.on-deck .next-name { font-weight: 700; }
+[data-mock="b"] .next-item.in-hole { opacity: 0.62; }
+/* 大比分收掉了，比分改由計分板的 R 欄撐起來 */
+[data-mock="b"] #scoreboard .total-col { font-size: 1.15rem; font-weight: 800; color: #fff; }
+[data-mock="b"] #scoreboard .scoreboard-team-cell span { font-size: 0.9rem; font-weight: 700; }
+[data-mock="b"] #scoreboard th.rhe-first,
+[data-mock="b"] #scoreboard td.rhe-first { border-left: 1px solid rgba(255,255,255,0.25); }
+
+/* 兩案共用：面板小圓點改成貼在球場下緣，才不會壓到下面的按鈕 */
+[data-mock] #game-state-container { position: relative; }
+[data-mock] #mobile-nav {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: auto;
+}
 `;
 
 // 丙案：大比分列整個收掉，比分回到計分板（R 欄放大），打者卡專心放打者
@@ -76,26 +105,80 @@ export function mockCss() {
 export function mockJs() {
     return `
 (function () {
-    function apply() {
-        if (document.documentElement.dataset.mock !== 'b') return;
-        var center = document.getElementById('game-info-center');
-        var batter = document.getElementById('current-batter-display');
-        if (!center || !batter || document.getElementById('mock-row')) return;
-        var row = document.createElement('div');
-        row.id = 'mock-row';
-        batter.parentNode.insertBefore(row, batter);
-        row.appendChild(center);
-        row.appendChild(batter);
+    var LINEUP = 9;
+
+    function readState() {
+        try { return JSON.parse(localStorage.getItem('baseballGameState')); } catch (e) { return null; }
     }
+
+    // 進攻方：上半局是客隊(a)，下半局是主隊(b)
+    function nextTwo() {
+        var gs = readState();
+        if (!gs || !gs.teams) return [];
+        var key = gs.isTop === false ? 'b' : 'a';
+        var team = gs.teams[key];
+        if (!team) return [];
+        var idx = (gs.currentBatterIndex && gs.currentBatterIndex[key]) || 0;
+        var out = [];
+        for (var n = 1; n <= 2; n++) {
+            var i = (idx + n) % LINEUP;
+            var spot = (team.lineupSpots || [])[i];
+            var pid = spot && spot.activePlayerId;
+            var player = (team.roster || []).filter(function (p) { return p && p.id === pid; })[0];
+            if (!player) player = (team.roster || [])[i];
+            out.push({ order: i + 1, name: (player && player.name) || '—' });
+        }
+        return out;
+    }
+
+    function renderNext() {
+        if (document.documentElement.dataset.mock !== 'b') return;
+        var card = document.getElementById('mock-next');
+        if (!card) return;
+        var list = nextTwo();
+        if (!list.length) return;
+        card.innerHTML = '<div class="next-label">NEXT</div>' + list.map(function (p, i) {
+            return '<div class="next-item ' + (i === 0 ? 'on-deck' : 'in-hole') + '">' +
+                   '<span class="next-order">' + p.order + '棒</span>' +
+                   '<span class="next-name">' + p.name + '</span></div>';
+        }).join('');
+    }
+
+    function apply() {
+        var mock = document.documentElement.dataset.mock;
+
+        // 小圓點改掛在球場容器裡（兩案共用）
+        var field = document.getElementById('game-state-container');
+        var nav = document.getElementById('mobile-nav');
+        if (mock && field && nav && nav.parentNode !== field) field.appendChild(nav);
+
+        if (mock !== 'b') return;
+        var batter = document.getElementById('current-batter-display');
+        if (!batter) return;
+        if (!document.getElementById('mock-row')) {
+            var row = document.createElement('div');
+            row.id = 'mock-row';
+            batter.parentNode.insertBefore(row, batter);
+            var next = document.createElement('div');
+            next.id = 'mock-next';
+            row.appendChild(next);
+            row.appendChild(batter);
+            // 打者換人時 APP 會重畫打者卡，順手跟著更新 NEXT
+            new MutationObserver(renderNext).observe(batter, { childList: true, subtree: true });
+        }
+        renderNext();
+    }
+
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
     else apply();
     setTimeout(apply, 300);
+    setInterval(renderNext, 1000);
 })();`;
 }
 
 const VARIANTS = [
     { key: '', name: '現況', note: '目前線上的排法' },
-    { key: 'b', name: '乙案', note: '大比分＋打者卡併成一行，打者卡瘦身' },
+    { key: 'b', name: '乙案改', note: '左邊 NEXT 下兩棒、右邊打者卡；比分回到計分板' },
     { key: 'c', name: '丙案', note: '大比分收進計分板，打者卡瘦身' },
 ];
 
@@ -229,6 +312,7 @@ ${VARIANTS.map((v, i) => `    <button type="button" role="tab" data-key="${v.key
                 doc.open(); doc.write(html); doc.close();
             } catch (e) { f.srcdoc = html; }
             [400, 900, 1600, 2600].forEach(function (ms) { setTimeout(function () { measure(f); }, ms); });
+            setInterval(function () { if (!f.hidden) measure(f); }, 800);
         } else {
             measure(frames[key]);
         }
