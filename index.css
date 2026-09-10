@@ -2189,19 +2189,39 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* 姓名欄依內容自動撐開，完整顯示姓名與守位，不截斷 */
 
+/* 姓名欄固定寬度並鎖在左邊：左右滑動看其他欄位時，才知道現在看的是誰。
+   寬度以「9. 主隊球員01 3B」這種最長的組合為準，超出的長名字以 … 收尾。 */
 .panel-pane th:first-child,
 .panel-pane td:first-child {
-    width: 1%;
+    --name-col: 9.4em;
+    width: var(--name-col);
+    min-width: var(--name-col);
+    max-width: var(--name-col);
     white-space: nowrap;
     text-align: left;
     padding-right: 0.35rem;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: var(--panel-bg-color);
 }
 
+.panel-pane thead th:first-child {
+    z-index: 2;
+}
+
+/* 固定寬度之後，過長的內容要收成 …，不能撐破欄寬 */
 .panel-pane td:first-child .box-score-player-cell,
 .panel-pane td:first-child .box-score-player-cell span {
-    overflow: visible;
-    text-overflow: clip;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* 合計列自己有底色，鎖住時要蓋住底下捲過去的欄位 */
+.panel-pane .total-row td:first-child {
+    background-color: var(--panel-bg-color);
 }
 
 /* 守位：空格分隔、亮度降低 */
@@ -2819,7 +2839,7 @@ aside h2.panel-title { font-size: 1.6rem; }
     border-right: 1px solid rgba(255,255,255,0.15);
     position: sticky;
     left: 0;
-    background: var(--panel-bg, #2a2a2a);
+    background-color: var(--panel-bg-color);
 }
 .situation-table thead th.sit-name { position: sticky; left: 0; z-index: 2; }
 /* 球員列的字樣與打擊成績表共用 .box-pos，替補的縮排由 ↳ 前的空白負責 */

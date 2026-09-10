@@ -53,6 +53,21 @@ export default async function (t) {
     t.assert(hidden.length === 0, '仍有被藏起來的欄位：' + hidden.join(' '));
   });
 
+  // 左右滑的時候要知道現在看的是誰，所以姓名欄鎖在左邊、寬度固定
+  await t('成績表的姓名欄鎖在左邊且寬度固定', async () => {
+    const css = await builtCss();
+    const rules = css.match(/\.panel-pane th:first-child,\.panel-pane td:first-child\{[^}]*\}/g) || [];
+    const rule = rules.find(r => /position:\s*sticky/.test(r)) || '';
+    t.assert(rule, '姓名欄沒有鎖定（找不到 position:sticky）：' + rules.join(' '));
+    t.assert(/left:\s*0/.test(rule), '鎖定沒有貼齊左邊：' + rule);
+    t.assert(/background-color:/.test(rule), '鎖定的欄位沒有底色，捲動時會透出後面的字：' + rule);
+    const w = rule.match(/--name-col:\s*([^;]+);/);
+    t.assert(w, '沒有設定姓名欄寬度：' + rule);
+    ['width', 'min-width', 'max-width'].forEach(k => {
+      t.assert(new RegExp(k + ':\\s*var\\(--name-col\\)').test(rule), `${k} 沒有用同一個寬度：` + rule);
+    });
+  });
+
   await t('戰況表的球員列與打擊成績表同一種寫法', async () => {
     const { window: w, q } = await bootWithOnePlay();
     click(w, q('.panel-tab[data-tab="batting"]'));
