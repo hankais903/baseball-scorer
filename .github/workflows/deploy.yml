@@ -24,6 +24,9 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run build
+      # 測試跑的是建置後的 dist/，所以一定排在 build 之後。
+      # 只要有一項沒過就會停在這裡，不會上線。
+      - run: npm test
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
