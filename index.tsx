@@ -2283,25 +2283,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const teamCellContent = `<div class="scoreboard-team-cell">${teamLogoHTML}<span>${shortName}</span></div>`;
             return `<tr><td class="team-col">${teamCellContent}</td>${scoreCells}<td class="rhe rhe-first total-col">${totalRuns}</td><td class="rhe">${team.hits}</td><td class="rhe">${team.errors}</td></tr>`;
         }).join('');
+        // 比分不再另闢一列，直接由計分板的 R 欄呈現；領先方加重
         const runsA = gameState.teams.a.score.reduce((a, b) => a + (b || 0), 0);
         const runsB = gameState.teams.b.score.reduce((a, b) => a + (b || 0), 0);
-        // 隊名字數越多字級越小，避免擠壓比數；長度標記交給 CSS 決定實際字級
-        const setTeamLabel = (id, name) => {
-            const el = document.getElementById(id);
-            const text = (name || '').slice(0, TEAM_NAME_MAX);
-            el.textContent = text;
-            el.dataset.len = String(Math.min([...text].length, TEAM_NAME_MAX));
-        };
-        setTeamLabel('info-team-a', gameState.teams.a.name);
-        setTeamLabel('info-team-b', gameState.teams.b.name);
-        (document.getElementById('info-score-a')).textContent = String(runsA);
-        (document.getElementById('info-score-b')).textContent = String(runsB);
-        // 中間狀態：比賽結束顯示「終場」，否則顯示目前局數
-        const statusEl = document.getElementById('info-status');
-        statusEl.textContent = gameState.isGameOver ? '終場' : `${gameState.inning}局${gameState.isTop ? '上' : '下'}`;
-        // 領先方的比數加重
-        (document.getElementById('info-score-a')).classList.toggle('leading', runsA > runsB);
-        (document.getElementById('info-score-b')).classList.toggle('leading', runsB > runsA);
+        const totalCells = tbody.querySelectorAll('td.total-col');
+        totalCells[0]?.classList.toggle('leading', runsA > runsB);
+        totalCells[1]?.classList.toggle('leading', runsB > runsA);
     }
     // ===== 比賽計時 =====
     let gameClockTimer: any = null;
@@ -2328,7 +2315,9 @@ document.addEventListener('DOMContentLoaded', () => {
     (window as any).__formatElapsed = formatElapsed;   // 供測試
     function renderGameStateDisplay() {
         const { inning, isTop, outs } = gameState;
-        (document.getElementById('inning-display')).textContent = `${inning}局${isTop ? '上' : '下'}`;
+        // 比賽結束就顯示「終場」，取代原本大比分列上的狀態字
+        (document.getElementById('inning-display')).textContent =
+            gameState.isGameOver ? '終場' : `${inning}局${isTop ? '上' : '下'}`;
         const batterDisplayContainer = document.getElementById('current-batter-display');
         batterDisplayContainer.innerHTML = ''; // Clear previous content
         const batter = getCurrentBatter();
@@ -2383,6 +2372,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else {
             batterDisplayContainer.innerHTML = `<div id="batter-info-text"><div id="batter-main-info">請設定打序</div><div id="batter-last-ab"></div></div>`;
         }
+        renderNextBatters();
         document.querySelectorAll('#sbo-display .sbo-row:nth-child(1) .sbo-light').forEach((l, i) => l.classList.toggle('o-on', i < outs));
         // 壘包已改畫在球場 SVG 上（mf-first/second/third），由 render 統一更新
         playBallBtn.classList.remove('hidden');
@@ -2768,6 +2758,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     player.abResults = [...player.abResults];
                 }
             });
+        });
+    }
+    // 打者卡旁邊的「NEXT」：接下來兩位打者的棒次與姓名
+    function renderNextBatters() {
+        const card = document.getElementById('next-batters');
+        if (!card) return;
+        const teamKey = gameState.isTop ? 'a' : 'b';
+        const team = gameState.teams[teamKey];
+        const batterIndex = gameState.currentBatterIndex[teamKey];
+        const items = card.querySelectorAll('.next-item');
+        items.forEach((item, n) => {
+            const i = (batterIndex + n + 1) % LINEUP_SIZE;
+            const spot = team.lineupSpots[i];
+            const player = spot ? getPlayerById(teamKey, spot.activePlayerId) : null;
+            item.innerHTML = `<span class="next-order">${i + 1}棒</span>` +
+                             `<span class="next-name">${player?.name || '—'}</span>`;
         });
     }
     function getCurrentBatter() {

@@ -204,7 +204,6 @@
     padding: 0.4rem 0;
   }
 
-  /* #game-info-center 內各元件已各自指定字級，不再統一覆寫 */
 
   /* 總表模態框 */
   #box-score-content {
@@ -439,6 +438,12 @@
   #mobile-nav {
     bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
   }
+
+  /* 只有主頁下方有快捷列與三顆功能鈕，小圓點在主頁時要往上讓位；
+     名單頁與事件頁維持貼底，才不會擋到中間的內容 */
+  #mobile-nav:has(.nav-dot[data-index="1"].active) {
+    bottom: max(7rem, calc(env(safe-area-inset-bottom) + 6.5rem));
+  }
 }
 
 /* === 總表彈窗：窄螢幕也要看得到全部欄位 === */
@@ -503,7 +508,7 @@
 /* 主頁順序：球場之後才是快捷鍵，再來三顆功能鈕（上一動／壘間事件／球員調度） */
 @media (max-width: 768px), (orientation: portrait) {
   #main-content > #game-info { order: 0; }
-  #main-content > #current-batter-display { order: 1; }
+  #main-content > #batter-row { order: 1; }
   #main-content > #game-state-container { order: 2; }
   #main-content > #quick-plays { order: 3; }
   #main-content > .main-actions-container { order: 4; }

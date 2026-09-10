@@ -18,7 +18,7 @@ function score() {
   const a = q('#info-score-a').textContent, b = q('#info-score-b').textContent;
   return `${a}:${b}`;
 }
-function inningLabel() { return q('#info-status').textContent.trim(); }
+function inningLabel() { return q('#inning-display').textContent.trim(); }
 
 let plays = 0, guard = 0;
 const log = [];

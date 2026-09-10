@@ -1,11 +1,13 @@
-// 上方標題列（球場 / 日期 / 天氣 / 比數）的回歸測試
+// 上方標題列（球場 / 日期 / 天氣）與計分板上隊名比分的回歸測試
 import { boot, type, click } from './harness.mjs';
 
 export default async function (t) {
-  await t('標題列結構為兩層', async () => {
+  // 大比分列已移除（資訊與計分板重複），標題列只剩球場那一列
+  await t('標題列只有球場列', async () => {
     const { q } = await boot();
     const rows = [...q('#game-info').children].map(c => c.id || c.tagName);
-    t.assert(rows.join(',') === 'game-meta-row,game-info-center', rows.join(' → '));
+    t.assert(rows.join(',') === 'game-meta-row', rows.join(' → '));
+    t.assert(!q('#game-info-center'), '大比分列應已移除');
   });
 
   await t('球場、日期、天氣在同一列', async () => {
@@ -50,16 +52,14 @@ export default async function (t) {
     t.assert(q('#team-b-name').maxLength === 4, '目前上限 ' + q('#team-b-name').maxLength);
   });
 
-  await t('隊名 1–4 字都完整顯示', async () => {
+  await t('隊名 1–4 字都完整顯示在計分板', async () => {
     const { window: w, q } = await boot();
-    for (const [name, expect] of [['獅', '1'], ['飛鷹', '2'], ['中信兄', '3'],
-                                  ['統一獅隊', '4']]) {
+    for (const name of ['獅', '飛鷹', '中信兄', '統一獅隊']) {
       type(w, q('#team-a-name'), name);
       w.document.getElementById('apply-lineup')
         .dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }));
-      const el = q('#info-team-a');
-      t.assert(el.textContent === name, `顯示為 ${el.textContent}，應為 ${name}`);
-      t.assert(el.dataset.len === expect, `${name} 標記為 ${el.dataset.len}，應為 ${expect}`);
+      const shown = q('#scoreboard tbody tr:first-child .scoreboard-team-cell span').textContent;
+      t.assert(shown === name, `顯示為 ${shown}，應為 ${name}`);
     }
   });
 
@@ -76,7 +76,7 @@ export default async function (t) {
     const dir = path.join('dist', 'assets');
     const cssFile = fs.readdirSync(dir).find(f => f.endsWith('.css'));
     const css = fs.readFileSync(path.join(dir, cssFile), 'utf8');
-    const rules = css.match(/#game-info-center #info-team-[ab][^{]*\{[^}]*\}/g) || [];
+    const rules = css.match(/\.scoreboard-team-cell span[^{]*\{[^}]*\}/g) || [];
     const withMax = rules.filter(r => /max-width\s*:/.test(r));
     t.assert(withMax.length === 0,
       '隊名仍有寬度上限規則（會把字截斷）：' + withMax.join(' '));
@@ -89,53 +89,42 @@ export default async function (t) {
     type(w, input, '一二三四五六七八');
     w.document.getElementById('apply-lineup')
       .dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }));
-    const shown = q('#info-team-a').textContent;
+    const shown = q('#scoreboard tbody tr:first-child .scoreboard-team-cell span').textContent;
     t.assert([...shown].length <= 4, `顯示 ${[...shown].length} 字：${shown}`);
   });
 
-  // 中間的比數與局數必須永遠置中，不能因隊名長短而左右偏移。
-  // 做法是三欄格線（1fr auto 1fr），兩側等寬、中間自動置中。
-  await t('比數與局數固定置中', async () => {
+  // 大比分列拿掉之後，比分只剩計分板的 R 欄，必須看得出來誰領先
+  await t('比分顯示在計分板的 R 欄', async () => {
     const { q } = await boot();
-    const group = q('#info-score-group');
-    t.assert(!!group, '缺少中間的比數群組');
-    const ids = [...group.children].map(c => c.id);
-    t.assert(ids.join(',') === 'info-score-a,info-status,info-score-b', ids.join(' → '));
-    const cols = [...q('#game-info-center').children].map(c => c.id);
-    t.assert(cols.join(',') === 'info-team-a,info-score-group,info-team-b', cols.join(' → '));
-
-    const fs = await import('fs');
-    const path = await import('path');
-    const dir = path.join('dist', 'assets');
-    const css = fs.readFileSync(path.join(dir,
-      fs.readdirSync(dir).find(f => f.endsWith('.css'))), 'utf8');
-    const rule = (css.match(/#game-info-center\{[^}]*\}/g) || []).join(' ');
-    t.assert(/grid-template-columns:\s*1fr auto 1fr/.test(rule),
-      '不是 1fr auto 1fr 的三欄格線：' + rule);
+    const head = [...q('#scoreboard thead tr').children].map(c => c.textContent);
+    t.assert(head.slice(-3).join(',') === 'R,H,E', head.join(','));
+    const totals = [...q('#scoreboard tbody').querySelectorAll('td.total-col')];
+    t.assert(totals.length === 2, '應有兩隊的 R 欄，實得 ' + totals.length);
+    t.assert(totals.every(td => td.textContent === '0'), '開賽前比分應為 0');
   });
 
-  await t('隊名長度不同時中間組仍置中', async () => {
+  await t('兩隊隊名長短不同都各自顯示正確', async () => {
     const { window: w, q } = await boot();
+    const cell = i => q(`#scoreboard tbody tr:nth-child(${i}) .scoreboard-team-cell span`).textContent;
     for (const [a, b] of [['獅', '統一獅隊'], ['統一獅隊', '獅'], ['飛鷹', '中信兄']]) {
       type(w, q('#team-a-name'), a);
       type(w, q('#team-b-name'), b);
       w.document.getElementById('apply-lineup')
         .dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }));
-      // 兩側都是 1fr，寬度必定相等，中間組因此保持置中
-      t.assert(q('#info-team-a').textContent === a, q('#info-team-a').textContent);
-      t.assert(q('#info-team-b').textContent === b, q('#info-team-b').textContent);
-      t.assert(!!q('#info-score-group'), '比數群組消失');
+      t.assert(cell(1) === a, cell(1));
+      t.assert(cell(2) === b, cell(2));
     }
   });
 
-  // 使用者要求：4 字要和 2 字一樣大，所以不能再有依字數縮小的規則
+  // 使用者要求：4 字要和 2 字一樣大，所以不能有依字數縮小的規則
+  // （舊版靠 #info-team-x[data-len] 縮字級，隨大比分列一起移除）
   await t('隊名字級不因字數而縮小', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const dir = path.join('dist', 'assets');
     const css = fs.readFileSync(path.join(dir,
       fs.readdirSync(dir).find(f => f.endsWith('.css'))), 'utf8');
-    const shrink = (css.match(/#info-team-[ab]\[data-len[^{]*\{[^}]*font-size[^}]*\}/g) || []);
+    const shrink = (css.match(/\[data-len[^{]*\{[^}]*font-size[^}]*\}/g) || []);
     t.assert(shrink.length === 0, '仍有依字數縮小的規則：' + shrink.join(' '));
   });
 

@@ -70,7 +70,9 @@ export default async function (t) {
     const { window: w, q } = await boot();
     type(w, q('#team-a-name'), '新隊名');
     applyLineup(w);
-    t.assert(q('#info-team-a').textContent === '新隊名', q('#info-team-a').textContent);
+    // 大比分列已移除，隊名改看計分板左欄
+    const shown = q('#scoreboard tbody tr:first-child .scoreboard-team-cell span').textContent;
+    t.assert(shown === '新隊名', shown);
   });
 
   await t('修改背號不被覆蓋', async () => {
@@ -114,8 +116,9 @@ export default async function (t) {
       if (!btn || btn.classList.contains('disabled')) break;
       recordAtBat(w);            // 全部三振，兩隊皆不得分
     }
-    t.assert(q('#info-status').textContent.trim() === '終場',
-      '未結束，停在 ' + q('#info-status').textContent.trim());
+    // 終場狀態改由局數標籤呈現
+    t.assert(q('#inning-display').textContent.trim() === '終場',
+      '未結束，停在 ' + q('#inning-display').textContent.trim());
     const log = q('#event-log').textContent;
     t.assert(log.includes('和局'), '結束訊息未標示和局');
   });

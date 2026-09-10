@@ -417,9 +417,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
 }
 
-#info-team-a { color: var(--team-a-color); }
-#info-team-b { color: var(--team-b-color); }
-
 #scoreboard table {
     width: 100%;
     border-collapse: collapse;
@@ -1536,11 +1533,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         font-size: 1rem;
     }
 
-    #game-info-center {
-        gap: 0.5rem;
-        flex-shrink: 1;
-    }
-
     #stadium-input, #game-date-input {
         width: 100px;
     }
@@ -1792,34 +1784,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .scoreboard-team-cell span {
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* === 上方比數列（參考 MLB Gameday） === */
-/* 全部用 clamp() 隨視窗連續縮放，避免在窄機種（如 360px）爆版 */
-.info-score-num {
-    font-size: clamp(1.35rem, 7vw, 2.1rem);
-    font-weight: 400;
-    color: #9aa0a6;
-    font-variant-numeric: tabular-nums;
-    min-width: 1.1em;
-    text-align: center;
-    transition: color 0.2s;
-}
-
-/* 領先方比數用白色加粗，落後方維持灰色 */
-.info-score-num.leading {
-    color: #fff;
-    font-weight: 700;
-}
-
-#info-status {
-    font-size: clamp(0.65rem, 2.6vw, 0.8rem);
-    font-weight: 700;
-    color: #8b9096;
-    letter-spacing: 0.04em;
-    min-width: 3.2em;
-    text-align: center;
     white-space: nowrap;
 }
 
@@ -2180,72 +2144,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* 比數列 */
-/* 三欄格線：兩側等寬，中間那組（比數 / 局數 / 比數）永遠位於畫面正中央，
-   不會因為隊名長短不同而左右偏移。 */
-#game-info-center {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    font-weight: 400;
-    width: 100%;
-    gap: clamp(0.3rem, 1.8vw, 0.7rem);        /* 360px → 6.5px */
-    min-width: 0;
-}
-
-#info-score-group {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: clamp(0.3rem, 1.8vw, 0.7rem);
-}
-
-/* 隊名最多 4 字，且 1–4 字一律同尺寸（360px 時 28px）。
-   為了讓 4 字放得下，比數、局數與間距已相應縮小。 */
-#game-info-center #info-team-a,
-#game-info-center #info-team-b {
-    font-size: clamp(1.4rem, 7.78vw, 2.1rem);  /* 360px → 28px（1–3 字） */
-    font-weight: 700;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-#game-info-center #info-team-a {
-    color: var(--team-a-color);
-    text-align: right;
-}
-
-#game-info-center #info-team-b {
-    color: var(--team-b-color);
-    text-align: left;
-}
-
-.info-score-num {
-    font-size: clamp(1.6rem, 8.6vw, 2.4rem);  /* 360px → 31px */
-    font-weight: 400;
-    color: #9aa0a6;
-    font-variant-numeric: tabular-nums;
-    min-width: 0.7em;
-    text-align: center;
-    transition: color 0.2s;
-}
-
-.info-score-num.leading {
-    color: #fff;
-    font-weight: 700;
-}
-
-#info-status {
-    font-size: clamp(0.7rem, 3.4vw, 0.95rem); /* 360px → 12px */
-    font-weight: 700;
-    color: #8b9096;
-    letter-spacing: 0.02em;
-    text-align: center;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
 /* === 比分數字字型（Archivo ExtraBold，子集化僅含數字，自行託管）=== */
 @font-face {
     font-family: 'ScoreNum';
@@ -2255,8 +2153,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     font-display: swap;
 }
 
+
 /* 套用於所有比分與統計數字；中文仍走系統字型 */
-.info-score-num,
 #scoreboard td,
 #scoreboard th,
 .batter-stats .stat b,
@@ -2264,15 +2162,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     /* 字型檔只含數字，中文與其他字元會自動落回系統字型 */
     font-family: 'ScoreNum', -apple-system, BlinkMacSystemFont, 'Segoe UI',
                  Roboto, Helvetica, Arial, sans-serif;
-}
-
-/* 這個字型本身已是 800 粗度，字重交給字型檔 */
-.info-score-num {
-    font-weight: 800;
-}
-
-.info-score-num.leading {
-    font-weight: 800;
 }
 
 
@@ -3074,3 +2963,163 @@ aside h2.panel-title { font-size: 1.6rem; }
 .ev-text { flex: 1; min-width: 0; }
 .ev-title { font-weight: 700; margin-bottom: 0.1rem; }
 .ev-body { color: var(--text-color); line-height: 1.45; }
+
+
+/* === 打者卡與 NEXT 卡：併成一列，省下垂直空間 === */
+#batter-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+#batter-row > #current-batter-display {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 4px 8px;
+    gap: 8px;
+    align-items: center;
+}
+
+/* 照片尺寸與名單頁一致：38 寬、3:4 直式 */
+#current-batter-display > div:first-child {
+    width: 38px;
+    line-height: 0;
+}
+
+.batter-photo-main {
+    width: 38px;
+    height: auto;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: #3e3e3e;
+    display: block;
+}
+
+#batter-info-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+/* 隊名在計分板已經有了，卡片裡不再重複 */
+.batter-team-name { display: none; }
+
+.batter-name-row {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+}
+
+.batter-name { font-size: 1rem; line-height: 1.2; }
+.batter-order { font-size: 0.7rem; padding: 1px 5px; flex: none; }
+
+/* 五項成績等寬五欄，數字與標籤上下對齊、位數不跳動 */
+.batter-stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    margin-top: 0;
+}
+
+.batter-stats .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+}
+
+.batter-stats .stat b {
+    font-size: 0.8rem;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+}
+
+.batter-stats .stat i {
+    font-size: 0.54rem;
+    line-height: 1.1;
+    font-style: normal;
+    opacity: 0.72;
+}
+
+#batter-last-ab {
+    margin-top: 0;
+    font-size: 0.56rem;
+    line-height: 1.3;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+#batter-last-ab .ab-chip { padding: 0 4px; }
+
+/* NEXT：三段等高（NEXT／下一棒／再下一棒），段與段之間用淡線隔開 */
+#next-batters {
+    flex: 0 0 36%;
+    display: grid;
+    grid-template-rows: repeat(3, 1fr);
+    text-align: center;
+    padding: 0 8px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    min-width: 0;
+}
+
+#next-batters > * {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+
+#next-batters .next-item {
+    border-top: 1px solid rgba(255, 255, 255, 0.13);
+    gap: 5px;
+    line-height: 1.25;
+}
+
+.next-label {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: #7dd3fc;
+}
+
+.next-order {
+    font-size: 0.6rem;
+    font-weight: 700;
+    opacity: 0.7;
+    flex: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.next-name {
+    font-size: 0.82rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.next-item.on-deck .next-name { font-weight: 700; }
+.next-item.in-hole { opacity: 0.62; }
+
+/* 比分改由計分板的 R 欄呈現，所以要看得出來 */
+#scoreboard .total-col {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #fff;
+}
+
+#scoreboard .scoreboard-team-cell span {
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+#scoreboard th.rhe-first,
+#scoreboard td.rhe-first {
+    border-left: 1px solid rgba(255, 255, 255, 0.25);
+}

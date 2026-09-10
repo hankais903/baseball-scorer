@@ -24,7 +24,9 @@ export function safeAreaCss(d = DEVICE) {
     padding-top: max(0.75rem, ${d.safeTop}px);
     padding-bottom: max(60px, calc(${d.safeBottom}px + 52px));
   }
+  /* 與 mobile.css 同一組規則，只是把 env() 換成真機數值 */
   #mobile-nav { bottom: max(1rem, calc(${d.safeBottom}px + 0.5rem)); }
+  #mobile-nav:has(.nav-dot[data-index="1"].active) { bottom: max(7rem, calc(${d.safeBottom}px + 6.5rem)); }
 }`;
 }
 
