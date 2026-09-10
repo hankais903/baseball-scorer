@@ -39,13 +39,13 @@ export default async function (t) {
 
   await t('滾地三殺：一二壘跑者預設出局，寫成傳殺鏈，半局結束', async () => {
     const r = await run({ play: '三殺' });
-    t.assert(/滾地球，.*傳給.*，形成三殺（\d-\d-3）/.test(r.log), '敘述不對：' + r.log);
+    t.assert(/滾地球，.*傳給.*，形成三殺/.test(r.log), '敘述不對：' + r.log);
     t.assert(r.inning.includes('1局下'), '三殺後半局應結束：' + r.inning);
   });
 
   await t('平飛三殺：接殺後傳殺離壘跑者（4-6-3）', async () => {
     const r = await run({ play: '三殺', ball: 'L', taps: ['二', '游', '一'] });
-    t.assert(r.log.includes('平飛球，二壘手接殺後傳給游擊手再傳給一壘手，形成三殺（4-6-3）'), '打者句不對：' + r.log);
+    t.assert(r.log.includes('平飛球，二壘手接殺後傳給游擊手再傳給一壘手，形成三殺'), '打者句不對：' + r.log);
     t.assert(r.log.includes('離壘過遠回壘不及，被傳殺出局'), '跑者句不對：' + r.log);
     t.assert(!r.log.includes('滾地球'), '平飛卻寫成滾地：' + r.log);
     t.assert(r.batter.abResults[0].startsWith('三殺@二游一~L'), 'abResults 沒帶球種：' + r.batter.abResults[0]);
@@ -54,12 +54,12 @@ export default async function (t) {
   await t('平飛三殺：一人獨力完成（4）', async () => {
     const r = await run({ play: '三殺', ball: 'L' });
     t.assert(r.label.includes('（4）') || r.label.includes('（6）') || r.label.includes('（5）') || r.label.includes('（1）'), '平飛預設鏈應只有接球者：' + r.label);
-    t.assert(/接殺後獨力完成三殺（\d）/.test(r.log), '敘述不對：' + r.log);
+    t.assert(/接殺後獨力完成三殺/.test(r.log), '敘述不對：' + r.log);
   });
 
   await t('高飛雙殺：接殺後傳殺起跑的跑者，不算 GIDP', async () => {
     const r = await run({ play: '雙殺', ball: 'F', taps: ['中', '游'] });
-    t.assert(r.log.includes('高飛球，中外野手接殺後傳給游擊手，形成雙殺（8-6）'), '打者句不對：' + r.log);
+    t.assert(r.log.includes('高飛球，中外野手接殺後傳給游擊手，形成雙殺'), '打者句不對：' + r.log);
     t.assert(r.log.includes('接殺後起跑進壘，被傳殺出局'), '跑者句不對：' + r.log);
     t.assert(r.outs === 2, `出局數 ${r.outs}`);
     t.assert(r.batter.gidp === 0, '高飛雙殺不該算 GIDP');
@@ -67,7 +67,7 @@ export default async function (t) {
 
   await t('滾地雙殺仍算 GIDP', async () => {
     const r = await run({ play: '雙殺', taps: ['游', '二', '一'] });
-    t.assert(r.log.includes('形成雙殺（6-4-3）'), '敘述不對：' + r.log);
+    t.assert(r.log.includes('形成雙殺'), '敘述不對：' + r.log);
     t.assert(r.batter.gidp === 1, '滾地雙殺應算 GIDP');
   });
 

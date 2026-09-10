@@ -2954,8 +2954,12 @@ aside h2.panel-title { font-size: 1.6rem; }
     position: absolute;
     top: 20px;
     right: 20px;
-    z-index: 2;
-    pointer-events: none;
+    z-index: 5;
+    /* 要能點開暫停／結束選單，所以不再讓點擊穿透到球場 */
+    pointer-events: auto;
+    cursor: pointer;
+    border: 0;
+    font: inherit;
     padding: 0.35rem 0.7rem;
     border-radius: 12px;
     background: rgba(0, 0, 0, 0.55);
@@ -2966,11 +2970,51 @@ aside h2.panel-title { font-size: 1.6rem; }
     font-size: 0.95rem;
 }
 #game-clock.stopped { color: #fbbf24; }
+#game-clock.paused { color: #7dd3fc; }
+
+/* 計時選單：點計時器叫出來，蓋在球場上方 */
+#clock-menu {
+    position: absolute;
+    top: 2.2rem;
+    right: 0.5rem;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+    background: #232830;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+#clock-menu.modal-hidden { display: none; }
+#clock-menu button {
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--text-color);
+    background: none;
+    border: 0;
+    border-radius: 6px;
+    padding: 0.45rem 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    white-space: nowrap;
+}
+#clock-menu button:hover { background: rgba(255, 255, 255, 0.08); }
+#clock-menu button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
 #game-clock.hidden { display: none; }
 
 /* ===== 即時事件：左側壘況圖示 + 出局燈，敘述兩行 ===== */
 #event-log li { display: flex; gap: 0.55rem; align-items: flex-start; }
-#event-log li.ev-inning { display: block; }
+/* 局數分隔（「1局上」）與「比賽開始。」都走這個樣式：放大加粗才好在場邊快速找到 */
+#event-log li.ev-inning {
+    display: block;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    color: #fff;
+    margin-top: 0.35rem;
+}
 .ev-sit { display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0; padding-top: 2px; }
 .ev-sit svg rect { fill: #4b4b4b; }
 .ev-sit svg rect.on { fill: #fbbf24; }
@@ -3093,9 +3137,13 @@ aside h2.panel-title { font-size: 1.6rem; }
     min-width: 0;
 }
 
+/* 棒次自己一格置中，姓名佔滿剩下的寬度，兩位打者才會對齊 */
 #next-batters .next-item {
+    display: grid;
+    grid-template-columns: 2.4em 1fr;
+    align-items: center;
+    gap: 4px;
     border-top: 1px solid rgba(255, 255, 255, 0.13);
-    gap: 5px;
     line-height: 1.25;
 }
 
@@ -3110,12 +3158,13 @@ aside h2.panel-title { font-size: 1.6rem; }
     font-size: 0.6rem;
     font-weight: 700;
     opacity: 0.7;
-    flex: none;
+    text-align: center;
     font-variant-numeric: tabular-nums;
 }
 
 .next-name {
     font-size: 0.82rem;
+    text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

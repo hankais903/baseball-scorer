@@ -1,6 +1,7 @@
 // 棒次拖曳、照片縮圖，以及「設定頁改了主頁要跟著變」的基本檢查
 import { boot, click, clickZone } from './harness.mjs';
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const setVal = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); };
 const nameInputs = (w, team) =>
   [...w.document.querySelectorAll(`#team-${team}-lineup .lineup-player input[data-type="name"]`)];
@@ -231,5 +232,56 @@ export default async function (t) {
     const rule = (css.match(/\.batter-photo-main\{[^}]*\}/g) || []).join(' ');
     t.assert(/width:\s*38px/.test(rule), '照片寬度不是 38px：' + rule);
     t.assert(/aspect-ratio:\s*3\s*\/\s*4/.test(rule), '照片比例不是 3/4：' + rule);
+  });
+
+  await t('沒上傳照片的球員用背號當頭像', async () => {
+    const { window: w, q } = await boot();
+    const j = q('input[data-team="a"][data-index="0"][data-type="jersey"]');
+    j.value = '27';
+    j.dispatchEvent(new w.Event('change', { bubbles: true }));
+    await sleep(400);
+    click(w, q('#play-ball-btn'));
+    await sleep(150);
+    const src = q('#current-batter-display .batter-photo-main').getAttribute('src');
+    t.assert(src.startsWith('data:image/svg+xml;base64,'), '頭像不是產生出來的圖：' + src.slice(0, 40));
+    const svg = w.atob(src.split(',')[1]);
+    t.assert(svg.includes('>27<'), '頭像上沒有背號：' + svg.slice(0, 200));
+  });
+
+  await t('連背號都沒有才用剪影', async () => {
+    const { window: w, q } = await boot();
+    const j = q('input[data-team="a"][data-index="0"][data-type="jersey"]');
+    j.value = '';                       // 預設背號是 01，先清掉
+    j.dispatchEvent(new w.Event('change', { bubbles: true }));
+    await sleep(400);
+    click(w, q('#play-ball-btn'));
+    await sleep(150);
+    const src = q('#current-batter-display .batter-photo-main').getAttribute('src');
+    const svg = w.atob(src.split(',')[1]);
+    t.assert(svg.includes('<circle'), '沒有背號時應該用剪影：' + svg.slice(0, 120));
+  });
+
+  await t('產生的頭像不會被當成上傳的照片存起來', async () => {
+    const { window: w, q } = await boot();
+    const j = q('input[data-team="a"][data-index="0"][data-type="jersey"]');
+    j.value = '33';
+    j.dispatchEvent(new w.Event('change', { bubbles: true }));
+    await sleep(400);
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    const svg = w.atob(gs.teams.a.roster[0].photo.split(',')[1]);
+    t.assert(!svg.includes('>33<'), '背號頭像被當成照片存進狀態了');
+  });
+
+  await t('NEXT 的棒次自己一格置中', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const dir = path.join('dist', 'assets');
+    const css = fs.readFileSync(path.join(dir,
+      fs.readdirSync(dir).find(f => f.endsWith('.css'))), 'utf8');
+    const item = (css.match(/#next-batters \.next-item\{[^}]*\}/g) || []).join(' ');
+    t.assert(/display:\s*grid/.test(item), 'NEXT 的每一列不是格線排版：' + item);
+    t.assert(/grid-template-columns:/.test(item), '沒有把棒次獨立成一欄：' + item);
+    const order = (css.match(/\.next-order\{[^}]*\}/g) || []).join(' ');
+    t.assert(/text-align:\s*center/.test(order), '棒次沒有置中：' + order);
   });
 }

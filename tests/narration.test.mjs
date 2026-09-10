@@ -159,6 +159,17 @@ async function errorRules(t) {
     const s = stats(w);
     t.assert(s.h === 1 && s.outs === 1 && s.bases.every(b => !b), JSON.stringify(s));
     t.assert(gs.teams.a.roster[0]['2b'] === 1 && gs.teams.a.roster[0].h === 1, '二安沒有計入');
-    t.assert(/上到二壘，趁傳想上三壘時被中外野手傳給三壘手觸殺出局（8-5）。 1人出局。$/.test(last(q)), last(q));
+    t.assert(/上到二壘，趁傳想上三壘時被中外野手傳給三壘手觸殺出局。 1人出局。$/.test(last(q)), last(q));
+  });
+
+  await t('敘述不再附上守備代號', async () => {
+    const { window: w, q } = await boot();
+    click(w, q('#play-ball-btn'));
+    clickZone(w, 'infield');
+    click(w, q('#field-result-panel button[data-play="滾地"]'));
+    click(w, q('#modal-advanced-done'));
+    const text = q('#event-log li').textContent;
+    t.assert(/傳給一壘手/.test(text), '敘述本身不對：' + text);
+    t.assert(!/（\d+(-\d+)*）/.test(text), '敘述裡還有守備代號：' + text);
   });
 }

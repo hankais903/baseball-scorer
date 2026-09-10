@@ -235,7 +235,11 @@ async function positionSwap(t) {
     const row = [...w.document.querySelectorAll('#team-a-bench .lineup-player')].find(r => !r.classList.contains('bench-hidden'));
     const ni = row.querySelector('input[data-type="name"]');
     ni.value = '滑掉我'; ni.dispatchEvent(new w.Event('change', { bubbles: true }));
-    await sleep(300);
+    // 先確認名字真的寫進狀態，否則後面「刪掉了嗎」會是假通過
+    await waitFor(
+      () => JSON.parse(w.localStorage.getItem('baseballGameState')).teams.a.roster[9].name === '滑掉我',
+      { message: '新增的板凳球員沒有自動儲存' }
+    );
     Object.defineProperty(row, 'clientWidth', { value: 360, configurable: true });
     const pe = (type, x, y) => ni.dispatchEvent(new w.MouseEvent(type, { bubbles: true, clientX: x, clientY: y }));
     pe('pointerdown', 10, 10); pe('pointermove', 30, 12); pe('pointermove', 70, 12); pe('pointerup', 70, 12);
@@ -244,9 +248,11 @@ async function positionSwap(t) {
     const reveal = row.querySelector('.swipe-reveal');
     t.assert(reveal && reveal.textContent.includes('⛔'), '沒有 ⛔');
     click(w, reveal);
-    await sleep(500);
-    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
-    t.assert(gs.teams.a.roster[9].name === '', '點 ⛔ 後資料仍在');
+    // 刪除動畫 160ms 之後才清資料，再加自動儲存 debounce；等狀態真的寫回再斷言
+    await waitFor(
+      () => JSON.parse(w.localStorage.getItem('baseballGameState')).teams.a.roster[9].name === '',
+      { message: '點 ⛔ 後資料仍在' }
+    );
     t.assert(row.classList.contains('bench-hidden'), '刪除後列沒有收起');
   });
 
@@ -306,13 +312,12 @@ async function positionSwap(t) {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
     click(w, q('#quick-plays button[data-play="觸身球"]'));
-    click(w, q('.panel-tab[data-tab="pitching"]'));
-    const ths = [...q('#pane-pitching table thead').querySelectorAll('th')].map(t => t.getAttribute('title') || t.textContent);
+    // 客隊先攻，被觸身的投手是主隊的，所以看主隊那一頁
+    click(w, q('.panel-tab[data-tab="team-b"]'));
+    const ths = [...q('#pane-team-b .box-pitching thead').querySelectorAll('th')].map(t => t.getAttribute('title') || t.textContent);
     t.assert(ths.indexOf('死球') === ths.indexOf('四壞') + 1, '欄位順序：' + ths.join(','));
     t.assert(ths.includes('三振') && ths.includes('死球'), '三振或死球不見了：' + ths.join(','));
-    // 客隊先攻，被觸身的投手是主隊的：第二張表
-    const tables = q('#pane-pitching').querySelectorAll('table');
-    const tds = [...tables[tables.length - 1].querySelector('tbody tr').querySelectorAll('td')].map(t => t.textContent);
+    const tds = [...q('#pane-team-b .box-pitching tbody tr').querySelectorAll('td')].map(t => t.textContent);
     t.assert(tds[ths.indexOf('死球')] === '1', '觸身球沒有記進投手死球：' + tds.join(','));
   });
 

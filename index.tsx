@@ -119,6 +119,39 @@ function fielderInZone(fielder: string | null, mini: { x: number; y: number }, z
 (window as any).__fieldMath = { mainPointToMini, fielderFromMiniPoint, fielderInZone };
 const DEFAULT_TEAM_LOGO_BASE64 = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#3e3e3e"/><path d="M50 15L85 50L50 85L15 50Z" stroke="#666" stroke-width="5" fill="none"/><circle cx="50" cy="50" r="10" stroke="#666" stroke-width="5" fill="none"/></svg>');
 const DEFAULT_PLAYER_PHOTO_BASE64 = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 75 100"><rect width="75" height="100" fill="#3e3e3e" rx="4" /><g fill="#666"><circle cx="37.5" cy="35" r="15"/><path d="M15 100 V 80 C 15 65, 25 60, 37.5 60 C 50 60, 60 65, 60 80 V 100 Z"/></g></svg>');
+// 沒有上傳照片的球員，就用背號當頭像；連背號都沒有才用剪影。
+// 尺寸與剪影一致（75×100），才能直接沿用同一組樣式。
+function jerseyAvatar(jersey) {
+    const num = String(jersey == null ? '' : jersey).trim();
+    if (!num) return DEFAULT_PLAYER_PHOTO_BASE64;
+    // 位數越多字級越小，才不會超出邊界
+    const size = num.length >= 3 ? 34 : (num.length === 2 ? 44 : 52);
+    const text = num.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 75 100">'
+        + '<rect width="75" height="100" fill="#3e3e3e" rx="4"/><desc data-avatar="jersey"></desc>'
+        + '<text x="37.5" y="50" fill="#d6dae0" font-family="-apple-system, Segoe UI, Roboto, sans-serif"'
+        + ' font-size="' + size + '" font-weight="700" text-anchor="middle" dominant-baseline="central">'
+        + text + '</text></svg>';
+    return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+}
+// 判斷這張圖是不是我們自己畫的（剪影或背號），而不是使用者上傳的照片。
+// 畫面上的預覽會被讀回 gameState，沒有這道判斷的話背號圖會被當成照片存起來，
+// 之後改背號頭像就不會跟著換。
+function isGeneratedAvatar(src) {
+    if (!src || src === DEFAULT_PLAYER_PHOTO_BASE64) return true;
+    const prefix = 'data:image/svg+xml;base64,';
+    if (String(src).indexOf(prefix) !== 0) return false;
+    try {
+        return decodeURIComponent(escape(atob(String(src).slice(prefix.length)))).indexOf('data-avatar="jersey"') >= 0;
+    }
+    catch (e) { return false; }
+}
+// 球員頭像來源：優先用上傳的照片，其次背號，最後剪影
+function playerPhotoSrc(player) {
+    const photo = player && player.photo;
+    if (photo && photo !== DEFAULT_PLAYER_PHOTO_BASE64) return photo;
+    return jerseyAvatar(player && player.jersey);
+}
 
 let currentPanelIndex = 1; // 0: settings, 1: main, 2: log
 let panelDragStartX = 0;
@@ -190,6 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const FIELDER_NUM = { '投': 1, '捕': 2, '一': 3, '二': 4, '三': 5, '游': 6, '左': 7, '中': 8, '右': 9 };
     const chainCode = (chain: string[]) => chain.map(f => FIELDER_NUM[f]).filter(Boolean).join('-');
+    // 事件敘述裡不再附上「（4-3）」這種守備代號（使用者要求）；
+    // 代號仍保留給記錄當下的提示用（例如「已選：二→一（4-3）」）。
+    const chainTail = (_chain: string[]) => '';
     function setFielderChain(chain: string[]) {
         advancedPlayState.fielders = chain;
         advancedPlayState.direction = chain[0] || null;
@@ -238,8 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // 跑者出局的敘述：夾殺寫成「在X壘與Y壘之間被夾殺」，否則依傳球順序寫觸殺
     function runnerOutText(chain: string[], fromBase: number, toBase: number, rundown: boolean) {
-        const code = chainCode(chain);
-        const tail = code ? `（${code}）` : '';
+        const tail = chainTail(chain);
         const seg = `${BASE_NAME(fromBase)}壘與${toBase >= 4 ? '本壘' : BASE_NAME(toBase) + '壘'}之間`;
         if (rundown && chain.length >= 2) return `在${seg}被夾殺出局${tail}`;
         if (chain.length >= 1) return `被${relayText(chain)}觸殺出局${tail}`;
@@ -251,8 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const area = FIELDER_AREA[dir];
         if (!who) return PLAY_DESCRIPTIONS[play];
         const c = (chain && chain.length ? chain : [dir]);
-        const code = chainCode(c);
-        const tail = code ? `（${code}）` : '';
+        const tail = chainTail(c);
         switch (play) {
             case '滾地':
                 if (c.length === 1) {
@@ -412,6 +446,8 @@ document.addEventListener('DOMContentLoaded', () => {
             started: false,
             startTime: null,        // 按下 PLAY BALL 的時間（毫秒）
             endTime: null,          // 比賽結束時間；有值時計時器停住
+            pausedMs: 0,            // 累計已暫停的時間，計時要扣掉
+            pausedAt: null,         // 目前這次暫停的起點；有值代表正在暫停
             weather: 'sunny',
             gameDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
         };
@@ -1255,12 +1291,15 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.started = true;
             gameState.startTime = Date.now();
             gameState.endTime = null;
+            gameState.pausedMs = 0;
+            gameState.pausedAt = null;
             logEvent('比賽開始。');
             saveState();
             render();
             startGameClock();
         });
         closeModalBtn.addEventListener('click', () => closeModal(modal));
+        setupClockControls();
         if (gameState.started && gameState.startTime) startGameClock();
         modal.addEventListener('click', (e) => { if (e.target === modal)
             closeModal(modal); });
@@ -1925,7 +1964,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target.closest('button, input, select, a, .drag-handle, .lineup-player.bench-player'))
             return;
         // 成績表、戰況表可以橫向捲動：手指放在表格上時交給原生捲動，不切換面板
-        const hScroll = target.closest('#pane-batting, #pane-pitching, #pane-situation, .table-scroll') as HTMLElement | null;
+        const hScroll = target.closest('#pane-team-a, #pane-team-b, #pane-situation, .table-scroll') as HTMLElement | null;
         if (hScroll && hScroll.scrollWidth > hScroll.clientWidth + 2)
             return;
         dragIsMouseEvent = e.type === 'mousedown';
@@ -2062,7 +2101,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const preview = document.getElementById(`player-photo-preview-${teamKey}-${index}`) as HTMLImageElement | null;
             if (!preview) return;
             const src = preview.getAttribute('src') || '';
-            if (src.startsWith('data:')) player.photo = src;
+            if (!src.startsWith('data:')) return;
+            player.photo = isGeneratedAvatar(src) ? DEFAULT_PLAYER_PHOTO_BASE64 : src;
         };
         // This function now ONLY updates player data and team settings,
         // it does not reset the game state, preserving all stats.
@@ -2208,6 +2248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyTeamColors();
         renderHeaderInputs();
         renderScoreboard();
+        renderPanelTabLabels();
         renderGameStateDisplay();
         renderEventLog();
         renderActivePanelTab();
@@ -2308,15 +2349,57 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!el) return;
         if (!gameState.started || !gameState.startTime) { el.classList.add('hidden'); return; }
         el.classList.remove('hidden');
-        const end = gameState.endTime || Date.now();
-        el.textContent = formatElapsed(end - gameState.startTime);
+        const end = gameState.endTime || gameState.pausedAt || Date.now();
+        el.textContent = formatElapsed(end - gameState.startTime - (gameState.pausedMs || 0));
         el.classList.toggle('stopped', !!gameState.endTime);
+        el.classList.toggle('paused', !gameState.endTime && !!gameState.pausedAt);
     }
     function startGameClock() {
         if (gameClockTimer) clearInterval(gameClockTimer);
         renderGameClock();
         gameClockTimer = setInterval(renderGameClock, 1000);
     }
+    // 計時控制：點一下計時器叫出「暫停／繼續」與「結束計時」
+    function toggleClockPause() {
+        if (gameState.endTime) return;
+        if (gameState.pausedAt) {
+            gameState.pausedMs = (gameState.pausedMs || 0) + (Date.now() - gameState.pausedAt);
+            gameState.pausedAt = null;
+        }
+        else {
+            gameState.pausedAt = Date.now();
+        }
+        renderGameClock();
+        saveState();
+    }
+    function stopClock() {
+        if (gameState.endTime) return;
+        // 暫停中按結束，時間就停在暫停的那一刻
+        gameState.endTime = gameState.pausedAt || Date.now();
+        gameState.pausedAt = null;
+        renderGameClock();
+        saveState();
+    }
+    function setupClockControls() {
+        const clock = document.getElementById('game-clock');
+        const menu = document.getElementById('clock-menu');
+        const pauseBtn = document.getElementById('clock-pause-btn');
+        const stopBtn = document.getElementById('clock-stop-btn');
+        if (!clock || !menu || !pauseBtn || !stopBtn) return;
+        const closeMenu = () => menu.classList.add('modal-hidden');
+        clock.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (gameState.endTime) return;              // 已結束就沒得調整
+            pauseBtn.textContent = gameState.pausedAt ? '繼續計時' : '暫停計時';
+            menu.classList.toggle('modal-hidden');
+        });
+        pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleClockPause(); closeMenu(); });
+        stopBtn.addEventListener('click', (e) => { e.stopPropagation(); stopClock(); closeMenu(); });
+        document.addEventListener('click', closeMenu);
+    }
+    (window as any).__toggleClockPause = toggleClockPause;   // 供測試
+    (window as any).__stopClock = stopClock;                 // 供測試
     (window as any).__formatElapsed = formatElapsed;   // 供測試
     function renderGameStateDisplay() {
         const { inning, isTop, outs } = gameState;
@@ -2331,7 +2414,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const team = gameState.teams[teamKey];
             const batterIndex = gameState.currentBatterIndex[teamKey];
             const photoContainer = document.createElement('div');
-            photoContainer.innerHTML = `<img src="${batter.photo || DEFAULT_PLAYER_PHOTO_BASE64}" class="batter-photo-main" alt="${batter.name}">`;
+            photoContainer.innerHTML = `<img src="${playerPhotoSrc(batter)}" class="batter-photo-main" alt="${batter.name}">`;
             const infoTextEl = document.createElement('div');
             infoTextEl.id = 'batter-info-text';
             const mainInfoEl = document.createElement('div');
@@ -2389,7 +2472,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#panel-tabs .panel-tab').forEach(btn => {
             btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab);
         });
-        ['log', 'situation', 'batting', 'pitching'].forEach(name => {
+        ['log', 'situation', 'team-a', 'team-b'].forEach(name => {
             const pane = document.getElementById(`pane-${name}`);
             if (pane) pane.classList.toggle('panel-pane-hidden', name !== tab);
         });
@@ -2397,9 +2480,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // 只重繪目前顯示的分頁，避免每次打席都重算兩張大表
     function renderActivePanelTab() {
-        if (activePanelTab === 'batting') renderBoxScore('pane-batting', 'batting');
-        else if (activePanelTab === 'pitching') renderBoxScore('pane-pitching', 'pitching');
+        // 同一隊的打擊與投球成績放同一頁，兩隊各一個分頁
+        if (activePanelTab === 'team-a') renderBoxScore('pane-team-a', 'all', 'a');
+        else if (activePanelTab === 'team-b') renderBoxScore('pane-team-b', 'all', 'b');
         else if (activePanelTab === 'situation') renderSituationTable('pane-situation');
+    }
+    // 分頁標籤直接用隊名，才看得出是哪一隊
+    function renderPanelTabLabels() {
+        const label = (tab: string, name: string, fallback: string) => {
+            const btn = document.querySelector(`#panel-tabs .panel-tab[data-tab="${tab}"]`);
+            if (btn) btn.textContent = (name || '').trim() || fallback;
+        };
+        label('team-a', gameState.teams.a.name, '客隊');
+        label('team-b', gameState.teams.b.name, '主隊');
     }
     // 打席結果 → 戰況表用的兩三字縮寫（左飛、游滾、一安…）
     function situationLabel(raw: string) {
@@ -2535,7 +2628,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (jerseyInput.dataset.dirty !== '1')
                         jerseyInput.value = player.jersey;
                     if (photoPreview) {
-                        photoPreview.src = player.photo || DEFAULT_PLAYER_PHOTO_BASE64;
+                        photoPreview.src = playerPhotoSrc(player);
                     }
                 }
                 if (i < LINEUP_SIZE) {
@@ -2555,14 +2648,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (pitcherJerseyInput && pitcherJerseyInput.dataset.dirty !== '1')
                     pitcherJerseyInput.value = pitcherPlayer.jersey;
                 if (pitcherPhotoPreview)
-                    pitcherPhotoPreview.src = pitcherPlayer.photo || DEFAULT_PLAYER_PHOTO_BASE64;
+                    pitcherPhotoPreview.src = playerPhotoSrc(pitcherPlayer);
             }
         });
     }
     // containerId：要畫到哪個容器；mode：'all' | 'batting' | 'pitching'
     // 表頭：一律中文；手機版靠左右滑動看完整張表
     const th = (long: string, _short: string) => `<th>${long}</th>`;
-    function renderBoxScore(containerId = 'box-score-tables', mode = 'all') {
+    function renderBoxScore(containerId = 'box-score-tables', mode = 'all', teamFilter: 'a' | 'b' | null = null) {
         const boxScoreContainer = document.getElementById(containerId);
         if (!boxScoreContainer) return;
         boxScoreContainer.innerHTML = '';
@@ -2572,7 +2665,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const fixed = value.toFixed(3);
             return (value < 1) ? fixed.substring(1) : fixed;
         };
-        ['a', 'b'].forEach((teamKey) => {
+        const teamKeys = teamFilter ? [teamFilter] : ['a', 'b'];
+        teamKeys.forEach((teamKey) => {
             const team = gameState.teams[teamKey];
             // --- Batting Table ---
             const battingTable = document.createElement('table');
@@ -2581,7 +2675,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tr>
                         <th>${team.name} 打擊成績</th>
                         ${th('打席', 'PA')} ${th('打數', 'AB')} ${th('得分', 'R')} ${th('安打', 'H')} ${th('打點', 'RBI')} ${th('二安', '2B')} ${th('三安', '3B')}
-                        ${th('全壘打', 'HR')} ${th('盜壘', 'SB')} ${th('四壞', 'BB')} ${th('觸身', 'HBP')} ${th('三振', 'K')} ${th('高飛犧牲', 'SF')} ${th('雙殺打', 'GDP')}
+                        ${th('全壘打', 'HR')} ${th('盜壘', 'SB')} ${th('四壞', 'BB')} ${th('觸身', 'HBP')} ${th('三振', 'K')} ${th('犧飛', 'SF')} ${th('犧短', 'SH')} ${th('雙殺打', 'GDP')}
                         ${th('打擊率', 'AVG')} ${th('上壘率', 'OBP')} ${th('OPS', 'OPS')}
                     </tr>
                 </thead>
@@ -2615,7 +2709,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td><div class="box-score-player-cell"><span>${playerName}</span></div></td>
                         <td>${player.pa}</td> <td>${player.ab}</td> <td>${player.r}</td> <td>${player.h}</td> <td>${player.rbi}</td>
                         <td>${player['2b']}</td> <td>${player['3b']}</td> <td>${player.hr}</td> <td>${player.sb}</td>
-                        <td>${player.bb}</td> <td>${player.hbp}</td> <td>${player.so}</td> <td>${player.sf}</td> <td>${player.gidp}</td>
+                        <td>${player.bb}</td> <td>${player.hbp}</td> <td>${player.so}</td> <td>${player.sf}</td> <td>${player.sh}</td> <td>${player.gidp}</td>
                         <td>${calculateStatString(avg)}</td>
                         <td>${calculateStatString(obp)}</td>
                         <td>${calculateStatString(obp + slg)}</td>
@@ -2644,7 +2738,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>合計</td>
                 <td>${teamTotals.pa}</td> <td>${teamTotals.ab}</td> <td>${teamTotals.r}</td> <td>${teamTotals.h}</td> <td>${teamTotals.rbi}</td>
                 <td>${teamTotals['2b']}</td> <td>${teamTotals['3b']}</td> <td>${teamTotals.hr}</td> <td>${teamTotals.sb}</td>
-                <td>${teamTotals.bb}</td> <td>${teamTotals.hbp}</td> <td>${teamTotals.so}</td> <td>${teamTotals.sf}</td> <td>${teamTotals.gidp}</td>
+                <td>${teamTotals.bb}</td> <td>${teamTotals.hbp}</td> <td>${teamTotals.so}</td> <td>${teamTotals.sf}</td> <td>${teamTotals.sh}</td> <td>${teamTotals.gidp}</td>
                 <td>${calculateStatString(total_avg)}</td>
                 <td>${calculateStatString(total_obp)}</td>
                 <td>${calculateStatString(total_obp + total_slg)}</td>
@@ -2665,6 +2759,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr>
                     <th>投手</th>
                     ${th('局數', 'IP')}
+                    ${th('面對打席', 'BF')}
                     ${th('安打', 'H')}
                     ${th('失分', 'R')}
                     ${th('責失', 'ER')}
@@ -2672,7 +2767,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${th('死球', 'HBP')}
                     ${th('三振', 'K')}
                     ${th('被全壘打', 'HR')}
-                    ${th('面對打席', 'BF')}
                     ${th('暴投', 'WP')}
                     ${th('投手犯規', 'BK')}
                     ${th('故意四壞', 'IBB')}
@@ -2693,8 +2787,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const whip = whip_denominator > 0 ? ((pitcher.bb + pitcher.h) / whip_denominator).toFixed(2) : '0.00';
                 row.innerHTML = `
                     <td>${pitcher.name}</td>
-                    <td>${ip || '0'}</td> <td>${pitcher.h}</td> <td>${pitcher.r}</td> <td>${pitcher.er}</td>
-                    <td>${pitcher.bb}</td> <td>${pitcher.hbp}</td> <td>${pitcher.k}</td> <td>${pitcher.hr}</td> <td>${pitcher.bf}</td>
+                    <td>${ip || '0'}</td> <td>${pitcher.bf}</td> <td>${pitcher.h}</td> <td>${pitcher.r}</td> <td>${pitcher.er}</td>
+                    <td>${pitcher.bb}</td> <td>${pitcher.hbp}</td> <td>${pitcher.k}</td> <td>${pitcher.hr}</td>
                     <td>${pitcher.wp}</td> <td>${pitcher.bk}</td> <td>${pitcher.ibb}</td>
                     <td>${era}</td> <td>${whip}</td>
                 `;
@@ -2715,8 +2809,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pTotalRow.classList.add('total-row');
             pTotalRow.innerHTML = `
                 <td>合計</td>
-                <td>${totalIp || '0'}</td> <td>${pTotals.h}</td> <td>${pTotals.r}</td> <td>${pTotals.er}</td>
-                <td>${pTotals.bb}</td> <td>${pTotals.hbp}</td> <td>${pTotals.k}</td> <td>${pTotals.hr}</td> <td>${pTotals.bf}</td>
+                <td>${totalIp || '0'}</td> <td>${pTotals.bf}</td> <td>${pTotals.h}</td> <td>${pTotals.r}</td> <td>${pTotals.er}</td>
+                <td>${pTotals.bb}</td> <td>${pTotals.hbp}</td> <td>${pTotals.k}</td> <td>${pTotals.hr}</td>
                 <td>${pTotals.wp}</td> <td>${pTotals.bk}</td> <td>${pTotals.ibb}</td>
                 <td>${totalEra}</td> <td>${totalWhip}</td>
             `;
@@ -2728,7 +2822,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Add a separator after the first team's stats
-            if (teamKey === 'a') {
+            if (teamKey === 'a' && !teamFilter) {
                 const separator = document.createElement('hr');
                 separator.classList.add('team-separator');
                 boxScoreContainer.appendChild(separator);
@@ -3643,7 +3737,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const c = chainUsed;
                 const nextBase = basesText[hitPower] || '本';
                 const tagger = c.length ? `被${relayText(c)}` : '';
-                batterDestText = `上到${basesText[hitPower - 1]}壘，趁傳想上${nextBase}壘時${tagger}觸殺出局${c.length ? `（${chainCode(c)}）` : ''}`;
+                batterDestText = `上到${basesText[hitPower - 1]}壘，趁傳想上${nextBase}壘時${tagger}觸殺出局${chainTail(c)}`;
             }
             else if (batterDestination.dest > 0) {
                 const extraWord = errListForText.length ? `靠${errWhoText}失誤` : '趁傳';
@@ -3699,7 +3793,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ? '離壘過遠回壘不及，被傳殺出局'
                                 : (last === '捕' ? '接殺後衝本壘，被傳殺出局' : '接殺後起跑進壘，被傳殺出局');
                         }
-                        const codeTail = c.length ? `（${chainCode(c)}）` : '';
+                        const codeTail = chainTail(c);
                         // 飛球：第一個野手負責接殺打者，之後的傳球才是處理跑者
                         if (isFly && c.length >= 2) {
                             toDestText = rd
@@ -4142,7 +4236,7 @@ document.addEventListener('DOMContentLoaded', () => {
         list.innerHTML = opts.candidates.length
             ? opts.candidates.map(p => `
                 <button type="button" class="picker-item" data-player-id="${p._id}">
-                    <img src="${p.photo || DEFAULT_PLAYER_PHOTO_BASE64}" alt="">
+                    <img src="${playerPhotoSrc(p)}" alt="">
                     <span class="picker-name">${p.name}</span>
                     <span class="picker-sub">${p.jersey ? '#' + p.jersey : ''}${p.pos ? ' ' + p.pos : ''}</span>
                 </button>`).join('')
@@ -4282,7 +4376,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const chip = (p, source: string, extra = '') => `
             <button type="button" class="def-chip ${sel && sel.id === p._id ? 'selected' : ''}" data-player-id="${p._id}" data-source="${source}">
-                <img src="${p.photo || DEFAULT_PLAYER_PHOTO_BASE64}" alt=""><span>${p.name}</span>${extra}
+                <img src="${playerPhotoSrc(p)}" alt=""><span>${p.name}</span>${extra}
             </button>`;
         const hint = !sel ? '點一個守位或板凳球員開始'
             : sel.source === 'field' ? `已選 ${getPlayerById(teamKey, sel.id)?.name}：再點另一個守位互換，或點板凳球員換他上場`
@@ -4531,7 +4625,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     teamData.batting.push({
                         player: playerName, pa: player.pa, ab: player.ab, r: player.r, h: player.h, rbi: player.rbi,
                         '2b': player['2b'], '3b': player['3b'], hr: player.hr, sb: player.sb, bb: player.bb,
-                        hbp: player.hbp, so: player.so, sf: player.sf, gidp: player.gidp,
+                        hbp: player.hbp, so: player.so, sf: player.sf, sh: player.sh, gidp: player.gidp,
                         tb: player.tb, avg: avg, obp: obp, slg: slg, ops: obp + slg
                     });
                 });
@@ -4587,8 +4681,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return result;
         };
-        const battingHeaders = ['球員', '打席', '打數', '得分', '安打', '打點', '二安', '三安', '全壘打', '盜壘', '四壞', '觸身', '三振', '高飛犧牲', '雙殺打', '打擊率', '上壘率', 'OPS'];
-        const pitchingHeaders = ['投手', '局數', '安打', '失分', '責失', '四壞', '死球', '三振', '被全壘打', '面對打席', '暴投', '投手犯規', '故意四壞', '防禦率', 'WHIP'];
+        const battingHeaders = ['球員', '打席', '打數', '得分', '安打', '打點', '二安', '三安', '全壘打', '盜壘', '四壞', '觸身', '三振', '犧飛', '犧短', '雙殺打', '打擊率', '上壘率', 'OPS'];
+        const pitchingHeaders = ['投手', '局數', '面對打席', '安打', '失分', '責失', '四壞', '死球', '三振', '被全壘打', '暴投', '投手犯規', '故意四壞', '防禦率', 'WHIP'];
         let csvContent = [];
         const calculateStatString = (value) => {
             if (isNaN(value) || !isFinite(value))
@@ -4607,7 +4701,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 csvContent.push([
                     player.player, player.pa, player.ab, player.r, player.h, player.rbi,
                     player['2b'], player['3b'], player.hr, player.sb, player.bb,
-                    player.hbp, player.so, player.sf, player.gidp,
+                    player.hbp, player.so, player.sf, player.sh, player.gidp,
                     calculateStatString(player.avg), calculateStatString(player.obp), calculateStatString(player.ops)
                 ]);
             });
@@ -4617,7 +4711,7 @@ document.addEventListener('DOMContentLoaded', () => {
             csvContent.push([
                 '合計', teamTotals.pa, teamTotals.ab, teamTotals.r, teamTotals.h, teamTotals.rbi,
                 teamTotals['2b'], teamTotals['3b'], teamTotals.hr, teamTotals.sb, teamTotals.bb,
-                teamTotals.hbp, teamTotals.so, teamTotals.sf, teamTotals.gidp,
+                teamTotals.hbp, teamTotals.so, teamTotals.sf, teamTotals.sh, teamTotals.gidp,
                 calculateStatString(teamTotals.avg), calculateStatString(teamTotals.obp), calculateStatString(teamTotals.slg)
             ]);
             csvContent.push([]); // Spacer row
@@ -4630,8 +4724,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const ipFrac = pitcher.outsRecorded % 3;
                 const ip = `${ipWhole}.${ipFrac}`;
                 csvContent.push([
-                    pitcher.pitcher, ip, pitcher.h, pitcher.r, pitcher.er, pitcher.bb, pitcher.hbp, pitcher.k, pitcher.hr,
-                    pitcher.bf, pitcher.wp, pitcher.bk, pitcher.ibb, pitcher.era.toFixed(2), pitcher.whip.toFixed(2)
+                    pitcher.pitcher, ip, pitcher.bf, pitcher.h, pitcher.r, pitcher.er, pitcher.bb, pitcher.hbp, pitcher.k, pitcher.hr,
+                    pitcher.wp, pitcher.bk, pitcher.ibb, pitcher.era.toFixed(2), pitcher.whip.toFixed(2)
                 ]);
             });
 
@@ -4641,8 +4735,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalIpFrac = pTotals.outsRecorded % 3;
             const totalIp = `${totalIpWhole}.${totalIpFrac}`;
             csvContent.push([
-                '合計', totalIp, pTotals.h, pTotals.r, pTotals.er, pTotals.bb, pTotals.hbp, pTotals.k, pTotals.hr,
-                pTotals.bf, pTotals.wp, pTotals.bk, pTotals.ibb, pTotals.era.toFixed(2), pTotals.whip.toFixed(2)
+                '合計', totalIp, pTotals.bf, pTotals.h, pTotals.r, pTotals.er, pTotals.bb, pTotals.hbp, pTotals.k, pTotals.hr,
+                pTotals.wp, pTotals.bk, pTotals.ibb, pTotals.era.toFixed(2), pTotals.whip.toFixed(2)
             ]);
             csvContent.push([]); // Spacer row after team block
         });
@@ -4665,7 +4759,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function exportBoxScoreToXLSX() {
         // Define headers, including raw data columns for formulas
-        const battingHeaders = ['球員', 'PA', 'AB', 'R', 'H', 'RBI', '2B', '3B', 'HR', 'SB', 'BB', 'HBP', 'SO', 'SF', 'GIDP', 'AVG', 'OBP', 'SLG', 'TB'];
+        const battingHeaders = ['球員', 'PA', 'AB', 'R', 'H', 'RBI', '2B', '3B', 'HR', 'SB', 'BB', 'HBP', 'SO', 'SF', 'SH', 'GIDP', 'AVG', 'OBP', 'SLG', 'TB'];
         const pitchingHeaders = ['投手', 'Outs', 'IP', 'H', 'R', 'ER', 'BB', 'K', 'HR', 'BF', 'WP', 'BK', 'HBP', 'IBB', 'ERA', 'WHIP'];
         const data = getBoxScoreDataForExport();
         const wb = XLSX.utils.book_new();
@@ -4679,14 +4773,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const batting_data_start_row = ws_data.length + 1;
             teamData.batting.forEach(p => {
                 ws_data.push([
-                    p.player, p.pa, p.ab, p.r, p.h, p.rbi, p['2b'], p['3b'], p.hr, p.sb, p.bb, p.hbp, p.so, p.sf, p.gidp,
+                    p.player, p.pa, p.ab, p.r, p.h, p.rbi, p['2b'], p['3b'], p.hr, p.sb, p.bb, p.hbp, p.so, p.sf, p.sh, p.gidp,
                     p.avg, p.obp, p.ops, p.tb
                 ]);
             });
             const batting_data_end_row = ws_data.length;
             const bt = teamData.battingTotals;
             ws_data.push([
-                '合計', bt.pa, bt.ab, bt.r, bt.h, bt.rbi, bt['2b'], bt['3b'], bt.hr, bt.sb, bt.bb, bt.hbp, bt.so, bt.sf, bt.gidp,
+                '合計', bt.pa, bt.ab, bt.r, bt.h, bt.rbi, bt['2b'], bt['3b'], bt.hr, bt.sb, bt.bb, bt.hbp, bt.so, bt.sf, bt.sh, bt.gidp,
                 bt.avg, bt.obp, bt.ops, bt.tb
             ]);
             const batting_total_row = ws_data.length;
@@ -4843,7 +4937,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: nameInput.value,
                 jersey: (row.querySelector('input[data-type="jersey"]') as HTMLInputElement)?.value || '',
                 pos: (row.querySelector('select[data-type="pos"]') as HTMLSelectElement)?.value || '',
-                photo: preview ? preview.src : DEFAULT_PLAYER_PHOTO_BASE64
+                photo: (preview && !isGeneratedAvatar(preview.src)) ? preview.src : DEFAULT_PLAYER_PHOTO_BASE64
             };
         };
         const lineupC = document.getElementById(`team-${teamKey}-lineup`);
@@ -4862,7 +4956,10 @@ document.addEventListener('DOMContentLoaded', () => {
             roster[PITCHER_ROSTER_INDEX] = {
                 name: (document.querySelector(`input[data-team="${teamKey}"][data-type="pitcher-name"]`) as HTMLInputElement).value,
                 jersey: (document.querySelector(`input[data-team="${teamKey}"][data-type="pitcher-jersey"]`) as HTMLInputElement).value,
-                photo: (document.getElementById(`player-photo-preview-${teamKey}-${PITCHER_ROSTER_INDEX}`) as HTMLImageElement).src
+                photo: (() => {
+                    const src = (document.getElementById(`player-photo-preview-${teamKey}-${PITCHER_ROSTER_INDEX}`) as HTMLImageElement).src;
+                    return isGeneratedAvatar(src) ? DEFAULT_PLAYER_PHOTO_BASE64 : src;
+                })()
             };
         }
         return { name: teamName, useDH, roster };
@@ -4990,7 +5087,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (pitcherJerseyInput)
                     pitcherJerseyInput.value = player.jersey;
                 if (pitcherPhotoPreview)
-                    pitcherPhotoPreview.src = player.photo || DEFAULT_PLAYER_PHOTO_BASE64;
+                    pitcherPhotoPreview.src = playerPhotoSrc(player);
             }
             else {
                 const nameInput = document.querySelector(`input[data-team="${teamKey}"][data-index="${i}"][data-type="name"]`) as HTMLInputElement;
@@ -5003,7 +5100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const posSelect = document.querySelector(`select[data-team="${teamKey}"][data-index="${i}"][data-type="pos"]`) as HTMLSelectElement | null;
                     if (posSelect && typeof player.pos === 'string') posSelect.value = player.pos;
                     if (photoPreview)
-                        photoPreview.src = player.photo || DEFAULT_PLAYER_PHOTO_BASE64;
+                        photoPreview.src = playerPhotoSrc(player);
                 }
             }
         });

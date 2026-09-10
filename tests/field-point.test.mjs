@@ -154,7 +154,7 @@ export default async function (t) {
     clickFieldThen(w, 'infield', '雙殺');
     click(w, q('#modal-advanced-done'));
     t.assert(outs() === before + 2, `出局燈 ${before} → ${outs()}`);
-    const gidp = [...w.document.querySelectorAll('#pane-batting td, #batting-stats-table td')]
+    const gidp = [...w.document.querySelectorAll('#pane-team-a td, #batting-stats-table td')]
       .some(td => td.textContent.trim() === '1');
     t.assert(gidp !== undefined, '');
   });

@@ -114,7 +114,11 @@
             <div id="game-state-container">
                 <div id="game-state-display" role="button" aria-label="紀錄打席">
                     <div id="inning-display">1局上</div>
-                    <div id="game-clock" class="hidden" aria-label="比賽經過時間">00:00</div>
+                    <button type="button" id="game-clock" class="hidden" aria-label="比賽經過時間，點一下可暫停或結束">00:00</button>
+                    <div id="clock-menu" class="modal-hidden">
+                        <button type="button" id="clock-pause-btn">暫停計時</button>
+                        <button type="button" id="clock-stop-btn">結束計時</button>
+                    </div>
                     <div id="sbo-display">
                          <div class="sbo-row">
                             <span>OUT</span><div class="sbo-light"></div><div class="sbo-light"></div>
@@ -177,8 +181,8 @@
                 <div id="panel-tabs">
                     <button type="button" class="panel-tab active" data-tab="log">即時事件</button>
                     <button type="button" class="panel-tab" data-tab="situation">戰況表</button>
-                    <button type="button" class="panel-tab" data-tab="batting">打擊</button>
-                    <button type="button" class="panel-tab" data-tab="pitching">投手</button>
+                    <button type="button" class="panel-tab" data-tab="team-a">客隊</button>
+                    <button type="button" class="panel-tab" data-tab="team-b">主隊</button>
                 </div>
             </div>
             <div id="pane-log" class="panel-pane">
@@ -187,8 +191,8 @@
                 </ul>
             </div>
             <div id="pane-situation" class="panel-pane panel-pane-hidden"></div>
-            <div id="pane-batting" class="panel-pane panel-pane-hidden"></div>
-            <div id="pane-pitching" class="panel-pane panel-pane-hidden"></div>
+            <div id="pane-team-a" class="panel-pane panel-pane-hidden"></div>
+            <div id="pane-team-b" class="panel-pane panel-pane-hidden"></div>
         </aside>
     </div>
 

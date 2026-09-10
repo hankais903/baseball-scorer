@@ -35,7 +35,7 @@ export default async function (t) {
     const r = await run({ zone: 'outfield', play: '飛球', taps: ['中', '捕'], runnerDest: 0 });
     t.assert(r.outs === 2, `出局數 ${r.outs}`);
     t.assert(r.runs === 0, '不該有得分');
-    t.assert(r.log.includes('接殺出局（8-2）'), '打者句不對：' + r.log);
+    t.assert(r.log.includes('接殺出局'), '打者句不對：' + r.log);
     t.assert(r.log.includes('回本壘，被中外野手傳給捕手觸殺出局'), '跑者句不對：' + r.log);
     t.assert(r.batter.ab === 1 && r.batter.sf === 0, '應計打數、不計犧飛');
   });
@@ -64,7 +64,7 @@ export default async function (t) {
     const r = await run({ zone: 'infield', play: '野手選擇', fcChoice: '2', taps: ['游', '捕'], batterDest: 1 });
     t.assert(r.outs === 1 && r.runs === 0, `出局 ${r.outs} 得分 ${r.runs}`);
     t.assert(r.bases[0] && !r.bases[2], '壘包狀態不對：' + r.bases.join());
-    t.assert(r.log.includes('選擇傳向本壘處理跑者（6-2）'), '打者句不對：' + r.log);
+    t.assert(r.log.includes('選擇傳向本壘處理跑者'), '打者句不對：' + r.log);
     t.assert(r.log.includes('衝本壘時被游擊手傳給捕手觸殺出局'), '跑者句不對：' + r.log);
     t.assert(r.batter.ab === 1 && r.batter.h === 0, '野手選擇應計打數、不計安打');
   });
@@ -81,13 +81,13 @@ export default async function (t) {
   await t('傳本壘刺殺跑者再傳一壘，記雙殺 6-2-3', async () => {
     const r = await run({ zone: 'infield', play: '雙殺', taps: ['游', '捕', '一'], runnerDest: 0 });
     t.assert(r.outs === 2, `出局數 ${r.outs}`);
-    t.assert(r.log.includes('形成雙殺（6-2-3）'), '敘述不對：' + r.log);
+    t.assert(r.log.includes('形成雙殺'), '敘述不對：' + r.log);
   });
 
   await t('傳本壘跑者安全、再傳一壘刺殺打者，記 6-2-3 滾地出局並得分', async () => {
     const r = await run({ zone: 'infield', play: '滾地', taps: ['游', '捕', '一'], runnerDest: 4 });
     t.assert(r.outs === 1 && r.runs === 1, `出局 ${r.outs} 得分 ${r.runs}`);
-    t.assert(r.log.includes('封殺出局（6-2-3）'), '敘述不對：' + r.log);
+    t.assert(r.log.includes('封殺出局'), '敘述不對：' + r.log);
     t.assert(r.batter.rbi === 1, '應有打點');
   });
 }

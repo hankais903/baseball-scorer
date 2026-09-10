@@ -69,8 +69,8 @@ export default async function (t) {
 
   await t('打擊成績表：替補列標示 (PH)', async () => {
     const { w, q } = await playGame();
-    click(w, q('.panel-tab[data-tab="batting"]'));
-    const sub = q('#pane-batting tr.substitute-row td');
+    click(w, q('.panel-tab[data-tab="team-a"]'));
+    const sub = q('#pane-team-a .box-batting tr.substitute-row td');
     t.assert(sub && sub.textContent.includes('代打王') && sub.textContent.includes('(PH)'), '打擊表替補列不對：' + (sub && sub.textContent));
   });
 
@@ -87,13 +87,13 @@ export default async function (t) {
   await t('表頭維持中文，手機以左右滑動看完整表格', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    click(w, q('.panel-tab[data-tab="pitching"]'));
-    const heads = [...q('#pane-pitching table thead').querySelectorAll('th')].map(x => x.textContent);
+    click(w, q('.panel-tab[data-tab="team-a"]'));
+    const heads = [...q('#pane-team-a .box-pitching thead').querySelectorAll('th')].map(x => x.textContent);
     t.assert(heads.includes('三振') && heads.includes('死球') && heads.includes('四壞'), '表頭不是中文：' + heads.join());
-    t.assert(!q('#pane-pitching .th-short'), '仍殘留縮寫表頭');
+    t.assert(!q('#pane-team-a .th-short'), '仍殘留縮寫表頭');
     const fs = await import('node:fs');
     const css = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css')).map(f => fs.readFileSync('dist/assets/' + f, 'utf8')).join('\n');
-    t.assert(/#pane-batting,#pane-pitching,#pane-situation\{overflow-x:auto/.test(css), '分頁沒有橫向滑動');
+    t.assert(/#pane-team-a,#pane-team-b,#pane-situation\{overflow-x:auto/.test(css), '分頁沒有橫向滑動');
   });
 
   await t('戰況表縮寫：滾地／飛球依守位、平飛雙殺', async () => {
@@ -110,8 +110,8 @@ export default async function (t) {
     const { window: w, q } = await boot();
     w.matchMedia = () => ({ matches: true, addListener() {}, removeListener() {} });
     click(w, q('#play-ball-btn'));
-    click(w, q('.panel-tab[data-tab="batting"]'));
-    const pane = q('#pane-batting');
+    click(w, q('.panel-tab[data-tab="team-a"]'));
+    const pane = q('#pane-team-a');
     Object.defineProperty(pane, 'scrollWidth', { value: 900, configurable: true });
     Object.defineProperty(pane, 'clientWidth', { value: 360, configurable: true });
     const td = pane.querySelector('td');

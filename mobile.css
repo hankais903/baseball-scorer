@@ -323,6 +323,7 @@
   #main-content,
   #event-log-container,
   .panel-pane,
+  .table-scroll,
   #scoreboard,
   #event-log {
     scrollbar-width: none;          /* Firefox */
@@ -333,6 +334,7 @@
   #main-content::-webkit-scrollbar,
   #event-log-container::-webkit-scrollbar,
   .panel-pane::-webkit-scrollbar,
+  .table-scroll::-webkit-scrollbar,
   #scoreboard::-webkit-scrollbar,
   #event-log::-webkit-scrollbar {
     width: 0;
@@ -446,16 +448,16 @@
 
 /* === 打擊／投手／戰況表分頁：表格維持原排版，手機左右滑動看完整（捲軸隱藏） === */
 @media (max-width: 768px), (orientation: portrait) {
-  #pane-batting, #pane-pitching, #pane-situation {
+  #pane-team-a, #pane-team-b, #pane-situation {
     overflow-x: auto !important;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x pan-y;
     scrollbar-width: none;
   }
-  #pane-batting::-webkit-scrollbar, #pane-pitching::-webkit-scrollbar, #pane-situation::-webkit-scrollbar { display: none; }
+  #pane-team-a::-webkit-scrollbar, #pane-team-b::-webkit-scrollbar, #pane-situation::-webkit-scrollbar { display: none; }
   /* 表格間距沿用 index.css 的原設定（0.35rem 0.3rem），這裡只讓它可以超出寬度 */
-  #pane-batting table, #pane-pitching table { width: max-content; min-width: 100%; }
+  #pane-team-a table, #pane-team-b table { width: max-content; min-width: 100%; }
   .situation-table { width: max-content; min-width: 100%; }
 }
 

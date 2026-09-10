@@ -70,9 +70,9 @@ export default async function (t) {
 
   await t('戰況表的球員列與打擊成績表同一種寫法', async () => {
     const { window: w, q } = await bootWithOnePlay();
-    click(w, q('.panel-tab[data-tab="batting"]'));
+    click(w, q('.panel-tab[data-tab="team-a"]'));
     await sleep(120);
-    const batting = q('#pane-batting tbody td .box-score-player-cell span').textContent.trim();
+    const batting = q('#pane-team-a .box-batting tbody td .box-score-player-cell span').textContent.trim();
     click(w, q('.panel-tab[data-tab="situation"]'));
     await sleep(120);
     const cell = q('#pane-situation tbody td.sit-name .box-score-player-cell span');
@@ -120,5 +120,63 @@ export default async function (t) {
     click(w, q('#close-log-view-modal'));
     await sleep(120);
     t.assert(q('#log-view-modal').classList.contains('modal-hidden'), '視窗關不掉');
+  });
+
+  // === 使用者回報的欄位與分頁調整 ===
+  await t('分頁改成兩隊各一頁，同一頁同時有打擊與投球', async () => {
+    const { window: w, q } = await bootWithOnePlay();
+    const tabs = [...w.document.querySelectorAll('#panel-tabs .panel-tab')].map(b => b.dataset.tab);
+    t.assert(tabs.join(',') === 'log,situation,team-a,team-b', '分頁不對：' + tabs.join(','));
+    click(w, q('.panel-tab[data-tab="team-a"]'));
+    await sleep(120);
+    t.assert(!!q('#pane-team-a .box-batting'), '客隊頁沒有打擊成績');
+    t.assert(!!q('#pane-team-a .box-pitching'), '客隊頁沒有投球成績');
+    t.assert(!q('#pane-team-a .box-batting ~ hr.team-separator'), '單隊頁不該有兩隊分隔線');
+    click(w, q('.panel-tab[data-tab="team-b"]'));
+    await sleep(120);
+    t.assert(!!q('#pane-team-b .box-batting') && !!q('#pane-team-b .box-pitching'), '主隊頁缺表');
+  });
+
+  await t('分頁標籤用隊名', async () => {
+    const { window: w, q } = await bootWithOnePlay();
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(q('.panel-tab[data-tab="team-a"]').textContent === gs.teams.a.name,
+      '客隊標籤是「' + q('.panel-tab[data-tab="team-a"]').textContent + '」');
+    t.assert(q('.panel-tab[data-tab="team-b"]').textContent === gs.teams.b.name, '主隊標籤不對');
+  });
+
+  await t('投手成績：面對打席緊接在局數後面', async () => {
+    const { window: w, q } = await bootWithOnePlay();
+    click(w, q('.panel-tab[data-tab="team-a"]'));
+    await sleep(120);
+    const ths = [...q('#pane-team-a .box-pitching thead').querySelectorAll('th')].map(x => x.textContent);
+    t.assert(ths[1] === '局數' && ths[2] === '面對打席', '欄位順序：' + ths.join(','));
+  });
+
+  await t('打擊成績：高飛犧牲改叫犧飛，並多一欄犧短', async () => {
+    const { window: w, q } = await bootWithOnePlay();
+    click(w, q('.panel-tab[data-tab="team-a"]'));
+    await sleep(120);
+    const ths = [...q('#pane-team-a .box-batting thead').querySelectorAll('th')].map(x => x.textContent);
+    t.assert(ths.includes('犧飛'), '沒有犧飛：' + ths.join(','));
+    t.assert(!ths.includes('高飛犧牲'), '還留著高飛犧牲：' + ths.join(','));
+    t.assert(ths[ths.indexOf('犧飛') + 1] === '犧短', '犧短沒有接在犧飛後面：' + ths.join(','));
+    const tds = [...q('#pane-team-a .box-batting tbody tr').querySelectorAll('td')];
+    t.assert(tds.length === ths.length, `欄數對不上：表頭 ${ths.length}、資料 ${tds.length}`);
+  });
+
+  await t('戰況表左右拖曳看不到捲軸', async () => {
+    const css = await builtCss();
+    t.assert(/\.table-scroll\b[^{]*\{[^}]*scrollbar-width:\s*none/.test(css) ||
+             /scrollbar-width:\s*none/.test((css.match(/[^{}]*\.table-scroll[^{}]*\{[^}]*\}/g) || []).join(' ')),
+      '.table-scroll 沒有隱藏捲軸');
+    t.assert(/\.table-scroll::-webkit-scrollbar/.test(css), '.table-scroll 沒有隱藏 WebKit 捲軸');
+  });
+
+  await t('即時事件的局數與比賽開始放大加粗', async () => {
+    const css = await builtCss();
+    const rule = (css.match(/#event-log li\.ev-inning\{[^}]*\}/g) || []).join(' ');
+    t.assert(/font-weight:\s*[78]00/.test(rule), '沒有加粗：' + rule);
+    t.assert(/font-size:/.test(rule), '沒有放大：' + rule);
   });
 }

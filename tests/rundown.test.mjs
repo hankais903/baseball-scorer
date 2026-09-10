@@ -30,7 +30,7 @@ export default async function (t) {
   await t('盜壘失敗預設帶入捕手傳補位者（2-6）', async () => {
     const r = await runnerAction({ type: '盜壘', mid: '否，繼續', choice: '盜壘失敗（出局）', taps: [] });
     t.assert(r.before.includes('捕→游（2-6）'), '預設鏈不對：' + r.before);
-    t.assert(r.log.includes('被捕手傳給游擊手觸殺出局（2-6）'), '敘述不對：' + r.log);
+    t.assert(r.log.includes('被捕手傳給游擊手觸殺出局'), '敘述不對：' + r.log);
     t.assert(r.outs === 1 && !r.bases[0], '跑者沒有出局');
   });
 
@@ -38,24 +38,24 @@ export default async function (t) {
     const r = await runnerAction({ type: '盜壘', mid: '否，繼續', choice: '盜壘失敗（出局）', taps: ['捕', '游', '一', '二'] });
     t.assert(r.after.includes('（2-6-3-4）'), '鏈不對：' + r.after);
     t.assert(!r.log.includes('夾殺'), '單向傳球被寫成夾殺：' + r.log);
-    t.assert(r.log.includes('被捕手經游擊手、一壘手轉傳給二壘手觸殺出局（2-6-3-4）'), '敘述不對：' + r.log);
+    t.assert(r.log.includes('被捕手經游擊手、一壘手轉傳給二壘手觸殺出局'), '敘述不對：' + r.log);
   });
 
   await t('盜壘時野手重複出現自動判為夾殺', async () => {
     const r = await runnerAction({ type: '盜壘', mid: '否，繼續', choice: '盜壘失敗（出局）', taps: ['捕', '游', '一', '游'] });
-    t.assert(r.log.includes('在一壘與二壘之間被夾殺出局（2-6-3-6）'), '敘述不對：' + r.log);
+    t.assert(r.log.includes('在一壘與二壘之間被夾殺出局'), '敘述不對：' + r.log);
   });
 
   await t('牽制出局預設投手傳一壘手（1-3）', async () => {
     const r = await runnerAction({ type: '投手牽制', mid: '成功', choice: '牽制出局', taps: [] });
     t.assert(r.before.includes('投→一（1-3）'), '預設鏈不對：' + r.before);
-    t.assert(r.log.includes('遭牽制，被投手傳給一壘手觸殺出局（1-3）'), '敘述不對：' + r.log);
+    t.assert(r.log.includes('遭牽制，被投手傳給一壘手觸殺出局'), '敘述不對：' + r.log);
   });
 
   await t('牽制後夾殺可以記很長的鏈，同一人重複出現', async () => {
     const r = await runnerAction({ type: '投手牽制', mid: '成功', choice: '牽制出局', taps: ['投', '一', '游', '一', '二', '一'] });
     t.assert(r.after.includes('（1-3-6-3-4-3）'), '鏈不對：' + r.after);
-    t.assert(r.log.includes('遭牽制後在一壘與二壘之間被夾殺出局（1-3-6-3-4-3）'), '敘述不對：' + r.log);
+    t.assert(r.log.includes('遭牽制後在一壘與二壘之間被夾殺出局'), '敘述不對：' + r.log);
   });
 
   await t('沒有跑者出局時不顯示處理野手', async () => {
@@ -79,7 +79,7 @@ export default async function (t) {
     click(w, q('#modal-advanced-options button[data-runner-id="batter"][data-dest="1"]'));
     click(w, q('#modal-advanced-done'));
     const log = q('#event-log li').textContent;
-    t.assert(log.includes('在三壘與本壘之間被夾殺出局（5-2-5-2）'), '敘述不對：' + log);
+    t.assert(log.includes('在三壘與本壘之間被夾殺出局'), '敘述不對：' + log);
   });
 
   await t('外野接力 8-9-4-2 觸殺本壘跑者，不是夾殺；可手動改成夾殺', async () => {
@@ -105,13 +105,13 @@ export default async function (t) {
     t.assert(btn && !btn.classList.contains('selected'), '單向接力卻預設勾了夾殺');
     click(w, q('#modal-advanced-done'));
     let log = q('#event-log li').textContent;
-    t.assert(log.includes('中外野手經右外野手、二壘手轉傳給捕手觸殺出局（8-9-4-2）'), '接力敘述不對：' + log);
+    t.assert(log.includes('中外野手經右外野手、二壘手轉傳給捕手觸殺出局'), '接力敘述不對：' + log);
 
     ({ w, q } = await setup());
     click(w, q('#modal-advanced-options button[data-step="toggle-rundown"]'));
     click(w, q('#modal-advanced-done'));
     log = q('#event-log li').textContent;
-    t.assert(log.includes('在三壘與本壘之間被夾殺出局（8-9-4-2）'), '手動夾殺沒生效：' + log);
+    t.assert(log.includes('在三壘與本壘之間被夾殺出局'), '手動夾殺沒生效：' + log);
   });
 
   await t('自動判定的夾殺可以手動取消', async () => {
@@ -131,6 +131,7 @@ export default async function (t) {
     click(w, [...w.document.querySelectorAll('#runner-action-modal button')].find(b => /完成|確定/.test(b.textContent)));
     const log = q('#event-log li').textContent;
     t.assert(!log.includes('夾殺'), '取消後仍寫夾殺：' + log);
-    t.assert(log.includes('（1-3-6-3）'), '代碼沒保留：' + log);
+    // 敘述已不附守備代號，改確認整條鏈仍照順序寫成文字
+    t.assert(log.includes('被投手經一壘手、游擊手轉傳給一壘手觸殺出局'), '轉傳敘述不對：' + log);
   });
 }

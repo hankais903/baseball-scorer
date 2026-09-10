@@ -75,8 +75,8 @@ console.log('\n=== 事件日誌（最後 8 筆）===');
 console.log('\n=== 成績表（客隊打擊）===');
 const setTab = t => { const b=[...w.document.querySelectorAll('#panel-tabs .panel-tab')]
   .find(x=>x.dataset.tab===t); if(b) click(w,b); };
-setTab('batting');
-const bt = w.document.querySelector('#pane-batting table');
+setTab('team-a');
+const bt = w.document.querySelector('#pane-team-a .box-batting');
 if (bt) [...bt.querySelectorAll('tr')].slice(0,12).forEach(r =>
   console.log('  ' + [...r.children].map(c=>c.textContent.trim().padStart(5)).join('')));
 
@@ -91,8 +91,8 @@ cells.forEach(row => {
 });
 
 console.log('\n=== 投手成績 ===');
-setTab('pitching');
-const pt = w.document.querySelector('#pane-pitching table');
+setTab('team-a');
+const pt = w.document.querySelector('#pane-team-a .box-pitching');
 console.log('（僅列客隊投手；兩隊分開統計）');
 if (pt) [...pt.querySelectorAll('tr')].forEach(r =>
   console.log('  ' + [...r.children].map(c=>c.textContent.trim().padStart(6)).join('')));
