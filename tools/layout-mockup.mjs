@@ -5,26 +5,65 @@ import { DEVICE, safeAreaCss } from './device-frame.mjs';
 // 兩案共用：打者卡瘦身（照片是把卡片撐到 143 高的元凶）
 const SLIM_BATTER = `
 [data-mock] #current-batter-display {
-  padding: 3px 8px;
+  padding: 4px 8px;
   gap: 8px;
   align-items: center;
+  grid-template-columns: auto 1fr;
 }
-[data-mock] #current-batter-display .player-photo-container,
-[data-mock] #current-batter-display img {
+/* 照片尺寸與名單頁一致：38 寬、3:4 直式（打者卡的照片是 .batter-photo-main） */
+[data-mock] #current-batter-display > div:first-child {
   width: 38px;
-  height: 38px;
-  min-width: 38px;
   flex: 0 0 38px;
+  line-height: 0;
 }
-[data-mock] #batter-info-text { gap: 2px; min-width: 0; }
+[data-mock] .batter-photo-main {
+  width: 38px;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: #3e3e3e;
+  display: block;
+}
+[data-mock] #batter-info-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 [data-mock] .batter-team-name { display: none; }          /* 隊名在計分板已經有了 */
-[data-mock] .batter-name-row { gap: 6px; align-items: baseline; }
+
+/* 姓名列：棒次徽章與姓名切齊左緣 */
+[data-mock] .batter-name-row { display: flex; gap: 6px; align-items: baseline; }
 [data-mock] .batter-name { font-size: 1rem; line-height: 1.2; }
-[data-mock] .batter-order { font-size: 0.7rem; padding: 1px 5px; }
-[data-mock] .batter-stats { gap: 8px; margin-top: 1px; }
-[data-mock] .batter-stats .stat b { font-size: 0.78rem; line-height: 1.15; }
-[data-mock] .batter-stats .stat i { font-size: 0.54rem; line-height: 1.1; }
-[data-mock] #batter-last-ab { margin-top: 0; font-size: 0.56rem; line-height: 1.3; }
+[data-mock] .batter-order { font-size: 0.7rem; padding: 1px 5px; flex: none; }
+
+/* 五項成績做成等寬五欄，數字與標籤上下對齊、位數不跳動 */
+[data-mock] .batter-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  margin-top: 0;
+}
+[data-mock] .batter-stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+[data-mock] .batter-stats .stat b {
+  font-size: 0.8rem;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+[data-mock] .batter-stats .stat i { font-size: 0.54rem; line-height: 1.1; font-style: normal; opacity: 0.72; }
+
+/* 本場結果列與上面切齊左緣 */
+[data-mock] #batter-last-ab {
+  margin-top: 0;
+  font-size: 0.56rem;
+  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
 [data-mock] #batter-last-ab .ab-chip { padding: 0 4px; }
 `;
 
@@ -36,28 +75,29 @@ const PLAN_B = `
 [data-mock="b"] #mock-next {
   flex: 0 0 36%;
   order: 2;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);   /* NEXT 與兩位打者各佔一段，上下間隔一樣 */
   text-align: center;
-  gap: 2px;
-  padding: 4px 8px;
+  padding: 0 8px;
   background: rgba(255,255,255,0.04);
   border-radius: 8px;
   min-width: 0;
 }
+[data-mock="b"] #mock-next > * {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+/* 淡淡的分隔線 */
+[data-mock="b"] .next-item { border-top: 1px solid rgba(255,255,255,0.13); }
 [data-mock="b"] .next-label {
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   color: #7dd3fc;
-  line-height: 1;
 }
-[data-mock="b"] .next-item {
-  display: flex; align-items: baseline; justify-content: center; gap: 5px;
-  max-width: 100%; line-height: 1.25;
-}
+[data-mock="b"] .next-item { gap: 5px; line-height: 1.25; }
 [data-mock="b"] .next-order {
   font-size: 0.6rem; font-weight: 700; opacity: 0.7; flex: none;
   font-variant-numeric: tabular-nums;
