@@ -28,17 +28,19 @@ const SLIM_BATTER = `
 [data-mock] #batter-last-ab .ab-chip { padding: 0 4px; }
 `;
 
-// 乙案改：左邊放「NEXT 下兩棒」，右邊放打者卡；大比分列收掉，比分回到計分板
+// 乙案改：左邊放打者卡，右邊放「NEXT 下兩棒」；大比分列收掉，比分回到計分板
 const PLAN_B = `
 [data-mock="b"] #game-info-center { display: none; }
 [data-mock="b"] #mock-row { display: flex; gap: 8px; align-items: stretch; }
-[data-mock="b"] #mock-row > #current-batter-display { flex: 1 1 auto; min-width: 0; order: 2; }
+[data-mock="b"] #mock-row > #current-batter-display { flex: 1 1 auto; min-width: 0; order: 1; }
 [data-mock="b"] #mock-next {
   flex: 0 0 36%;
-  order: 1;
+  order: 2;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+  text-align: center;
   gap: 2px;
   padding: 4px 8px;
   background: rgba(255,255,255,0.04);
@@ -53,8 +55,8 @@ const PLAN_B = `
   line-height: 1;
 }
 [data-mock="b"] .next-item {
-  display: flex; align-items: baseline; gap: 5px;
-  min-width: 0; line-height: 1.25;
+  display: flex; align-items: baseline; justify-content: center; gap: 5px;
+  max-width: 100%; line-height: 1.25;
 }
 [data-mock="b"] .next-order {
   font-size: 0.6rem; font-weight: 700; opacity: 0.7; flex: none;
@@ -178,7 +180,7 @@ export function mockJs() {
 
 const VARIANTS = [
     { key: '', name: '現況', note: '目前線上的排法' },
-    { key: 'b', name: '乙案改', note: '左邊 NEXT 下兩棒、右邊打者卡；比分回到計分板' },
+    { key: 'b', name: '乙案改', note: '左邊打者卡、右邊 NEXT 下兩棒；比分回到計分板' },
     { key: 'c', name: '丙案', note: '大比分收進計分板，打者卡瘦身' },
 ];
 
