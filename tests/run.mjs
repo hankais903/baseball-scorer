@@ -12,6 +12,7 @@ import lineupUx from './lineup-ux.test.mjs';
 import situation from './situation.test.mjs';
 import subUx from './substitution-ux.test.mjs';
 import narration from './narration.test.mjs';
+import { closeAllWindows } from './harness.mjs';
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -35,6 +36,9 @@ for (const [name, run] of suites) {
   console.log(`\n${name}`);
   await run(makeRunner(name));
 }
+
+// 關掉所有 jsdom 視窗，否則 game-manager 的自動儲存計時器會讓 node 跑完測試也不結束
+closeAllWindows();
 
 console.log('\n' + '='.repeat(48));
 console.log(`共 ${pass + fail} 項，通過 ${pass}，失敗 ${fail}`);

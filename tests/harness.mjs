@@ -5,12 +5,35 @@ import path from 'path';
 
 const DIST = 'dist';
 
+// jsdom 視窗不會自己關閉，裡面的計時器（game-manager 每 10 秒自動儲存）會一直排隊：
+// 跑到後面的套件時上百個視窗同時在計時，會排擠測試自己的 setTimeout，
+// 整套跑完後也讓 node 停不下來。跑完統一關掉。
+const openWindows = new Set();
+export function closeAllWindows() {
+  for (const w of openWindows) { try { w.close(); } catch {} }
+  openWindows.clear();
+}
+
+// 等條件成立再往下走，取代寫死秒數的 sleep：
+// 固定等待會因為計時器被排擠而偶發失敗（板凳滑動刪除就踩過）。
+export async function waitFor(fn, { timeout = 5000, interval = 20, message = '等待條件逾時' } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    let v;
+    try { v = await fn(); } catch { v = false; }
+    if (v) return v;
+    if (Date.now() >= deadline) throw new Error(message);
+    await new Promise(r => setTimeout(r, interval));
+  }
+}
+
 export async function boot(opts = {}) {
   let html = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
   html = html.replace(/<script src="https:\/\/[^"]*"><\/script>/g, '');
 
   const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost/' });
   const { window } = dom;
+  openWindows.add(window);
   window.XLSX = {};
   window.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {} });
   window.HTMLCanvasElement.prototype.getContext = () => null;

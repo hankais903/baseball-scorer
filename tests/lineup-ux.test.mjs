@@ -1,5 +1,5 @@
 // 名單頁 UX：板凳預設留空、新增板凳、自動套用
-import { boot, click, clickZone } from './harness.mjs';
+import { boot, click, clickZone, waitFor } from './harness.mjs';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const visibleBench = (w, team) =>
   [...w.document.querySelectorAll(`#team-${team}-bench .lineup-player`)].filter(r => !r.classList.contains('bench-hidden'));
@@ -257,7 +257,11 @@ async function positionSwap(t) {
     const row = [...w.document.querySelectorAll('#team-a-bench .lineup-player')].find(r => !r.classList.contains('bench-hidden'));
     const ni = row.querySelector('input[data-type="name"]');
     ni.value = '直接刪'; ni.dispatchEvent(new w.Event('change', { bubbles: true }));
-    await sleep(300);
+    // 先確認名字真的寫進狀態，否則後面「刪掉了嗎」會是假通過
+    await waitFor(
+      () => JSON.parse(w.localStorage.getItem('baseballGameState')).teams.a.roster[9].name === '直接刪',
+      { message: '新增的板凳球員沒有自動儲存' }
+    );
     Object.defineProperty(row, 'clientWidth', { value: 360, configurable: true });
     const pe = (type, x, y) => ni.dispatchEvent(new w.MouseEvent(type, { bubbles: true, clientX: x, clientY: y }));
     // 先垂直滑：不該動
@@ -267,9 +271,12 @@ async function positionSwap(t) {
     pe('pointerdown', 10, 10); pe('pointermove', 40, 10); pe('pointermove', 260, 10);
     t.assert(row.classList.contains('will-delete'), '滑到底沒有進入刪除狀態');
     pe('pointerup', 260, 10);
-    await sleep(500);
-    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
-    t.assert(gs.teams.a.roster[9].name === '', '滑到底沒有刪除');
+    // 刪除動畫 160ms 之後才真的清資料，再加上自動儲存 debounce 120ms；
+    // 這裡等狀態真的寫回 localStorage，不要賭固定秒數（整套一起跑時會被計時器排擠）
+    await waitFor(
+      () => JSON.parse(w.localStorage.getItem('baseballGameState')).teams.a.roster[9].name === '',
+      { message: '滑到底沒有刪除' }
+    );
     t.assert(!q('#team-a-lineup .swipe-reveal:not([style])') || true, '');
   });
 
