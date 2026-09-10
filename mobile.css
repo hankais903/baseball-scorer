@@ -299,34 +299,10 @@
   }
 }
 
-/* === 手機版成績表：只留核心欄位（參考 MLB Box 的取捨）=== */
+/* === 手機版成績表：全部欄位都要看得到，塞不下就左右滑 === */
+/* （原本用 display:none 把打席、二安、三安、全壘打…等欄位藏起來，
+    使用者反映「看不到也滑不到」，改成保留欄位、由 .panel-pane 橫向捲動） */
 @media (max-width: 768px), (orientation: portrait) {
-  /* 打擊：保留 打數 得分 安打 打點 四壞 三振 打擊率 長打率
-     隱藏 打席(2) 二安(7) 三安(8) 全壘打(9) 盜壘(10) 觸身(12) 高飛犧牲(14) 雙殺打(15) 上壘率(17) */
-  .box-batting th:nth-child(2),  .box-batting td:nth-child(2),
-  .box-batting th:nth-child(7),  .box-batting td:nth-child(7),
-  .box-batting th:nth-child(8),  .box-batting td:nth-child(8),
-  .box-batting th:nth-child(9),  .box-batting td:nth-child(9),
-  .box-batting th:nth-child(10), .box-batting td:nth-child(10),
-  .box-batting th:nth-child(12), .box-batting td:nth-child(12),
-  .box-batting th:nth-child(14), .box-batting td:nth-child(14),
-  .box-batting th:nth-child(15), .box-batting td:nth-child(15),
-  .box-batting th:nth-child(17), .box-batting td:nth-child(17) {
-    display: none;
-  }
-
-  /* 投球：保留 局數 被安打 失分 自責分 四壞 奪三振 防禦率
-     隱藏 被全壘打(8) 面對打席(9) 暴投(10) 投手犯規(11) 死球(12) 故意四壞(13) 每局被上壘率(15) */
-  .box-pitching th:nth-child(8),  .box-pitching td:nth-child(8),
-  .box-pitching th:nth-child(9),  .box-pitching td:nth-child(9),
-  .box-pitching th:nth-child(10), .box-pitching td:nth-child(10),
-  .box-pitching th:nth-child(11), .box-pitching td:nth-child(11),
-  .box-pitching th:nth-child(12), .box-pitching td:nth-child(12),
-  .box-pitching th:nth-child(13), .box-pitching td:nth-child(13) {
-    display: none;
-  }
-  /* 第 15 欄是 WHIP，保留顯示 */
-
   /* 分頁標籤在窄螢幕縮小 */
   .panel-tab {
     font-size: 0.85rem;

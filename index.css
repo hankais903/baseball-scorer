@@ -1816,7 +1816,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .panel-pane {
-    overflow-x: auto;   /* 表格較寬時可左右捲；垂直捲動交給外層面板 */
+    overflow-x: auto;              /* 表格較寬時可左右捲；垂直捲動交給外層面板 */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain; /* 捲到底不要把整個面板一起帶走 */
 }
 
 .panel-pane-hidden {
@@ -2165,20 +2167,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 
-/* === 成績表：寬度自適應，窄螢幕也能看到全部欄位 === */
+/* === 成績表：欄位依內容撐開，塞不下就左右滑（不截字） === */
 .panel-pane table {
-    table-layout: fixed;
-    width: 100%;
+    table-layout: auto;
+    width: auto;
+    min-width: 100%;
 }
 
 /* 欄距壓到最小，把省下的寬度換成更大的字 */
 .panel-pane th,
 .panel-pane td {
     /* OPS 可能超過 1（如 1.933），欄距不能為 0 否則會與前一欄相黏 */
-    padding: 0.34rem 0.12rem;
+    padding: 0.34rem 0.2rem;
     font-size: clamp(0.72rem, 2.7vw, 0.95rem);
-    overflow: hidden;
-    text-overflow: ellipsis;
     letter-spacing: -0.02em;
 }
 
@@ -2187,9 +2188,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* 姓名欄依內容自動撐開，完整顯示姓名與守位，不截斷 */
-.panel-pane table {
-    table-layout: auto;
-}
 
 .panel-pane th:first-child,
 .panel-pane td:first-child {
@@ -2824,9 +2822,8 @@ aside h2.panel-title { font-size: 1.6rem; }
     background: var(--panel-bg, #2a2a2a);
 }
 .situation-table thead th.sit-name { position: sticky; left: 0; z-index: 2; }
-.situation-table td.sit-name em { font-style: italic; color: #bbb; font-size: 0.85em; }
-.situation-table .sit-order { display: inline-block; width: 1.2em; color: #999; margin-right: 0.15em; }
-.situation-table tr.substitute-row td.sit-name { padding-left: 1.4rem; color: #ddd; }
+/* 球員列的字樣與打擊成績表共用 .box-pos，替補的縮排由 ↳ 前的空白負責 */
+.situation-table tr.substitute-row td.sit-name { color: #ddd; }
 .situation-table td:nth-child(n+2):nth-child(-n+16) { min-width: 2.6em; }
 .situation-table tbody td:not(.sit-name) { border-left: 1px solid rgba(255,255,255,0.04); }
 .situation-table tfoot .total-row td { background: rgba(251, 191, 36, 0.12); font-weight: 700; color: #fbbf24; }
@@ -3122,4 +3119,24 @@ aside h2.panel-title { font-size: 1.6rem; }
 #scoreboard th.rhe-first,
 #scoreboard td.rhe-first {
     border-left: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+/* === 紀錄檢視視窗（正式記錄表暫時沿用「匯出紀錄」的內容） === */
+.log-view-modal-content {
+    max-width: min(92vw, 640px);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+#log-view-text {
+    margin: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-color);
 }

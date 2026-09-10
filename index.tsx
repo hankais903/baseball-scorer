@@ -1520,17 +1520,22 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         // --- Mobile Navigation & Layout Listeners ---
-        // 正式記錄表：依 WBSC/IBAF 格式輸出，可列印或存成 PDF
+        // 正式記錄表：暫時只呈現與「匯出紀錄」相同的內容，並且留在 APP 裡。
+        // （原本開新視窗寫入 WBSC 格式的做法在手機上會回不來，先停用）
         const officialSheetBtn = document.getElementById('official-sheet-btn');
-        if (officialSheetBtn) {
+        const logViewModal = document.getElementById('log-view-modal');
+        const logViewText = document.getElementById('log-view-text');
+        if (officialSheetBtn && logViewModal && logViewText) {
             officialSheetBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                if ((window as any).openOfficialSheet) {
-                    (window as any).openOfficialSheet(gameState);
-                }
-                else {
-                    alert('正式記錄表模組尚未載入，請重新整理頁面。');
-                }
+                const lines = (gameState.events || []).map(ev => ev.text);
+                logViewText.textContent = lines.length ? lines.join('\n') : '目前沒有任何紀錄。';
+                openModal(logViewModal);
+            });
+            const closeBtn = document.getElementById('close-log-view-modal');
+            if (closeBtn) closeBtn.addEventListener('click', () => closeModal(logViewModal));
+            logViewModal.addEventListener('click', (e) => {
+                if (e.target === logViewModal) closeModal(logViewModal);
             });
         }
         // === 主畫面球場：位置優先的記錄流程 ===
@@ -2448,13 +2453,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         const inn = Number(String(raw).split('#')[1] || 0);
                         if (inn >= 1 && inn <= innings) cells[inn - 1].push(situationLabel(raw));
                     });
-                    const tag = isSub
-                        ? `<em>(${((spot as any).subInfo || {})[playerId] || player.pos || 'PH'})</em>`
-                        : (player.pos ? `<em>${player.pos}</em>` : '');
+                    // 球員列的寫法與打擊成績表一致：棒次. 姓名 守位／替補用 ↳ 姓名 (PH)
+                    const subLabel = isSub ? (((spot as any).subInfo || {})[playerId] || player.pos || '') : '';
+                    const posTag = isSub
+                        ? (subLabel ? ` <em class="box-pos">(${subLabel})</em>` : '')
+                        : (player.pos ? ` <em class="box-pos">${player.pos}</em>` : '');
+                    const playerLabel = isSub
+                        ? `&nbsp;&nbsp;↳ ${player.name}${posTag}`
+                        : `${index + 1}. ${player.name}${posTag}`;
                     const tr = document.createElement('tr');
                     if (isSub) tr.classList.add('substitute-row');
                     tr.innerHTML = `
-                        <td class="sit-name">${isSub ? '<span class="sit-order"></span>' : `<span class="sit-order">${index + 1}</span>`}${player.name}${tag ? ' , ' + tag : ''}</td>
+                        <td class="sit-name"><div class="box-score-player-cell"><span>${playerLabel}</span></div></td>
                         ${cells.map(c => `<td>${c.join('<br>')}</td>`).join('')}
                         <td>${player.ab}</td><td>${player.h}</td><td>${player.hr}</td><td>${player.rbi}</td><td>${player.r}</td>
                         <td>${avgStr(player.h, player.ab)}</td>`;
@@ -4832,6 +4842,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return {
                 name: nameInput.value,
                 jersey: (row.querySelector('input[data-type="jersey"]') as HTMLInputElement)?.value || '',
+                pos: (row.querySelector('select[data-type="pos"]') as HTMLSelectElement)?.value || '',
                 photo: preview ? preview.src : DEFAULT_PLAYER_PHOTO_BASE64
             };
         };
@@ -4854,7 +4865,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 photo: (document.getElementById(`player-photo-preview-${teamKey}-${PITCHER_ROSTER_INDEX}`) as HTMLImageElement).src
             };
         }
-        return { name: teamName, roster };
+        return { name: teamName, useDH, roster };
     }
     // Renders the list of saved rosters in the modal.
     function renderSavedRostersList() {
@@ -4895,9 +4906,12 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         // Use a case-insensitive search to find if a roster with the same name already exists.
         const existingRosterIndex = savedRosters.findIndex(r => r.name.toLowerCase() === teamName.toLowerCase());
+        // 守位與 DH 設定也要一起存，否則讀回來時守備位置會是畫面上的舊值
         const newRosterData = {
             name: teamName,
-            roster: teamDataFromForm.roster.map(p => ({ name: p.name, jersey: p.jersey, photo: p.photo }))
+            useDH: teamDataFromForm.useDH,
+            roster: teamDataFromForm.roster.map((p: any) =>
+                ({ name: p.name, jersey: p.jersey, pos: p.pos || '', photo: p.photo }))
         };
         if (existingRosterIndex > -1) {
             const existingRoster = savedRosters[existingRosterIndex];
@@ -4961,6 +4975,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         (document.getElementById(`team-${teamKey}-name`) as HTMLInputElement).value = rosterToLoad.name;
+        // DH 設定也要跟著回來，否則第 4 棒（DH）與投手欄會對不上
+        const dhToggle = document.getElementById(`team-${teamKey}-dh-toggle`) as HTMLInputElement | null;
+        if (dhToggle && typeof rosterToLoad.useDH === 'boolean') dhToggle.checked = rosterToLoad.useDH;
         // Apply player data to the form
         rosterToLoad.roster.forEach((player, i) => {
             const isDhPitcherSlot = i === PITCHER_ROSTER_INDEX && (document.getElementById(`team-${teamKey}-dh-toggle`) as HTMLInputElement).checked;
@@ -4982,13 +4999,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (nameInput) {
                     nameInput.value = player.name;
                     jerseyInput.value = player.jersey;
+                    // 舊版名單沒有存守位，這時就沿用畫面上的設定
+                    const posSelect = document.querySelector(`select[data-team="${teamKey}"][data-index="${i}"][data-type="pos"]`) as HTMLSelectElement | null;
+                    if (posSelect && typeof player.pos === 'string') posSelect.value = player.pos;
                     if (photoPreview)
                         photoPreview.src = player.photo || DEFAULT_PLAYER_PHOTO_BASE64;
                 }
             }
         });
+        // 有名字的板凳列要跟著現身，否則載進來的板凳球員看起來像不見了
+        updateBenchVisibility(teamKey);
         closeModal(loadRosterModal);
-        alert(`已載入名單 "${rosterToLoad.name}"。請點擊 "套用名單" 來更新比賽狀態。`);
+        // 名單頁是自動儲存的，載入後直接套用，不用再叫使用者按一次
+        // （scheduleAutoApply 定義在名單區塊內部，這裡走它掛在 window 上的入口）
+        (window as any).__scheduleAutoApply?.();
+        alert(`已載入名單 "${rosterToLoad.name}"。`);
     }
     function deleteRoster(rosterId: string) {
         const savedRosters = JSON.parse(localStorage.getItem(SAVED_ROSTERS_KEY) || '[]');
