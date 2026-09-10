@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { boot } from '../tests/harness.mjs';
 import { DEVICE, safeAreaCss, buildFramePage } from './device-frame.mjs';
+import { mockCss, mockJs, buildComparePage } from './layout-mockup.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -134,9 +135,16 @@ if (appForFrame === html) throw new Error('安全區樣式沒有塞進去');
 const device = path.join(OUT_DIR, `baseball-preview-${STAMP}-device.html`);
 fs.writeFileSync(device, buildFramePage(appForFrame));
 
+// 第四份：版面試作比較頁（現況／乙案／丙案），試作的樣式只活在預覽裡
+const appForMock = appForFrame.replace(BOUNDARY, `<style>${mockCss()}</style><script>${mockJs()}<\/script>\n${BOUNDARY}`);
+if (appForMock === appForFrame) throw new Error('試作樣式沒有塞進去');
+const compare = path.join(OUT_DIR, `baseball-preview-${STAMP}-compare.html`);
+fs.writeFileSync(compare, buildComparePage(appForMock));
+
 const kb = p => (fs.statSync(p).size / 1024).toFixed(0) + ' KB';
 console.log(`版本戳記：${STAMP}`);
 console.log(`完整單檔：${path.relative(ROOT, full)}（${kb(full)}）`);
 console.log(`嵌入用版本：${path.relative(ROOT, embed)}（${kb(embed)}）`);
 console.log(`機身外框版：${path.relative(ROOT, device)}（${kb(device)}）— ${DEVICE.name} ${DEVICE.width}×${DEVICE.height}`);
+console.log(`版面比較頁：${path.relative(ROOT, compare)}（${kb(compare)}）— 現況／乙案／丙案`);
 process.exit(0);
