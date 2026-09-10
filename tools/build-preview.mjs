@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { boot } from '../tests/harness.mjs';
+import { DEVICE, safeAreaCss, buildFramePage } from './device-frame.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
@@ -126,8 +127,16 @@ for (const f of ['official-sheet.js', 'game-manager.js', 'game-helpers.js']) {
 const embed = path.join(OUT_DIR, `baseball-preview-${STAMP}-embed.html`);
 fs.writeFileSync(embed, inner);
 
+// 第三份：包進 iPhone 17 Pro 機身外框、標出動態島，方便在電腦上檢查版面。
+// iframe 裡拿不到真機的安全區數值，所以先把模擬用的樣式塞進 APP 的 head。
+const appForFrame = html.replace(BOUNDARY, `<style>${safeAreaCss()}</style>\n${BOUNDARY}`);
+if (appForFrame === html) throw new Error('安全區樣式沒有塞進去');
+const device = path.join(OUT_DIR, `baseball-preview-${STAMP}-device.html`);
+fs.writeFileSync(device, buildFramePage(appForFrame));
+
 const kb = p => (fs.statSync(p).size / 1024).toFixed(0) + ' KB';
 console.log(`版本戳記：${STAMP}`);
 console.log(`完整單檔：${path.relative(ROOT, full)}（${kb(full)}）`);
 console.log(`嵌入用版本：${path.relative(ROOT, embed)}（${kb(embed)}）`);
+console.log(`機身外框版：${path.relative(ROOT, device)}（${kb(device)}）— ${DEVICE.name} ${DEVICE.width}×${DEVICE.height}`);
 process.exit(0);
