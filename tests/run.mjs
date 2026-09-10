@@ -16,6 +16,7 @@ import serviceWorker from './service-worker.test.mjs';
 import rosterSaveLoad from './roster-save-load.test.mjs';
 import panels from './panels.test.mjs';
 import clock from './clock.test.mjs';
+import tapTargets from './tap-targets.test.mjs';
 import { closeAllWindows } from './harness.mjs';
 
 let pass = 0, fail = 0;
@@ -35,7 +36,7 @@ function makeRunner(suite) {
   return t;
 }
 
-const suites = [['名單套用', lineup], ['標題列', header], ['擊球落點', fieldPoint], ['棒次與照片', lineupOrder], ['責失分', earnedRuns], ['守備鏈', fielderChain], ['本壘攻防', homePlays], ['夾殺', rundown], ['雙殺三殺', multiOut], ['名單頁 UX', lineupUx], ['戰況表', situation], ['比賽中換人', subUx], ['事件敘述', narration], ['離線快取', serviceWorker], ['名單存讀', rosterSaveLoad], ['事件頁面板', panels], ['計時', clock]];
+const suites = [['名單套用', lineup], ['標題列', header], ['擊球落點', fieldPoint], ['棒次與照片', lineupOrder], ['責失分', earnedRuns], ['守備鏈', fielderChain], ['本壘攻防', homePlays], ['夾殺', rundown], ['雙殺三殺', multiOut], ['名單頁 UX', lineupUx], ['戰況表', situation], ['比賽中換人', subUx], ['事件敘述', narration], ['離線快取', serviceWorker], ['名單存讀', rosterSaveLoad], ['事件頁面板', panels], ['計時', clock], ['好不好點', tapTargets]];
 for (const [name, run] of suites) {
   console.log(`\n${name}`);
   await run(makeRunner(name));

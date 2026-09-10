@@ -7,24 +7,26 @@ const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
     // 依落點區域提供合理的結果選項（位置優先流程）
-    // 點球場任一處都用同一組結果；誰處理球在下一步用守備鏈決定
+    // 點球場任一處都用同一組結果；誰處理球在下一步用守備鏈決定。
+    // zones 只影響「先顯示哪些」：落點對得上的先列出來，其餘收在「其他結果」裡，
+    // 任何結果都還是記得到，只是不用每次都從十幾顆按鈕裡找。
     const ZONE_PLAYS = {
         field: [
-            { play: '一安', label: '一壘安打', group: '安打' },
-            { play: '二安', label: '二壘安打', group: '安打' },
-            { play: '三安', label: '三壘安打', group: '安打' },
-            { play: '本打', label: '全壘打', group: '安打' },
-            { play: '內安', label: '內野安打', group: '安打' },
-            { play: '滾地', label: '滾地出局', out: true, group: '出局' },
-            { play: '飛球', label: '飛球出局', out: true, group: '出局' },
-            { play: '界飛', label: '界外飛球接殺', out: true, group: '出局' },
-            { play: '犧飛', label: '高飛犧牲', out: true, group: '出局' },
-            { play: '犧短', label: '犧牲觸擊', out: true, group: '出局' },
-            { play: '雙殺', label: '雙殺', out: true, group: '出局' },
-            { play: '三殺', label: '三殺', out: true, group: '出局' },
-            { play: '失誤', label: '失誤上壘', group: '其他' },
-            { play: '野手選擇', label: '野手選擇', group: '其他' },
-            { play: '妨礙守備', label: '妨礙守備', out: true, group: '其他' }
+            { play: '一安', label: '一壘安打', group: '安打', zones: ['infield', 'outfield'] },
+            { play: '二安', label: '二壘安打', group: '安打', zones: ['outfield'] },
+            { play: '三安', label: '三壘安打', group: '安打', zones: ['outfield'] },
+            { play: '本打', label: '全壘打', group: '安打', zones: ['outfield'] },
+            { play: '內安', label: '內野安打', group: '安打', zones: ['infield'] },
+            { play: '滾地', label: '滾地出局', out: true, group: '出局', zones: ['infield'] },
+            { play: '飛球', label: '飛球出局', out: true, group: '出局', zones: ['infield', 'outfield'] },
+            { play: '界飛', label: '界外飛球接殺', out: true, group: '出局', zones: ['foul'] },
+            { play: '犧飛', label: '高飛犧牲', out: true, group: '出局', zones: ['outfield'] },
+            { play: '犧短', label: '犧牲觸擊', out: true, group: '出局', zones: ['infield', 'foul'] },
+            { play: '雙殺', label: '雙殺', out: true, group: '出局', zones: ['infield'] },
+            { play: '三殺', label: '三殺', out: true, group: '出局', zones: ['infield'] },
+            { play: '失誤', label: '失誤上壘', group: '其他', zones: ['infield', 'outfield', 'foul'] },
+            { play: '野手選擇', label: '野手選擇', group: '其他', zones: ['infield'] },
+            { play: '妨礙守備', label: '妨礙守備', out: true, group: '其他', zones: ['infield', 'foul'] }
         ]
     };
     ZONE_PLAYS.infield = ZONE_PLAYS.field;   // 相容舊呼叫
@@ -1617,11 +1619,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!resultPanel) return;
             const groups = ['安打', '出局', '其他'];
             const zoneWord = zone === 'foul' ? '界外' : zone === 'infield' ? '內野' : '外野';
+            const fits = (o: any) => !o.zones || o.zones.indexOf(zone) >= 0;
+            const btn = (o: any) => `<button type="button" data-play="${o.play}" class="${o.out ? 'is-out' : ''}">${o.label}</button>`;
+            const section = (items: any[]) => groups.map(g => {
+                const inGroup = items.filter(o => o.group === g);
+                if (!inGroup.length) return '';
+                return `<div class="frp-group"><span class="frp-group-label">${g}</span><div class="frp-options">`
+                    + inGroup.map(btn).join('') + `</div></div>`;
+            }).join('');
+            const main = list.filter(fits);
+            const rest = list.filter(o => !fits(o));
             resultPanel.innerHTML =
                 `<div class="frp-title">落點：${zoneWord}　選擇結果</div>`
-                + groups.map(g => `<div class="frp-group"><span class="frp-group-label">${g}</span><div class="frp-options">`
-                    + list.filter(o => o.group === g).map(o => `<button type="button" data-play="${o.play}" class="${o.out ? 'is-out' : ''}">${o.label}</button>`).join('')
-                    + `</div></div>`).join('')
+                + section(main)
+                + (rest.length
+                    ? `<button type="button" class="frp-more" data-more="1">其他結果（${rest.length}）</button>`
+                      + `<div class="frp-rest hidden">${section(rest)}</div>`
+                    : '')
                 + `<button type="button" class="frp-cancel" data-cancel="1">取消</button>`;
             resultPanel.classList.remove('hidden');
         }
@@ -1693,6 +1707,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const btn = (e.target as Element).closest('button') as HTMLButtonElement | null;
                 if (!btn) return;
                 if (btn.dataset.cancel) { clearPendingPoint(); return; }
+                // 「其他結果」：把落點對不上的那些展開
+                if (btn.dataset.more) {
+                    const rest = resultPanel.querySelector('.frp-rest');
+                    if (rest) rest.classList.remove('hidden');
+                    btn.remove();
+                    return;
+                }
                 if (btn.dataset.play) runPlay(btn.dataset.play);
             });
         }
@@ -2253,7 +2274,14 @@ document.addEventListener('DOMContentLoaded', () => {
         renderEventLog();
         renderActivePanelTab();
         renderLineupInputs();
-        runnerActionBtn.disabled = !gameState.bases.some(runner => runner !== null) || gameState.isGameOver;
+        // 鎖住時要講原因，不然使用者只會覺得「怎麼按不動」
+        const noRunner = !gameState.bases.some(runner => runner !== null);
+        runnerActionBtn.disabled = noRunner || gameState.isGameOver;
+        runnerActionBtn.textContent = runnerActionBtn.disabled && noRunner && !gameState.isGameOver
+            ? '壘間事件（壘上無人）' : '壘間事件';
+        runnerActionBtn.title = runnerActionBtn.disabled
+            ? (gameState.isGameOver ? '比賽已結束' : '壘上沒有跑者，沒有壘間事件可記')
+            : '';
         undoBtn.disabled = gameStateHistory.length === 0;
         managementBtn.disabled = gameState.isGameOver;
         if (gameState.isGameOver) {
@@ -3878,8 +3906,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function handleUndo() {
         if (gameStateHistory.length > 0) {
+            // 復原就是把上一動抹掉，紀錄本身要乾淨，不再留下「已復原」那一行
             gameState = gameStateHistory.pop();
-            logEvent('上一動已復原。');
             saveState();
             createLineupInputs(); // Re-create inputs in case DH was changed
             attachTeamSettingsListeners(); // Re-attach listeners to new inputs
@@ -4329,6 +4357,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'P': [202, 262], 'C': [202, 372], '1B': [284, 248], '2B': [242, 203], '3B': [120, 248],
         'SS': [162, 203], 'LF': [92, 138], 'CF': [202, 92], 'RF': [312, 138], 'DH': [352, 356]
     };
+    // 同高度的鄰居（游擊↔二壘、三壘↔投手↔一壘）名字要一上一下，否則會疊在一起
+    // 名字一律避開鄰居：內野角落（一、三壘）與投手、DH 放下面，
+    // 二壘、游擊與外野放上面，這樣同一條水平線上不會有兩個名字相撞
+    const DEF_LABEL_DY: { [pos: string]: number } = { 'P': 34, '1B': 34, '3B': 34, 'DH': 34 };
     function renderManagementModal() {
         const tabsContainer = document.getElementById('management-team-tabs');
         const managementContainer = document.getElementById('management-container');
@@ -4360,13 +4392,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!xy || placed.has(pos)) return;
             placed.add(pos);
             const isSel = sel && sel.id === p._id;
+            // 名字太長會蓋到隔壁，只顯示後 4 個字（真實姓名多半 2–3 字，不受影響）
+            const label = shortName(p.name);
+            // 靠左右邊界的守位（LF／RF／DH）改成貼齊自己那一側，名字才不會被切掉
+            const anchor = xy[0] < 100 ? 'start' : (xy[0] > 300 ? 'end' : 'middle');
+            const anchorX = anchor === 'start' ? -20 : (anchor === 'end' ? 20 : 0);
+            const dy = DEF_LABEL_DY[pos] || -22;
             // 與主頁壘上跑者相同的半身人像 + 姓名（不放守位代號）
             nodes += `
                 <g class="def-node ${isSel ? 'selected' : ''} ${runnerIds.has(p._id) ? 'on-base' : ''}" data-player-id="${p._id}" data-source="field" data-pos="${pos}" transform="translate(${xy[0]},${xy[1]})">
                     <circle class="def-hit" r="26"/>
                     <path class="mf-runner-body" d="M-13 14 A13 13 0 0 1 13 14 Z"/>
                     <circle class="mf-runner-head" cx="0" cy="-6" r="8"/>
-                    <text class="mf-runner-name def-name" y="-22">${p.name}</text>
+                    <text class="mf-runner-name def-name" x="${anchorX}" y="${dy}" style="text-anchor:${anchor}">${label}</text>
                 </g>`;
         });
         // 沒有守位（或守位重複）的場上球員：另列成籌碼
@@ -4387,8 +4425,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const canSub = gameState.started && !gameState.isGameOver;
         const quickSubs = canSub ? `
             <div class="def-quick">
-                <button type="button" id="pinch-hit-btn" class="def-quick-btn">代打<small>換掉 ${batterNow ? batterNow.name : '—'}</small></button>
-                <button type="button" id="change-pitcher-btn" class="def-quick-btn">換投<small>換掉 ${pitcherNow ? pitcherNow.name : '—'}</small></button>
+                <button type="button" id="pinch-hit-btn" class="def-quick-btn">代打<small>換掉 ${gameState.teams[gameState.isTop ? 'a' : 'b'].name} ${batterNow ? batterNow.name : '—'}</small></button>
+                <button type="button" id="change-pitcher-btn" class="def-quick-btn">換投<small>換掉 ${gameState.teams[defKey].name} ${pitcherNow ? pitcherNow.name : '—'}</small></button>
             </div>` : '';
         managementContainer.innerHTML = `
             ${quickSubs}

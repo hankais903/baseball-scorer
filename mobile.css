@@ -307,8 +307,9 @@
   .panel-tab {
     font-size: 0.85rem;
     padding: 0.35rem 0.4rem;
-    min-height: 0;
-    min-width: 0;
+    /* 字可以小，但手指要點得到，所以維持 44 的高度 */
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .event-log-header {
@@ -493,4 +494,29 @@
 }
 @media (max-width: 768px), (orientation: portrait) {
   #main-content > #scoreboard { order: 0; }
+}
+
+/* === 名單頁：把設定球員之前的那一大段壓短，少捲一點 === */
+@media (max-width: 768px), (orientation: portrait) {
+  /* 「控制面板」與下面的「設定球員名單」意思重複，手機上省下這一行 */
+  #control-panel-title { display: none; }
+
+  #team-settings-tabs { gap: 0.25rem; }
+  #team-settings-tabs .tab-button {
+    min-height: 44px;          /* 仍然好點，但不要 59 那麼高 */
+    padding: 0.5rem 0.6rem;
+  }
+
+  #lineup-form #top-actions { margin-bottom: 0.4rem; }
+  #lineup-form #section-title { margin: 0.3rem 0; }
+
+  /* 儲存／讀取名單、啟用 DH 是設定類的次要功能，收緊一點 */
+  .roster-action-btn { min-height: 40px; }
+  .dh-toggle-container { margin: 0.35rem 0; }
+
+  /* 「先發投手」「先發打序」「板凳」這種小標題不需要那麼多留白 */
+  #lineup-form h4 { margin: 0.35rem 0 0.25rem; }
+  #lineup-form h5 { margin: 0.5rem 0 0.25rem; }
+  #lineup-form .collapsible-header { margin: 0.5rem 0 0.25rem; }
+  .team-settings-controls { margin-bottom: 0.5rem !important; }
 }

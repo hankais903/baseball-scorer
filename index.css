@@ -57,8 +57,9 @@ h5 {
 }
 
 .team-color-input {
-    width: 40px;
-    height: 25px;
+    width: 44px;
+    height: 44px;               /* 手指點得到 */
+    padding: 0;
     border: none;
     background: none;
     cursor: pointer;
@@ -399,6 +400,7 @@ input:checked + .slider:before {
     color: var(--text-color);
     border-radius: 4px;
     padding: 0.5rem;
+    min-height: 44px;          /* 手指點得到 */
     font-family: inherit;
     font-size: 1rem;
     text-align: center;
@@ -1443,16 +1445,32 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     z-index: 50;
 }
 
+/* 小圓點看起來一樣小，但整塊 44×44 都可以點（手指沒那麼準） */
 .nav-dot {
-    width: 10px;
-    height: 10px;
-    background-color: #888;
+    width: 44px;
+    height: 44px;
+    margin: -14px;            /* 撐大的部分不改變外觀間距 */
+    background: none;
     border-radius: 50%;
     cursor: pointer;
+    position: relative;
+    display: inline-block;
+}
+
+.nav-dot::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    background-color: #888;
+    border-radius: 50%;
     transition: all 0.2s ease-in-out;
 }
 
-.nav-dot.active {
+.nav-dot.active::after {
     background-color: var(--primary-color);
     transform: scale(1.2);
 }
@@ -1802,6 +1820,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     font-size: 0.95rem;
     font-weight: 700;
     padding: 0.4rem 0.6rem;
+    min-height: 44px;          /* 手指點得到 */
+    min-width: 44px;
     cursor: pointer;
     border-radius: 0;
 }
@@ -2765,9 +2785,10 @@ aside h2.panel-title { font-size: 1.6rem; }
     }
 }
 .team-color-input {
-    width: 34px;
-    height: 34px;
-    padding: 0;
+    /* 圓點看起來一樣大，但可點範圍撐到 44（手指沒那麼準） */
+    width: 44px;
+    height: 44px;
+    padding: 5px;
     border-radius: 50%;
     overflow: hidden;
     flex-shrink: 0;
@@ -2901,7 +2922,7 @@ aside h2.panel-title { font-size: 1.6rem; }
 .def-node.selected .mf-runner-head, .def-node.selected .mf-runner-body { fill: #fff; stroke: #f59e0b; stroke-width: 3; }
 .def-node.selected .def-hit { fill: rgba(251, 191, 36, 0.25); }
 .def-node.on-base .mf-runner-head, .def-node.on-base .mf-runner-body { stroke-dasharray: 3 2; }
-.def-node .def-name { text-anchor: middle; font-size: 17px; }
+.def-node .def-name { text-anchor: middle; font-size: 15px; }
 .def-node.selected .def-name { fill: #fbbf24; }
 @media (max-width: 768px), (orientation: portrait) {
     .def-field { max-width: none; }
@@ -3209,3 +3230,19 @@ aside h2.panel-title { font-size: 1.6rem; }
     line-height: 1.6;
     color: var(--text-color);
 }
+
+/* 「其他結果」：落點對不上的選項先收起來，需要時再展開 */
+.frp-more {
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.55rem;
+    font: inherit;
+    font-size: 0.85rem;
+    color: #9aa3ad;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.frp-more:hover { background: rgba(255, 255, 255, 0.1); }
+.frp-rest.hidden { display: none; }

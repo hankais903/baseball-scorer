@@ -139,22 +139,51 @@ export default async function (t) {
     t.assert(q('#main-field').classList.contains('live'), '球場未進入可點狀態');
   });
 
-  await t('點不同區域給出對應的結果選項', async () => {
+  // 落點決定「先顯示哪些結果」：對得上的先列，其餘收在「其他結果」裡。
+  // 任何結果都還是記得到，只是不用每次都從十幾顆按鈕裡找。
+  await t('點不同區域先顯示的結果不一樣', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    const optionsFor = zone => {
+    const shownFor = zone => {
       clickZone(w, zone);
-      return [...q('#field-result-panel').querySelectorAll('button[data-play]')]
-        .map(b => b.dataset.play);
+      const panel = q('#field-result-panel');
+      return {
+        先顯示: [...panel.querySelectorAll('button[data-play]')]
+          .filter(b => !b.closest('.frp-rest')).map(b => b.dataset.play),
+        全部: [...panel.querySelectorAll('button[data-play]')].map(b => b.dataset.play),
+      };
     };
-    // 需求變更：整片球場同一組結果，落點只決定「誰處理球」的預設值
-    const inf = optionsFor('infield');
-    const outf = optionsFor('outfield');
-    const foul = optionsFor('foul');
-    t.assert(inf.join() === outf.join() && outf.join() === foul.join(), '三處點擊的結果清單應相同');
-    for (const p of ['滾地', '飛球', '內安', '一安', '本打', '界飛', '雙殺', '失誤', '野手選擇']) {
-      t.assert(inf.includes(p), '結果清單缺少 ' + p);
+    const inf = shownFor('infield');
+    const outf = shownFor('outfield');
+    const foul = shownFor('foul');
+    t.assert(inf.先顯示.join() !== outf.先顯示.join(), '內野與外野先顯示的結果不該一樣');
+    t.assert(inf.先顯示.includes('滾地') && inf.先顯示.includes('內安') && inf.先顯示.includes('雙殺'),
+      '內野少了常見結果：' + inf.先顯示.join());
+    t.assert(!inf.先顯示.includes('三安') && !inf.先顯示.includes('犧飛'),
+      '內野不該先列外野才有的結果：' + inf.先顯示.join());
+    t.assert(outf.先顯示.includes('二安') && outf.先顯示.includes('本打') && outf.先顯示.includes('犧飛'),
+      '外野少了常見結果：' + outf.先顯示.join());
+    t.assert(!outf.先顯示.includes('滾地') && !outf.先顯示.includes('雙殺'),
+      '外野不該先列內野才有的結果：' + outf.先顯示.join());
+    t.assert(foul.先顯示.includes('界飛'), '界外少了界外飛球接殺：' + foul.先顯示.join());
+    // 收起來的部分仍然按得到
+    for (const z of [inf, outf, foul]) {
+      for (const p of ['滾地', '飛球', '內安', '一安', '本打', '界飛', '雙殺', '失誤', '野手選擇']) {
+        t.assert(z.全部.includes(p), '整體結果清單缺少 ' + p);
+      }
     }
+  });
+
+  await t('「其他結果」按下去會展開剩下的選項', async () => {
+    const { window: w, q } = await boot();
+    click(w, q('#play-ball-btn'));
+    clickZone(w, 'outfield');
+    const more = q('#field-result-panel .frp-more');
+    t.assert(more, '外野沒有「其他結果」按鈕');
+    t.assert(q('#field-result-panel .frp-rest').classList.contains('hidden'), '一開始就展開了');
+    click(w, more);
+    t.assert(!q('#field-result-panel .frp-rest').classList.contains('hidden'), '按了沒有展開');
+    t.assert(!q('#field-result-panel .frp-more'), '展開後按鈕應該消失');
   });
 
   await t('未擊出的結果有常駐快捷按鈕', async () => {
