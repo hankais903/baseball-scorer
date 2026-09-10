@@ -2,11 +2,14 @@
 
 單一頁面的 PWA，用手機在場邊記錄棒球比賽。所有回覆與程式內註解一律**繁體中文**。
 
+回覆要**用白話講**：使用者不是工程師，少用專有名詞。非提不可時，先用一句人話說它是什麼、會影響什麼，再講名字。報告結果講「做了什麼、結果如何、還有什麼要決定」就好。
+
 ## 指令
 ```bash
 npm install                 # 第一次
 npm run build               # Vite 建置到 dist/（測試跑的是 dist/，改完一定要先 build）
-npm test                    # 171+ 項回歸測試（jsdom），約 5 分鐘
+npm test                    # 171+ 項回歸測試（jsdom），約 2 分鐘
+npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自動 build）
 ```
 交付前必須：`npm run build && npm test` 全綠。每修一個 bug 就在 `tests/` 加一條釘住它的測試，套件名稱在 `tests/run.mjs` 註冊。
 
@@ -52,5 +55,7 @@ npm test                    # 171+ 項回歸測試（jsdom），約 5 分鐘
 
 ## 交付習慣
 - 完整 zip 之外，另出「只含變動檔案」的 zip 與清單（使用者手動覆蓋 GitHub）。
-- 預覽檔（單檔 HTML）要內嵌字型／球場圖，並帶版本戳記：新版本開啟即為新比賽（清 `baseballGameState`、`baseball_current_game_id`，保留名單）。
+- 預覽檔（單檔 HTML）用 `npm run build:preview` 產生（`tools/build-preview.mjs`），要內嵌字型／球場圖，並帶版本戳記：新版本開啟即為新比賽（清 `baseballGameState`、`baseball_current_game_id`，保留名單）。輸出兩份到 `preview/`：完整單檔，以及拆掉最外層 `<html>／<head>／<body>` 的嵌入版。
+  - 兩個踩過的坑：取代內容一律用函式（壓縮後的 JS 含 `$&`，當字串取代會被吃掉）；拆骨架只能從檔頭、檔尾、`</head>\n<body>` 交界下刀（`official-sheet.js` 的列印樣板字串裡也有這些標籤）。
+  - `xlsx` 仍走 cdnjs，預覽檔要有網路才能匯出；Service Worker 與 manifest 在預覽檔中拿掉，所以不能「加到主畫面」離線用。
 - 改功能要快：先跑受影響的測試套件，最後才跑整套。
