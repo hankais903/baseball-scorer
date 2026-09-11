@@ -1091,3 +1091,38 @@ body {
     #game-state-display { padding: 0.15rem; }
     #game-state-container { padding: 0; }
 }
+
+/* 移除照片的紅色 × 是圓的：手機端「按鈕至少 44 高」會把它拉成橢圓 */
+.image-remove-btn {
+    min-height: 0;
+    height: 22px;
+}
+
+/* 落點結果選單要一次看完，所以按鈕排緊一點 */
+#field-result-panel {
+    /* 選單比球場高的時候就往上長，蓋到上面幾列也沒關係，重點是一次看完 */
+    max-height: 78vh;
+    padding: 7px 8px;
+}
+
+.frp-title { margin-bottom: 4px; }
+
+#field-result-panel .frp-options {
+    gap: 5px;
+}
+
+#field-result-panel button {
+    min-height: 38px;
+    padding: 0.35rem 0.3rem;
+    font-size: 0.86rem;
+}
+
+#field-result-panel .frp-group-label {
+    font-size: 0.7rem;
+}
+
+#field-result-panel .frp-more,
+#field-result-panel .frp-cancel {
+    min-height: 34px;
+    font-size: 0.82rem;
+}

@@ -106,28 +106,26 @@ export default async function (t) {
     t.assert(L('觸身球#1') === '觸身' && L('野手選擇@游捕#4') === '野選', '其他縮寫不對');
   });
 
-  await t('手指放在成績表上左右滑，是捲表格而不是切換面板', async () => {
+  // 左右滑動換頁已取消：它會跟球場上「按住拖曳標落點」搶手勢，改用底部三個分頁
+  await t('左右滑動不再換頁，只有底部三個分頁會換', async () => {
     const { window: w, q } = await boot();
     w.matchMedia = () => ({ matches: true, addListener() {}, removeListener() {} });
     click(w, q('#play-ball-btn'));
-    click(w, q('.panel-tab[data-tab="team-a"]'));
-    const pane = q('#pane-team-a');
-    Object.defineProperty(pane, 'scrollWidth', { value: 900, configurable: true });
-    Object.defineProperty(pane, 'clientWidth', { value: 360, configurable: true });
-    const td = pane.querySelector('td');
     const app = q('#app-container');
     app.style.transition = '';
-    const touch = { clientX: 100, clientY: 100 };
-    const ev = new w.Event('touchstart', { bubbles: true, cancelable: true });
-    Object.defineProperty(ev, 'touches', { value: [touch] });
-    td.dispatchEvent(ev);
-    t.assert(app.style.transition !== 'none', '表格上的觸控被當成面板切換');
-    // 對照組：在事件列表上滑動仍可切換面板
-    click(w, q('.panel-tab[data-tab="log"]'));
-    const ev2 = new w.Event('touchstart', { bubbles: true, cancelable: true });
-    Object.defineProperty(ev2, 'touches', { value: [touch] });
-    q('#event-log').dispatchEvent(ev2);
-    t.assert(app.style.transition === 'none', '事件列表上的滑動應該切換面板');
+    const fire = (el, type, x) => {
+      const ev = new w.Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(ev, 'touches', { value: [{ clientX: x, clientY: 300 }] });
+      el.dispatchEvent(ev);
+    };
+    fire(q('#event-log'), 'touchstart', 300);
+    fire(w.document, 'touchmove', 80);
+    fire(w.document, 'touchend', 80);
+    t.assert(app.style.transition !== 'none', '滑動還是把面板拖著走');
+    t.assert(!/translateX\(-200vw\)/.test(app.style.transform), '滑動把頁面換掉了：' + app.style.transform);
+    // 底部分頁仍然要能換
+    click(w, q('.nav-dot[data-index="2"]'));
+    t.assert(/translateX\(-200vw\)/.test(app.style.transform), '按底部分頁沒有換頁：' + app.style.transform);
   });
 
   await t('即時事件：左側壘況圖示（有人黃色）＋出局燈，敘述分兩行', async () => {
