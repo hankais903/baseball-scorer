@@ -443,13 +443,10 @@ body {
     #main-content > .stadium-toolbar { order: -1; }
 }
 
-/* 球場圖與壘包要蓋在底圖上面 */
-#main-field,
-#bases-container,
-#field-result-panel {
-    position: relative;
-    z-index: 1;
-}
+/* 球場上的疊層（PLAY BALL、落點結果、開賽前的壓暗）都靠 index.css 原本的
+   position 與 z-index 互相疊，這裡一律不要碰：
+   改 position 會讓它們掉到球場下面（PLAY BALL 就不見了），
+   加 z-index 會多開一層堆疊，讓 PLAY BALL 被壓暗那層蓋住。 */
 
 #sbo-display,
 #inning-display,
@@ -471,7 +468,6 @@ body {
 /* 有夜景之後球場框本身不再上底色 */
 #game-state-display {
     background: transparent;
-    overflow: hidden;
 }
 
 /* --- 快捷結果按鈕：圖示在上、字在下 --- */
@@ -579,4 +575,18 @@ body {
     background: linear-gradient(180deg, #36b1ff, #1475d0);
     color: #fff;
     box-shadow: 0 2px 10px rgba(20, 117, 208, 0.5);
+}
+
+/* 落點結果面板：跟其他視窗同一種玻璃質感 */
+#field-result-panel {
+    background: linear-gradient(180deg, rgba(18, 40, 63, 0.97), rgba(10, 23, 41, 0.97));
+    border: 1px solid var(--th-line);
+    border-radius: 18px;
+}
+
+#field-result-panel button {
+    background-color: rgba(255, 255, 255, 0.09);
+    border-color: var(--th-line);
+    border-radius: 12px;
+    color: var(--text-color);
 }

@@ -17,6 +17,19 @@ function clickFieldThen(w, zone, play) {
 }
 
 export default async function (t) {
+  // PLAY BALL 與落點結果面板是疊在球場上的，樣式一改到 #bases-container 的
+  // position 或 z-index，按鈕就會掉到球場下面或被開賽前的壓暗蓋住（踩過一次）
+  await t('PLAY BALL 疊在球場上沒被蓋住', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const dir = path.join('dist', 'assets');
+    const css = fs.readFileSync(path.join(dir,
+      fs.readdirSync(dir).find(f => f.endsWith('.css'))), 'utf8');
+    const rules = (css.match(/#bases-container\{[^}]*\}/g) || []).join(' ');
+    t.assert(!/position:\s*(relative|static)/.test(rules), '#bases-container 的 position 被改掉了：' + rules);
+    t.assert(!/z-index/.test(rules), '#bases-container 不能自己開一層堆疊，會蓋掉 PLAY BALL：' + rules);
+  });
+
   await t('座標換算：本壘對本壘', async () => {
     const { window: w } = await boot();
     const p = w.__fieldMath.mainPointToMini({ x: 202, y: 341 });
