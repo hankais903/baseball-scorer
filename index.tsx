@@ -1004,72 +1004,77 @@ document.addEventListener('DOMContentLoaded', () => {
         if (step === 'advanced')
             modalStepAdvanced.classList.remove('modal-hidden');
     }
+    // DH 開關的實際動作抽出來：畫面上的開關與重播都走這裡
+    function applyDHToggle(teamKey: 'a' | 'b', on: boolean) {
+        recordLogEntry({ t: 'dh', team: teamKey, on });
+        const team = gameState.teams[teamKey];
+        team.useDH = on;
+        const pitcherSlot = PITCHER_ROSTER_INDEX;
+        const gameStarted = gameState.inning > 1 || gameState.outs > 0 || gameState.events.length > 0;
+        const teamLabel = teamKey === 'a' ? '客隊' : '主隊';
+        const firstEmptyBench = () => {
+            for (let i = LINEUP_SIZE; i < PITCHER_ROSTER_INDEX; i++) {
+                if (!(team.roster[i].name || '').trim()) return i;
+            }
+            return -1;
+        };
+        if (!team.useDH) {
+            // 關閉 DH：先發投手取代 DH 的棒次，原 DH 退到板凳區（放進第一個空位）
+            let dhIdx = team.roster.slice(0, LINEUP_SIZE).findIndex(p => p.pos === 'DH');
+            if (dhIdx < 0) dhIdx = LINEUP_SIZE - 1;
+            const pitcher = team.roster[pitcherSlot];
+            const formerDH = team.roster[dhIdx];
+            if (pitcher && formerDH && pitcher !== formerDH) {
+                const benchIdx = firstEmptyBench();
+                team.roster[dhIdx] = pitcher;
+                if (benchIdx >= 0) {
+                    // 空的板凳物件挪去投手欄佔位，原 DH 進板凳
+                    team.roster[pitcherSlot] = team.roster[benchIdx];
+                    team.roster[benchIdx] = formerDH;
+                }
+                else {
+                    team.roster[pitcherSlot] = formerDH;   // 板凳全滿才暫放投手欄
+                }
+                pitcher.pos = 'P';
+                formerDH.pos = '';
+                (team as any).benchedDHId = formerDH._id;
+                team.lineupSpots[dhIdx].activePlayerId = pitcher._id;
+                team.lineupSpots[dhIdx].history = [pitcher._id];
+                if (gameStarted) logEvent(`${pitcher.name} 接替第 ${dhIdx + 1} 棒（原 DH ${formerDH.name} 退回板凳）。`, teamKey);
+            }
+        }
+        else {
+            // 開啟 DH：打線裡的投手移回投手欄；原本的 DH（若還在板凳）回到該棒次
+            const pIdx = team.roster.slice(0, LINEUP_SIZE).findIndex(p => p.pos === 'P');
+            if (pIdx >= 0) {
+                const pitcher = team.roster[pIdx];
+                let rIdx = team.roster.findIndex((p, i) => i >= LINEUP_SIZE && p._id === (team as any).benchedDHId);
+                if (rIdx < 0) rIdx = team.roster.findIndex((p, i) => i >= LINEUP_SIZE && i !== pitcherSlot && (p.name || '').trim());
+                if (rIdx < 0) rIdx = pitcherSlot;   // 沒有人可用：把投手欄的空物件叫進來取個名字
+                const returning = team.roster[rIdx];
+                team.roster[pIdx] = returning;
+                team.roster[rIdx] = team.roster[pitcherSlot];   // 投手欄原本的（空位或別人）補到板凳
+                team.roster[pitcherSlot] = pitcher;
+                returning.pos = 'DH';
+                if (!(returning.name || '').trim()) {
+                    returning.name = `${teamLabel}球員${String(pIdx + 1).padStart(2, '0')}`;
+                    returning.jersey = returning.jersey || String(pIdx + 1).padStart(2, '0');
+                }
+                (team as any).benchedDHId = null;
+                team.lineupSpots[pIdx].activePlayerId = returning._id;
+                team.lineupSpots[pIdx].history = [returning._id];
+                if (gameStarted) logEvent(`${returning.name} 擔任第 ${pIdx + 1} 棒指定打擊，${pitcher.name} 專任投手。`, teamKey);
+            }
+        }
+        if (gameStarted) logEvent(`${team.name} 的指定打擊(DH)制度已${team.useDH ? '啟用' : '停用'}。`, teamKey);
+    }
     function attachTeamSettingsListeners() {
         ['a', 'b'].forEach(teamKey => {
             const dhToggle = document.getElementById(`team-${teamKey}-dh-toggle`) as HTMLInputElement;
             // Re-assigning onchange overwrites the previous handler, avoiding listener stacking.
             dhToggle.onchange = () => {
                 saveStateForUndo();
-                const team = gameState.teams[teamKey];
-                team.useDH = dhToggle.checked;
-                const pitcherSlot = PITCHER_ROSTER_INDEX;
-                const gameStarted = gameState.inning > 1 || gameState.outs > 0 || gameState.events.length > 0;
-                const teamLabel = teamKey === 'a' ? '客隊' : '主隊';
-                const firstEmptyBench = () => {
-                    for (let i = LINEUP_SIZE; i < PITCHER_ROSTER_INDEX; i++) {
-                        if (!(team.roster[i].name || '').trim()) return i;
-                    }
-                    return -1;
-                };
-                if (!team.useDH) {
-                    // 關閉 DH：先發投手取代 DH 的棒次，原 DH 退到板凳區（放進第一個空位）
-                    let dhIdx = team.roster.slice(0, LINEUP_SIZE).findIndex(p => p.pos === 'DH');
-                    if (dhIdx < 0) dhIdx = LINEUP_SIZE - 1;
-                    const pitcher = team.roster[pitcherSlot];
-                    const formerDH = team.roster[dhIdx];
-                    if (pitcher && formerDH && pitcher !== formerDH) {
-                        const benchIdx = firstEmptyBench();
-                        team.roster[dhIdx] = pitcher;
-                        if (benchIdx >= 0) {
-                            // 空的板凳物件挪去投手欄佔位，原 DH 進板凳
-                            team.roster[pitcherSlot] = team.roster[benchIdx];
-                            team.roster[benchIdx] = formerDH;
-                        }
-                        else {
-                            team.roster[pitcherSlot] = formerDH;   // 板凳全滿才暫放投手欄
-                        }
-                        pitcher.pos = 'P';
-                        formerDH.pos = '';
-                        (team as any).benchedDHId = formerDH._id;
-                        team.lineupSpots[dhIdx].activePlayerId = pitcher._id;
-                        team.lineupSpots[dhIdx].history = [pitcher._id];
-                        if (gameStarted) logEvent(`${pitcher.name} 接替第 ${dhIdx + 1} 棒（原 DH ${formerDH.name} 退回板凳）。`, teamKey);
-                    }
-                }
-                else {
-                    // 開啟 DH：打線裡的投手移回投手欄；原本的 DH（若還在板凳）回到該棒次
-                    const pIdx = team.roster.slice(0, LINEUP_SIZE).findIndex(p => p.pos === 'P');
-                    if (pIdx >= 0) {
-                        const pitcher = team.roster[pIdx];
-                        let rIdx = team.roster.findIndex((p, i) => i >= LINEUP_SIZE && p._id === (team as any).benchedDHId);
-                        if (rIdx < 0) rIdx = team.roster.findIndex((p, i) => i >= LINEUP_SIZE && i !== pitcherSlot && (p.name || '').trim());
-                        if (rIdx < 0) rIdx = pitcherSlot;   // 沒有人可用：把投手欄的空物件叫進來取個名字
-                        const returning = team.roster[rIdx];
-                        team.roster[pIdx] = returning;
-                        team.roster[rIdx] = team.roster[pitcherSlot];   // 投手欄原本的（空位或別人）補到板凳
-                        team.roster[pitcherSlot] = pitcher;
-                        returning.pos = 'DH';
-                        if (!(returning.name || '').trim()) {
-                            returning.name = `${teamLabel}球員${String(pIdx + 1).padStart(2, '0')}`;
-                            returning.jersey = returning.jersey || String(pIdx + 1).padStart(2, '0');
-                        }
-                        (team as any).benchedDHId = null;
-                        team.lineupSpots[pIdx].activePlayerId = returning._id;
-                        team.lineupSpots[pIdx].history = [returning._id];
-                        if (gameStarted) logEvent(`${returning.name} 擔任第 ${pIdx + 1} 棒指定打擊，${pitcher.name} 專任投手。`, teamKey);
-                    }
-                }
-                if (gameStarted) logEvent(`${team.name} 的指定打擊(DH)制度已${team.useDH ? '啟用' : '停用'}。`, teamKey);
+                applyDHToggle(teamKey as 'a' | 'b', dhToggle.checked);
                 // Rebuild UI and re-attach listeners, following the app's existing pattern.
                 createLineupInputs();
                 attachTeamSettingsListeners();
@@ -1367,7 +1372,7 @@ document.addEventListener('DOMContentLoaded', () => {
         savedRostersList.addEventListener('mousedown', handleLoadRosterModalClick);
         attachTeamSettingsListeners();
         newGameBtn.addEventListener('click', () => { openModal(confirmModal); });
-        confirmResetBtn.addEventListener('click', () => { gameState = getInitialGameState(); gameStateHistory = []; saveState(); createLineupInputs(); attachTeamSettingsListeners(); render(); closeModal(confirmModal); });
+        confirmResetBtn.addEventListener('click', () => { gameState = getInitialGameState(); gameStateHistory = []; resetReplayLog(); saveState(); createLineupInputs(); attachTeamSettingsListeners(); render(); closeModal(confirmModal); });
         cancelResetBtn.addEventListener('click', () => { closeModal(confirmModal); });
         confirmModal.addEventListener('click', (e) => { if (e.target === confirmModal)
             closeModal(confirmModal); });
@@ -1391,6 +1396,7 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.pausedMs = 0;
             gameState.pausedAt = null;
             logEvent('比賽開始。');
+            captureStartSnapshot();     // 重算的起點
             saveState();
             render();
             startGameClock();
@@ -2144,11 +2150,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     function saveState() {
+        if (isReplaying) return;      // 重播只是算給自己看，不要覆蓋真正的存檔
         localStorage.setItem('baseballGameState', JSON.stringify(gameState));
     }
     function loadState() {
         const savedState = localStorage.getItem('baseballGameState');
         gameStateHistory = [];
+        // 換一場比賽（或重新整理）就沒有重算起點了，等下次開賽再拍
+        resetReplayLog();
         if (savedState) {
             const loaded = JSON.parse(savedState);
             if (!loaded.teams?.a?.roster || loaded.teams.a.roster.length < ROSTER_SIZE) {
@@ -2337,6 +2346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function render() {
+        if (isReplaying) return;      // 重播不動畫面
         applyTeamColors();
         renderHeaderInputs();
         renderScoreboard();
@@ -3136,6 +3146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return { runnersScored, outsOnBases };
     }
     function handlePlay(play) {
+        recordLogEntry({ t: 'play', play });
         saveStateForUndo();
         snapshotSituation();
         const teamKey = gameState.isTop ? 'a' : 'b';
@@ -3714,6 +3725,7 @@ document.addEventListener('DOMContentLoaded', () => {
         snapshotSituation();
         {
         }
+        recordLogEntry({ t: 'adv', adv: advancedPlayState });
         saveStateForUndo();
         const { play, error, batterDestination, runnerDestinations, batterIsOut, obstruction } = advancedPlayState;
         const teamKey = gameState.isTop ? 'a' : 'b';
@@ -4020,13 +4032,127 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameStateHistory.length > 0) {
             // 復原就是把上一動抹掉，紀錄本身要乾淨，不再留下「已復原」那一行
             gameState = gameStateHistory.pop();
+            playLog.pop();
             saveState();
             createLineupInputs(); // Re-create inputs in case DH was changed
             attachTeamSettingsListeners(); // Re-attach listeners to new inputs
             render();
         }
     }
+    // =====================================================================
+    // 重播引擎（第一步：只記錄與自我對帳，畫面行為完全不變）
+    // 每個會改變比賽狀態的動作都記成一張「紙條」（誰、什麼結果、跑者去哪）。
+    // 之後要修改前面某一筆時，就是改紙條再把整場重算一次。
+    // 這一步先把紙條記下來，並且每記一次就偷偷重算一遍跟現況比對，
+    // 確認引擎算出來的跟實際一模一樣，之後才敢開放「修改」。
+    // =====================================================================
+    let playLog: any[] = [];
+    let startSnapshot: any = null;      // 開賽當下的狀態（重算的起點）
+    let isReplaying = false;            // 重播中：不存檔、不重畫、不記新紙條
+    let lastReplayCheck: { ok: boolean; where: string } = { ok: true, where: '' };
+
+    function deepCopyState(v) { return JSON.parse(JSON.stringify(v)); }
+
+    // 照片很大又跟比分無關，重算用的副本一律拿掉
+    function stripPhotos(state) {
+        (['a', 'b'] as const).forEach(k => {
+            (state.teams[k].roster || []).forEach(p => { p.photo = ''; });
+            state.teams[k].logo = '';
+        });
+        return state;
+    }
+
+    let verifyTimer: any = null;
+    function recordLogEntry(entry) {
+        if (isReplaying || !startSnapshot) return;
+        playLog.push(deepCopyState(entry));
+        // 這一動整個做完之後再對帳，才不會拖慢操作
+        if (verifyTimer) clearTimeout(verifyTimer);
+        verifyTimer = setTimeout(() => { verifyTimer = null; verifyReplay(entry.t); }, 0);
+    }
+
+    function captureStartSnapshot() {
+        startSnapshot = stripPhotos(deepCopyState(gameState));
+        playLog = [];
+        lastReplayCheck = { ok: true, where: '' };
+    }
+
+    function resetReplayLog() {
+        playLog = [];
+        startSnapshot = null;
+    }
+
+    function applyLogEntry(entry) {
+        switch (entry.t) {
+            case 'play': handlePlay(entry.play); break;
+            case 'adv': advancedPlayState = deepCopyState(entry.adv); processAdvancedPlay(); break;
+            case 'runner': runnerActionState = deepCopyState(entry.st); processRunnerAction(); break;
+            case 'sub': processSubstitution(entry.inId, entry.outId, entry.pos); break;
+            case 'swap': processDefensiveSwap(entry.a, entry.b); break;
+            case 'dh': applyDHToggle(entry.team, entry.on); break;
+        }
+    }
+
+    // 從開賽的狀態照著紙條重算一次，回傳算出來的比賽狀態（不會動到現在的比賽）
+    function rebuildFromLog(log = playLog) {
+        if (!startSnapshot) return null;
+        const liveState = gameState, liveAdv = advancedPlayState, liveRunner = runnerActionState;
+        isReplaying = true;
+        try {
+            gameState = deepCopyState(startSnapshot);
+            log.forEach(applyLogEntry);
+            return gameState;
+        }
+        finally {
+            gameState = liveState;
+            advancedPlayState = liveAdv;
+            runnerActionState = liveRunner;
+            isReplaying = false;
+        }
+    }
+
+    // 比對用的摘要：只取跟比賽結果有關的欄位（時間、照片這種不算）
+    function stateDigest(st) {
+        const teamPart = (t) => ({
+            score: t.score,
+            hits: t.hits,
+            errors: t.errors,
+            activePitcherId: t.activePitcherId,
+            useDH: t.useDH,
+            lineup: (t.lineupSpots || []).map(sp => [sp.activePlayerId, (sp.history || []).join('>'), JSON.stringify(sp.subInfo || {})]),
+            roster: (t.roster || []).map(p => [p._id, p.pa, p.ab, p.r, p.h, p.rbi, p.tb, p['2b'], p['3b'], p.hr,
+                p.bb, p.hbp, p.so, p.sf, p.sh, p.sb, p.gidp, (p.abResults || []).join('|'), p.pos]),
+            pitchers: (t.pitchers || []).map(p => [p._id, p.outsRecorded, p.h, p.r, p.er, p.bb, p.k, p.hbp, p.hr, p.bf, p.wp, p.bk]),
+        });
+        return JSON.stringify({
+            inning: st.inning, isTop: st.isTop, outs: st.outs, isGameOver: st.isGameOver,
+            bases: (st.bases || []).map(b => b ? [b.runnerId, b.isUnearned] : null),
+            batterIndex: st.currentBatterIndex,
+            events: (st.events || []).map(e => [e.text, e.teamKey, e.outs, JSON.stringify(e.bases || [])]),
+            a: teamPart(st.teams.a), b: teamPart(st.teams.b),
+        });
+    }
+
+    // 每記一筆就重算一次跟現況比對；對不上代表引擎有漏，先記下來
+    function verifyReplay(where = '') {
+        if (isReplaying || !startSnapshot) return true;
+        const rebuilt = rebuildFromLog();
+        if (!rebuilt) return true;
+        const ok = stateDigest(rebuilt) === stateDigest(gameState);
+        lastReplayCheck = { ok, where };
+        if (!ok) console.warn('[重播對帳] 重算結果與現況不符，動作：' + where);
+        return ok;
+    }
+    (window as any).__replay = {
+        log: () => playLog,
+        hasStart: () => !!startSnapshot,
+        rebuild: () => rebuildFromLog(),
+        verify: (where = '手動') => verifyReplay(where),
+        digest: (st?) => stateDigest(st || gameState),
+        lastCheck: () => lastReplayCheck,
+    };
     function saveStateForUndo() {
+        if (isReplaying) return;
         gameStateHistory.push(JSON.parse(JSON.stringify(gameState)));
     }
     function openRunnerActionModal() {
@@ -4258,6 +4384,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function processRunnerAction() {
+        recordLogEntry({ t: 'runner', st: runnerActionState });
         saveStateForUndo();
         snapshotSituation();
         const { type, destinations, originalBases, error, errorPosition } = runnerActionState;
@@ -4689,6 +4816,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function processSubstitution(playerInId, playerOutId, newPos) {
+        recordLogEntry({ t: 'sub', inId: playerInId, outId: playerOutId, pos: newPos });
         saveStateForUndo();
         const teamKey = managementState.activeTeamKey;
         const team = gameState.teams[teamKey];
@@ -4733,6 +4861,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
     }
     function processDefensiveSwap(player1Id, player2Id) {
+        recordLogEntry({ t: 'swap', a: player1Id, b: player2Id });
         saveStateForUndo();
         const teamKey = managementState.activeTeamKey;
         const player1 = getPlayerById(teamKey, player1Id);

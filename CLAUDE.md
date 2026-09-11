@@ -66,6 +66,13 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 計時器**一開始就顯示**（停在 00:00），按了 PLAY BALL 才開始跑；開賽前點它不會叫出選單。開賽後可點：叫出「暫停／繼續」與「結束計時」（`pausedMs`／`pausedAt` 記錄暫停時間）。
 - 正式記錄表暫時只顯示與「匯出紀錄」相同的內容，在 APP 內開視窗，不另開新視窗。
 
+## 重播引擎（修改前面某一筆打席的基礎）
+- 每個會改變比賽狀態的動作都會記成一張「紙條」存進 `playLog`：`play`（快捷結果）、`adv`（球場落點那一整套）、`runner`（壘間事件）、`sub`（換人）、`swap`（守位互換）、`dh`（DH 開關）。起點是 PLAY BALL 當下的 `startSnapshot`（拿掉照片，省記憶體）。
+- `rebuildFromLog()` 從起點照紙條重算一次，**重播中 `saveState`／`render`／`saveStateForUndo` 都會自動跳過**。重播是叫原本那幾個記錄函式跑一次（設好 `advancedPlayState`／`runnerActionState` 再呼叫），所以記分邏輯只有一份，不會有兩套規則。
+- 每記一筆就在下一個事件圈自動對帳一次（`verifyReplay`），對不上會在 console 留警告並記在 `__replay.lastCheck()`。測試可用 `window.__replay`（log/rebuild/verify/digest/lastCheck）。
+- 紙條目前只存在記憶體：重新整理或換一場比賽就清掉（`resetReplayLog`），第三步才會存進檔案。
+- 壓力測試：`node tools/replay-stress.mjs preview/xxx-預覽檔.html`（隨機打完一場再比對）。
+
 ## 交付習慣
 - **每改完一次就更新預覽，等使用者說 OK 才上線**：跑 `npm run build:preview`，把 `preview/*-device.html`（iPhone 外框版）發布到同一個預覽網址（`Artifact` 工具，url 固定用 https://claude.ai/code/artifact/32d5482a-fe7a-462b-bfdb-ec40da09613d ，先 read 再 publish），再附幾張截圖。得到「可以上線」才合併進 `main`（推 `main` 會自動部署到 GitHub Pages）。平常只推工作分支。
 - 合併上線之後**要立刻 `git checkout` 回工作分支**：留在 `main` 上的話，下一批修改會直接提交到 `main`，等於繞過「先給預覽再上線」的規矩（已經發生過兩次，都是事後把 commit 搬回工作分支、`main` 退回 origin 才修正）。
