@@ -64,7 +64,7 @@ export default async function (t) {
     const r = await run({ zone: 'infield', play: '野手選擇', fcChoice: '2', taps: ['游', '捕'], batterDest: 1 });
     t.assert(r.outs === 1 && r.runs === 0, `出局 ${r.outs} 得分 ${r.runs}`);
     t.assert(r.bases[0] && !r.bases[2], '壘包狀態不對：' + r.bases.join());
-    t.assert(r.log.includes('選擇傳向本壘處理跑者'), '打者句不對：' + r.log);
+    t.assert(r.log.includes('選擇傳本壘處理跑者'), '打者句不對：' + r.log);
     t.assert(r.log.includes('衝本壘時被游擊手傳給捕手觸殺出局'), '跑者句不對：' + r.log);
     t.assert(r.batter.ab === 1 && r.batter.h === 0, '野手選擇應計打數、不計安打');
   });
