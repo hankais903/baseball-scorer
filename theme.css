@@ -932,3 +932,70 @@ body {
     #date-text { font-size: 0.68rem; }
     #weather-input { font-size: 0.74rem; }
 }
+
+/* ==========================================================================
+   依示意圖再修：卡片排版、間隔、字級、換頁列高度
+   ========================================================================== */
+
+/* 上方那排：手機端的「按鈕至少 44 高」不適用這幾顆小箭頭，
+   不然整排會被撐成 46 高，跟下面的間隔看起來就特別大 */
+.meta-caret,
+.date-arrow {
+    min-height: 0;
+    height: 34px;
+}
+
+#game-info {
+    padding: 0;
+    margin: 0;
+    gap: 0;
+}
+
+/* 打者卡：照片靠上、本場表現獨立最下面一排 */
+#batter-row > #current-batter-display {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-areas:
+        "photo info"
+        "last  last";
+    align-items: start;
+    column-gap: 8px;
+    row-gap: 4px;
+    padding: 6px 8px;
+}
+
+#current-batter-display > div:first-child { grid-area: photo; }
+#batter-info-text { grid-area: info; min-width: 0; }
+#batter-last-ab { grid-area: last; margin-top: 0; }
+
+/* 隊名＋棒次的徽章 */
+.batter-order {
+    white-space: nowrap;
+}
+
+/* NEXT 卡片的圓角也收斂 */
+.next-label { border-radius: 6px; }
+#next-batters .next-item { border-radius: 6px; }
+#next-batters { border-radius: 10px; }
+
+/* 計分板的字大一點點 */
+#scoreboard th { font-size: 0.78rem; }
+#scoreboard td { font-size: 0.95rem; }
+#scoreboard .total-col { font-size: 1.05rem; }
+.scoreboard-team-cell span { font-size: 1rem; }
+
+/* 底部換頁列壓到跟字差不多高 */
+#mobile-nav { padding: 2px; gap: 2px; }
+
+.nav-dot {
+    min-height: 30px;
+    padding: 0 13px;
+    border-radius: 11px;
+    font-size: 13px;
+}
+
+/* 本場那一排跟上面的數據用一條淡線分開（依示意圖） */
+#batter-last-ab {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 4px;
+}

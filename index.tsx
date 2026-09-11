@@ -2569,8 +2569,9 @@ document.addEventListener('DOMContentLoaded', () => {
             mainInfoEl.id = 'batter-main-info';
             const lastAbEl = document.createElement('div');
             lastAbEl.id = 'batter-last-ab';
-            infoTextEl.append(mainInfoEl, lastAbEl);
-            batterDisplayContainer.append(photoContainer, infoTextEl);
+            infoTextEl.append(mainInfoEl);
+            // 本場表現獨立成最下面一排（照片靠上對齊，這排跨滿整張卡片）
+            batterDisplayContainer.append(photoContainer, infoTextEl, lastAbEl);
             mainInfoEl.style.setProperty('--team-accent', team.color);
             const calculateStatString = (value) => {
                 if (isNaN(value) || !isFinite(value))
@@ -2590,7 +2591,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             mainInfoEl.innerHTML = `
                 <div class="batter-name-row">
-                    <span class="batter-order">${batterIndex + 1}棒</span>
+                    <span class="batter-order">${team.name || ''} ${batterIndex + 1}棒</span>
                     <span class="batter-name">${batter.name || '未命名'}</span>
                 </div>
                 <div class="batter-team-name">${team.name}</div>
@@ -2606,7 +2607,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 : `<span class="last-ab-label">本場</span><span class="ab-chip ab-chip-empty">尚未上場</span>`;
         }
         else {
-            batterDisplayContainer.innerHTML = `<div id="batter-info-text"><div id="batter-main-info">請設定打序</div><div id="batter-last-ab"></div></div>`;
+            batterDisplayContainer.innerHTML = `<div id="batter-info-text"><div id="batter-main-info">請設定打序</div></div><div id="batter-last-ab"></div>`;
         }
         renderNextBatters();
         document.querySelectorAll('#sbo-display .sbo-row:nth-child(1) .sbo-light').forEach((l, i) => l.classList.toggle('o-on', i < outs));
