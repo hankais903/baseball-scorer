@@ -20,13 +20,17 @@ export function safeAreaCss(d = DEVICE) {
     return `
 /* 預覽外框：模擬 ${d.name} 的安全區 */
 @media (max-width: 768px), (orientation: portrait) {
-  #control-panel, #main-content, #event-log-container {
+  #control-panel, #event-log-container {
     padding-top: max(0.75rem, ${d.safeTop}px);
-    padding-bottom: max(60px, calc(${d.safeBottom}px + 52px));
   }
-  /* 與 mobile.css 同一組規則，只是把 env() 換成真機數值 */
-  #mobile-nav { bottom: max(1rem, calc(${d.safeBottom}px + 0.5rem)); }
-  #mobile-nav:has(.nav-dot[data-index="1"].active) { bottom: max(7rem, calc(${d.safeBottom}px + 6.5rem)); }
+  /* 主頁的上緣留白比較小（theme.css），這裡也要跟著一致 */
+  #main-content { padding-top: max(0.45rem, ${d.safeTop}px); }
+  #control-panel, #main-content, #event-log-container {
+    padding-bottom: max(74px, calc(${d.safeBottom}px + 68px));
+  }
+  /* 與 mobile.css／theme.css 同一組規則，只是把 env() 換成真機數值 */
+  #mobile-nav,
+  #mobile-nav:has(.nav-dot[data-index="1"].active) { bottom: max(1rem, calc(${d.safeBottom}px + 0.5rem)); }
 }`;
 }
 

@@ -25,6 +25,12 @@ export default async function (t) {
     }
   });
 
+  // 底部換頁列是浮在內容上面的，頁面下緣要留得下它，否則最後一排按鈕會被蓋住
+  await t('頁面下緣留得下換頁列', async () => {
+    const css = await builtCss();
+    t.assert(/padding-bottom:\s*max\(74px/.test(css), '下緣留白不夠放換頁列（應為 max(74px, 安全區+68px)）');
+  });
+
   await t('分頁標籤至少 44 高', async () => {
     const css = await builtCss();
     const rules = css.match(/\.panel-tab\{[^}]*\}/g) || [];

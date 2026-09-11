@@ -482,8 +482,19 @@ body {
     .brand-text strong { font-size: 16px; }
     .brand-text small { font-size: 9px; }
 
-    #game-state-container { padding: 0.1rem 0; }
-    #game-state-display { aspect-ratio: 370 / 390; }
+    /* 球場改成「把剩下的高度吃滿」：不同機型、有沒有動態島都不會爆版 */
+    #game-state-container {
+        padding: 0.1rem 0;
+        flex: 1 1 auto;
+        min-height: 150px;
+        display: flex;
+    }
+    #game-state-display {
+        aspect-ratio: auto;
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+    }
     #quick-plays button { min-height: 48px; }
     #quick-plays button::before { font-size: 19px; }
 }
@@ -492,9 +503,15 @@ body {
 @media (max-width: 768px), (orientation: portrait) {
     /* 上緣留白縮小，但仍要避開動態島（加到主畫面時 env() 才會有值） */
     #main-content { padding-top: max(0.45rem, env(safe-area-inset-top)); row-gap: 6px; }
+
+    /* 下緣要留得下整條換頁列（52 高）＋ Home 指示條，內容才不會被壓到 */
+    #control-panel,
+    #main-content,
+    #event-log-container {
+        padding-bottom: max(74px, calc(env(safe-area-inset-bottom) + 68px));
+    }
     #game-info { margin-bottom: 0; }
     #scoreboard { margin: 0; }
-    #game-state-display { aspect-ratio: 370 / 358; }
 
     /* 各區之間不要再另外留白，統一用 row-gap，才擠得出高度 */
     #game-meta-row,
