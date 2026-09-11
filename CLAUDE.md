@@ -60,6 +60,8 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 正式記錄表暫時只顯示與「匯出紀錄」相同的內容，在 APP 內開視窗，不另開新視窗。
 
 ## 交付習慣
+- **上線前一定要先問過使用者**：改完先 build＋test、出預覽截圖給使用者看，得到「可以上線」才合併進 `main`（推 `main` 會自動部署到 GitHub Pages）。平常只推工作分支。
+- 外觀調整走 `theme.css`（排在 `index.css`、`mobile.css` 之後，只改長相不動功能）；要退回舊樣子就拿掉 `index.html` 裡那行連結。成績表的圓角要加在外層 `.table-scroll`，加在 `table` 上會讓鎖住的姓名欄失效。
 - 完整 zip 之外，另出「只含變動檔案」的 zip 與清單（使用者手動覆蓋 GitHub）。
 - 預覽檔（單檔 HTML）用 `npm run build:preview` 產生（`tools/build-preview.mjs`），要內嵌字型／球場圖，並帶版本戳記：新版本開啟即為新比賽（清 `baseballGameState`、`baseball_current_game_id`，保留名單）。輸出兩份到 `preview/`：完整單檔，以及拆掉最外層 `<html>／<head>／<body>` 的嵌入版。
   - 兩個踩過的坑：取代內容一律用函式（壓縮後的 JS 含 `$&`，當字串取代會被吃掉）；拆骨架只能從檔頭、檔尾、`</head>\n<body>` 交界下刀（`official-sheet.js` 的列印樣板字串裡也有這些標籤）。
