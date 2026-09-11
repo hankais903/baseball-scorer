@@ -128,4 +128,95 @@ export default async function (t) {
     t.assert(chk.ok === true, '自動對帳發現不一致：' + JSON.stringify(chk));
     t.assert(chk.where === 'play', '對帳沒有記下是哪種動作：' + JSON.stringify(chk));
   });
+
+  // === 第二步：修改／刪除前面某一筆 ===
+  await t('刪除中間那一筆，後面的自動重算', async () => {
+    const { window: w, q } = await boot();
+    const c = makeCtx(w, q);
+    startGame(w);
+    c.quick('三振');
+    c.quick('四壞');      // 1 人在一壘
+    c.quick('三振');
+    let gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.outs === 2 && !!gs.bases[0], '前置狀況不對');
+    w.__editEntry.del(1);                       // 把中間的四壞刪掉
+    gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(w.__replay.log().length === 2, '紙條沒刪掉：' + w.__replay.log().length);
+    t.assert(gs.outs === 2, '出局數沒重算：' + gs.outs);
+    t.assert(!gs.bases[0], '一壘的跑者沒有跟著消失');
+    t.assert(gs.teams.a.roster[1].bb === 0, '被刪掉的四壞還留在成績裡');
+    t.assert(gs.events.filter(e => /四壞|保送/.test(e.text)).length === 0, '事件列表還留著那一筆');
+    t.assert(c.sameAsLive() === '', c.sameAsLive());
+  });
+
+  await t('重記某一筆：記完會自動接回後面的紀錄', async () => {
+    const { window: w, q } = await boot();
+    const c = makeCtx(w, q);
+    startGame(w);
+    c.quick('三振');      // 第 0 筆：要改成四壞
+    c.quick('三振');
+    c.quick('四壞');
+    w.__editEntry.start(0);
+    t.assert(!!w.__editEntry.current(), '沒有進入修改模式');
+    t.assert(w.__replay.log().length === 0, '沒有退回那一筆之前：' + w.__replay.log().length);
+    t.assert(!q('#edit-mode-bar').classList.contains('hidden'), '沒有顯示修改中的提示條');
+    c.quick('四壞');       // 重新記成四壞
+    await sleep(30);       // 接回後面的紀錄排在動作之後
+    t.assert(!w.__editEntry.current(), '沒有離開修改模式');
+    t.assert(q('#edit-mode-bar').classList.contains('hidden'), '提示條沒有收起來');
+    t.assert(w.__replay.log().length === 3, '後面的紀錄沒接回來：' + w.__replay.log().length);
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.teams.a.roster[0].bb === 1 && gs.teams.a.roster[0].so === 0, '第 1 棒沒有改成四壞');
+    t.assert(gs.outs === 1, '後面那個三振沒接回來：出局數 ' + gs.outs);
+    t.assert(c.sameAsLive() === '', c.sameAsLive());
+  });
+
+  await t('修改到一半可以取消，整場回到原樣', async () => {
+    const { window: w, q } = await boot();
+    const c = makeCtx(w, q);
+    startGame(w);
+    c.quick('三振');
+    c.quick('四壞');
+    const before = w.__replay.digest();
+    w.__editEntry.start(0);
+    t.assert(w.__replay.log().length === 0, '沒有退回去');
+    w.__editEntry.cancel();
+    t.assert(w.__replay.log().length === 2, '取消後紙條沒回來：' + w.__replay.log().length);
+    t.assert(w.__replay.digest() === before, '取消後狀態跟原本不一樣');
+    t.assert(q('#edit-mode-bar').classList.contains('hidden'), '提示條沒收起來');
+  });
+
+  await t('事件列表：可改的行才有記號，局數列與比賽開始沒有', async () => {
+    const { window: w, q } = await boot();
+    const c = makeCtx(w, q);
+    startGame(w);
+    c.quick('三振');
+    const rows = [...w.document.querySelectorAll('#event-log li')];
+    const inning = rows.find(li => li.classList.contains('ev-inning'));
+    t.assert(inning && !inning.querySelector('.ev-edit'), '局數列不該有修改記號');
+    const play = rows.find(li => li.textContent.includes('三振'));
+    t.assert(!!play.querySelector('.ev-edit'), '打席那一行沒有修改記號');
+    t.assert(play.querySelector('.ev-edit').dataset.entry === '0', '記號指到的紙條不對');
+    // 記號不進文字，事件敘述的比對不受影響
+    t.assert(!play.textContent.includes('✎'), '修改記號跑進事件文字裡了');
+    // 點下去會跳出選單
+    click(w, play.querySelector('.ev-edit'));
+    t.assert(!q('#event-edit-modal').classList.contains('modal-hidden'), '沒有跳出「這一筆要怎麼處理」');
+    click(w, q('#event-edit-cancel'));
+    t.assert(q('#event-edit-modal').classList.contains('modal-hidden'), '取消後視窗沒關');
+  });
+
+  await t('刪除後按復原，整場回到刪除前', async () => {
+    const { window: w, q } = await boot();
+    const c = makeCtx(w, q);
+    startGame(w);
+    c.quick('三振');
+    c.quick('四壞');
+    const before = w.__replay.digest();
+    w.__editEntry.del(0);
+    t.assert(w.__replay.digest() !== before, '刪了卻沒有變化');
+    click(w, q('#undo-btn'));
+    t.assert(w.__replay.log().length === 2, '復原後紙條沒回來：' + w.__replay.log().length);
+    t.assert(w.__replay.digest() === before, '復原後狀態跟刪除前不一樣');
+  });
 }

@@ -73,6 +73,12 @@
 
         <!-- Main Content: Scoreboard and Game State -->
         <main id="main-content">
+            <!-- 修改中的提示條：記完會自動把後面的接回去。放在流程裡（不是浮在上面），
+                 才不會蓋到下面的快捷鍵——那正是重記時要按的東西 -->
+            <div id="edit-mode-bar" class="hidden">
+                <span id="edit-mode-text"></span>
+                <button type="button" id="edit-mode-cancel">取消修改</button>
+            </div>
             <!-- 上方標題列：只有棒球圖示與標題，不放功能鍵 -->
             <div class="stadium-toolbar">
                 <span class="brand-ball" aria-hidden="true">⚾</span>
@@ -298,6 +304,19 @@
         </div>
     </div>
     
+    <!-- 事件列表：改這一筆（重記或刪除） -->
+    <div id="event-edit-modal" class="modal-hidden">
+        <div class="confirm-modal-content draggable-modal-content">
+            <h3 class="modal-drag-handle">這一筆要怎麼處理？</h3>
+            <div id="event-edit-text"></div>
+            <div class="modal-options">
+                <button type="button" id="event-redo-btn">重記這一筆</button>
+                <button type="button" id="event-delete-btn" class="is-out">刪除這一筆</button>
+            </div>
+            <button type="button" id="event-edit-cancel" class="frp-cancel">取消</button>
+        </div>
+    </div>
+
     <!-- Management/Substitution Modal (Redesigned) -->
     <!-- 情境式換人：代打／代跑／換投的選人視窗 -->
     <div id="picker-modal" class="modal-hidden">

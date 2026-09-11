@@ -1679,6 +1679,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveState();
             });
         }
+        // 事件列表上的 ✎：選擇重記或刪除這一筆
+        const eventEditModal = document.getElementById('event-edit-modal');
+        let editTargetIndex = -1;
+        document.getElementById('event-log')?.addEventListener('click', (e) => {
+            const btn = (e.target as HTMLElement).closest('.ev-edit') as HTMLElement | null;
+            if (!btn) return;
+            editTargetIndex = Number(btn.dataset.entry);
+            const text = document.getElementById('event-edit-text');
+            if (text) {
+                const li = btn.closest('li');
+                text.textContent = (li?.querySelector('.ev-text') as HTMLElement)?.textContent?.trim() || '';
+            }
+            const redo = document.getElementById('event-redo-btn');
+            if (redo) redo.textContent = `重記這一筆（${entryLabel(editTargetIndex)}）`;
+            eventEditModal?.classList.remove('modal-hidden');
+        });
+        document.getElementById('event-edit-cancel')?.addEventListener('click', () => eventEditModal?.classList.add('modal-hidden'));
+        eventEditModal?.addEventListener('click', (e) => {
+            if (e.target === eventEditModal) eventEditModal.classList.add('modal-hidden');
+        });
+        document.getElementById('event-redo-btn')?.addEventListener('click', () => {
+            eventEditModal?.classList.add('modal-hidden');
+            startEntryEdit(editTargetIndex);
+        });
+        document.getElementById('event-delete-btn')?.addEventListener('click', () => {
+            eventEditModal?.classList.add('modal-hidden');
+            deleteLogEntry(editTargetIndex);
+        });
+        document.getElementById('edit-mode-cancel')?.addEventListener('click', () => cancelEntryEdit());
         // --- Mobile Navigation & Layout Listeners ---
         // 正式記錄表：暫時只呈現與「匯出紀錄」相同的內容，並且留在 APP 裡。
         // （原本開新視窗寫入 WBSC 格式的做法在手機上會回不來，先停用）
@@ -2347,6 +2376,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function render() {
         if (isReplaying) return;      // 重播不動畫面
+        renderEditModeBar();
         applyTeamColors();
         renderHeaderInputs();
         renderScoreboard();
@@ -2713,15 +2743,21 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderEventLog() {
         const log = document.getElementById('event-log');
         // FIX: Renamed 'event' to 'gameEvent' to avoid conflict with the global 'Event' type.
-        log.innerHTML = [...(gameState.events || [])].reverse().map(gameEvent => {
+        refreshEventOwner();
+        log.innerHTML = (gameState.events || []).map((gameEvent, i) => {
             if (!gameEvent.teamKey) return `<li class="ev-inning">${gameEvent.text}</li>`;
             const [title, ...rest] = String(gameEvent.text).split('\n');
             const body = rest.join(' ');
             const text = body
                 ? `<div class="ev-title">${title}</div><div class="ev-body">${body}</div>`
                 : `<div class="ev-body">${title}</div>`;
-            return `<li class="event-team-${gameEvent.teamKey}">${situationIcon(gameEvent.bases, gameEvent.outs)}<div class="ev-text">${text}</div></li>`;
-        }).join('');
+            // 有對應紙條的行才改得動；記號做得很淡，不干擾閱讀
+            const owner = eventOwner[i];
+            const editBtn = (owner === undefined || !gameState.started)
+                ? ''
+                : `<button type="button" class="ev-edit" data-entry="${owner}" aria-label="修改這一筆"></button>`;
+            return `<li class="event-team-${gameEvent.teamKey}">${situationIcon(gameEvent.bases, gameEvent.outs)}<div class="ev-text">${text}</div>${editBtn}</li>`;
+        }).reverse().join('');
     }
     function renderLineupInputs() {
         renderLineupInputsInner();
@@ -3146,8 +3182,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return { runnersScored, outsOnBases };
     }
     function handlePlay(play) {
-        recordLogEntry({ t: 'play', play });
         saveStateForUndo();
+        recordLogEntry({ t: 'play', play });
         snapshotSituation();
         const teamKey = gameState.isTop ? 'a' : 'b';
         const batter = getCurrentBatter();
@@ -3725,8 +3761,8 @@ document.addEventListener('DOMContentLoaded', () => {
         snapshotSituation();
         {
         }
-        recordLogEntry({ t: 'adv', adv: advancedPlayState });
         saveStateForUndo();
+        recordLogEntry({ t: 'adv', adv: advancedPlayState });
         const { play, error, batterDestination, runnerDestinations, batterIsOut, obstruction } = advancedPlayState;
         const teamKey = gameState.isTop ? 'a' : 'b';
         const team = gameState.teams[teamKey];
@@ -4031,8 +4067,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleUndo() {
         if (gameStateHistory.length > 0) {
             // 復原就是把上一動抹掉，紀錄本身要乾淨，不再留下「已復原」那一行
-            gameState = gameStateHistory.pop();
-            playLog.pop();
+            const prev = gameStateHistory.pop();
+            gameState = prev.state;
+            playLog = prev.log;
             saveState();
             createLineupInputs(); // Re-create inputs in case DH was changed
             attachTeamSettingsListeners(); // Re-attach listeners to new inputs
@@ -4068,7 +4105,11 @@ document.addEventListener('DOMContentLoaded', () => {
         playLog.push(deepCopyState(entry));
         // 這一動整個做完之後再對帳，才不會拖慢操作
         if (verifyTimer) clearTimeout(verifyTimer);
-        verifyTimer = setTimeout(() => { verifyTimer = null; verifyReplay(entry.t); }, 0);
+        verifyTimer = setTimeout(() => {
+            verifyTimer = null;
+            if (editState) { finishEntryEdit(); return; }      // 修改模式：接回後面的紀錄
+            verifyReplay(entry.t);
+        }, 0);
     }
 
     function captureStartSnapshot() {
@@ -4094,13 +4135,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 從開賽的狀態照著紙條重算一次，回傳算出來的比賽狀態（不會動到現在的比賽）
-    function rebuildFromLog(log = playLog) {
+    // ranges：順便記下每張紙條產生了哪幾行事件，事件列表才知道某一行屬於哪一筆
+    function rebuildFromLog(log = playLog, ranges: any[] | null = null) {
         if (!startSnapshot) return null;
         const liveState = gameState, liveAdv = advancedPlayState, liveRunner = runnerActionState;
         isReplaying = true;
         try {
             gameState = deepCopyState(startSnapshot);
-            log.forEach(applyLogEntry);
+            log.forEach((entry, i) => {
+                const from = gameState.events.length;
+                applyLogEntry(entry);
+                if (ranges) ranges.push({ index: i, t: entry.t, from, to: gameState.events.length });
+            });
             return gameState;
         }
         finally {
@@ -4109,6 +4155,43 @@ document.addEventListener('DOMContentLoaded', () => {
             runnerActionState = liveRunner;
             isReplaying = false;
         }
+    }
+
+    // 事件列表的第幾行 → 第幾張紙條（沒對應的行不能改，例如「比賽開始」與局數列）
+    let eventOwner: number[] = [];
+    function refreshEventOwner() {
+        eventOwner = [];
+        if (!startSnapshot) return;
+        const ranges: any[] = [];
+        if (!rebuildFromLog(playLog, ranges)) return;
+        ranges.forEach(r => { for (let i = r.from; i < r.to; i++) eventOwner[i] = r.index; });
+    }
+
+    // 照片沒有存進重算用的快照，重算完要把現在的照片補回去
+    function restorePhotosInto(target, source) {
+        (['a', 'b'] as const).forEach(k => {
+            target.teams[k].logo = source.teams[k].logo;
+            const byId = new Map(source.teams[k].roster.map(p => [p._id, p]));
+            target.teams[k].roster.forEach(p => {
+                const src = byId.get(p._id) as any;
+                if (src) p.photo = src.photo;
+            });
+        });
+        return target;
+    }
+
+    // 把重算結果變成正在進行的比賽（刪除、修改後都走這裡）
+    function adoptRebuilt(log) {
+        const rebuilt = rebuildFromLog(log);
+        if (!rebuilt) return false;
+        gameStateHistory.push({ state: JSON.parse(JSON.stringify(gameState)), log: deepCopyState(playLog) });
+        playLog = log;
+        gameState = restorePhotosInto(rebuilt, gameState);
+        saveState();
+        createLineupInputs();
+        attachTeamSettingsListeners();
+        render();
+        return true;
     }
 
     // 比對用的摘要：只取跟比賽結果有關的欄位（時間、照片這種不算）
@@ -4151,9 +4234,87 @@ document.addEventListener('DOMContentLoaded', () => {
         digest: (st?) => stateDigest(st || gameState),
         lastCheck: () => lastReplayCheck,
     };
+    // === 修改或刪除前面某一筆 ===
+    // 做法是「把紙條抽掉或換掉，再從開賽重算一次」，所以後面的打席不用重打。
+    let editState: any = null;      // { index, tail, original }
+
+    function entryLabel(index) {
+        const e = playLog[index];
+        if (!e) return '這一筆';
+        return ({ play: '打席結果', adv: '打席結果', runner: '壘間事件', sub: '換人', swap: '守位互換', dh: 'DH 設定' })[e.t] || '這一筆';
+    }
+
+    function deleteLogEntry(index) {
+        if (index < 0 || index >= playLog.length) return;
+        const next = playLog.slice(0, index).concat(playLog.slice(index + 1));
+        if (!adoptRebuilt(next)) {
+            alert('這一筆刪不掉：後面的紀錄跟它有關，請先處理後面的。');
+        }
+    }
+
+    function startEntryEdit(index) {
+        if (index < 0 || index >= playLog.length) return;
+        const head = playLog.slice(0, index);
+        const tail = playLog.slice(index + 1);
+        const rebuilt = rebuildFromLog(head);
+        if (!rebuilt) { alert('沒辦法回到那個時間點。'); return; }
+        gameStateHistory.push({ state: JSON.parse(JSON.stringify(gameState)), log: deepCopyState(playLog) });
+        editState = { index, tail, original: deepCopyState(playLog) };
+        playLog = head;
+        gameState = restorePhotosInto(rebuilt, gameState);
+        saveState();
+        createLineupInputs();
+        attachTeamSettingsListeners();
+        render();
+        navigateToPanel(1);
+    }
+
+    function finishEntryEdit() {
+        if (!editState) return;
+        const merged = playLog.concat(editState.tail);
+        const rebuilt = rebuildFromLog(merged);
+        if (!rebuilt) {
+            alert('改不成功：後面的紀錄接不回去，已經還原。');
+            cancelEntryEdit();
+            return;
+        }
+        playLog = merged;
+        gameState = restorePhotosInto(rebuilt, gameState);
+        editState = null;
+        saveState();
+        createLineupInputs();
+        attachTeamSettingsListeners();
+        render();
+    }
+
+    function cancelEntryEdit() {
+        if (!editState) return;
+        const original = editState.original;
+        editState = null;
+        const rebuilt = rebuildFromLog(original);
+        if (rebuilt) {
+            playLog = original;
+            gameState = restorePhotosInto(rebuilt, gameState);
+        }
+        saveState();
+        createLineupInputs();
+        attachTeamSettingsListeners();
+        render();
+    }
+
+    function renderEditModeBar() {
+        const bar = document.getElementById('edit-mode-bar');
+        const text = document.getElementById('edit-mode-text');
+        if (!bar || !text) return;
+        bar.classList.toggle('hidden', !editState);
+        if (editState) text.textContent = `修改中：記完這一筆會自動接回後面 ${editState.tail.length} 筆`;
+    }
+    (window as any).__editEntry = { start: startEntryEdit, del: deleteLogEntry, cancel: cancelEntryEdit, current: () => editState };
+
     function saveStateForUndo() {
         if (isReplaying) return;
-        gameStateHistory.push(JSON.parse(JSON.stringify(gameState)));
+        // 狀態與紙條一起存，這樣不管是一般記錄還是修改／刪除，復原都回得去
+        gameStateHistory.push({ state: JSON.parse(JSON.stringify(gameState)), log: deepCopyState(playLog) });
     }
     function openRunnerActionModal() {
         if (gameState.bases.some(r => r !== null)) {
@@ -4384,8 +4545,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function processRunnerAction() {
-        recordLogEntry({ t: 'runner', st: runnerActionState });
         saveStateForUndo();
+        recordLogEntry({ t: 'runner', st: runnerActionState });
         snapshotSituation();
         const { type, destinations, originalBases, error, errorPosition } = runnerActionState;
         const teamKey = gameState.isTop ? 'a' : 'b';
@@ -4816,8 +4977,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function processSubstitution(playerInId, playerOutId, newPos) {
-        recordLogEntry({ t: 'sub', inId: playerInId, outId: playerOutId, pos: newPos });
         saveStateForUndo();
+        recordLogEntry({ t: 'sub', inId: playerInId, outId: playerOutId, pos: newPos });
         const teamKey = managementState.activeTeamKey;
         const team = gameState.teams[teamKey];
         const playerIn = getPlayerById(teamKey, playerInId);
@@ -4861,8 +5022,8 @@ document.addEventListener('DOMContentLoaded', () => {
         saveState();
     }
     function processDefensiveSwap(player1Id, player2Id) {
-        recordLogEntry({ t: 'swap', a: player1Id, b: player2Id });
         saveStateForUndo();
+        recordLogEntry({ t: 'swap', a: player1Id, b: player2Id });
         const teamKey = managementState.activeTeamKey;
         const player1 = getPlayerById(teamKey, player1Id);
         const player2 = getPlayerById(teamKey, player2Id);

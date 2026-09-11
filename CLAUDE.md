@@ -72,6 +72,11 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 每記一筆就在下一個事件圈自動對帳一次（`verifyReplay`），對不上會在 console 留警告並記在 `__replay.lastCheck()`。測試可用 `window.__replay`（log/rebuild/verify/digest/lastCheck）。
 - 紙條目前只存在記憶體：重新整理或換一場比賽就清掉（`resetReplayLog`），第三步才會存進檔案。
 - 壓力測試：`node tools/replay-stress.mjs preview/xxx-預覽檔.html`（隨機打完一場再比對）。
+- **修改／刪除前面某一筆**：事件列表每一行右邊有很淡的 `✎`（`.ev-edit`，鉛筆用 CSS `::after` 畫，不進 `textContent`，否則事件敘述的測試會被干擾；感應範圍用 `::before` 補到 44）。點了跳出 `#event-edit-modal`：
+  - 刪除 → 抽掉那張紙條、整場重算（`adoptRebuilt`）。
+  - 重記 → 退回那一筆之前（`startEntryEdit`），主頁出現 `#edit-mode-bar`（排在主頁最上面，不能做成浮動的，會蓋住快捷鍵），記完一筆後自動把後面的接回去（`finishEntryEdit`）。
+  - 復原（`gameStateHistory`）現在同時記住狀態與紙條，修改與刪除都退得回去。
+  - 新加的視窗要自己寫遮罩樣式（`position:fixed;inset:0`），不然會直接排在頁面最下面看不到。
 
 ## 交付習慣
 - **每改完一次就更新預覽，等使用者說 OK 才上線**：跑 `npm run build:preview`，把 `preview/*-device.html`（iPhone 外框版）發布到同一個預覽網址（`Artifact` 工具，url 固定用 https://claude.ai/code/artifact/32d5482a-fe7a-462b-bfdb-ec40da09613d ，先 read 再 publish），再附幾張截圖。得到「可以上線」才合併進 `main`（推 `main` 會自動部署到 GitHub Pages）。平常只推工作分支。
