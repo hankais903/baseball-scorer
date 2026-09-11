@@ -5,6 +5,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const state = w => JSON.parse(w.localStorage.getItem('baseballGameState'));
 
 export default async function (t) {
+  await t('開賽前計時器就在畫面上，停在 00:00', async () => {
+    const { window: w, q } = await boot();
+    const clock = q('#game-clock');
+    t.assert(!clock.classList.contains('hidden'), '開賽前看不到計時器');
+    t.assert(clock.textContent === '00:00', '開賽前不是 00:00：' + clock.textContent);
+    click(w, clock);
+    t.assert(q('#clock-menu').classList.contains('modal-hidden'), '還沒開賽不該叫出暫停選單');
+    click(w, q('#play-ball-btn'));
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(typeof gs.startTime === 'number', 'PLAY BALL 後才開始計時');
+  });
+
   await t('開賽後計時器會顯示', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));

@@ -14,15 +14,25 @@ const ruleFor = (css, selector) =>
   (css.match(new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\{[^}]*\\}', 'g')) || []).join(' ');
 
 export default async function (t) {
-  await t('底部換頁是文字，可點範圍有 44', async () => {
+  // 換頁列依使用者要求壓到跟字差不多高（30），比 44 矮但寬度夠、又在畫面最下緣，
+  // 所以這裡只確認它沒有再被壓得更矮，並且三個頁面都在
+  await t('底部換頁是文字，高度至少 30', async () => {
     const css = await builtCss();
-    const rule = ruleFor(css, '.nav-dot');
-    t.assert(/min-height:\s*44px/.test(rule), '換頁按鈕高度不足：' + rule);
+    const rules = css.match(/\.nav-dot\{[^}]*\}/g) || [];
+    const last = rules[rules.length - 1] || '';       // 後面的規則才是實際生效的
+    const h = Number((last.match(/min-height:\s*(\d+)px/) || [])[1] || 0);
+    t.assert(h >= 30, '換頁按鈕高度不足：' + last);
     const fs = await import('fs');
     const html = fs.readFileSync('dist/index.html', 'utf8');
     for (const label of ['名單', '比賽', '紀錄']) {
       t.assert(html.includes('>' + label + '</button>'), '底部少了「' + label + '」這一頁');
     }
+  });
+
+  // 底部換頁列是浮在內容上面的，頁面下緣要留得下它，否則最後一排按鈕會被蓋住
+  await t('頁面下緣留得下換頁列', async () => {
+    const css = await builtCss();
+    t.assert(/padding-bottom:\s*max\(74px/.test(css), '下緣留白不夠放換頁列（應為 max(74px, 安全區+68px)）');
   });
 
   await t('分頁標籤至少 44 高', async () => {
@@ -33,9 +43,10 @@ export default async function (t) {
     t.assert(rules.some(r => /min-height:\s*44px/.test(r)), '分頁標籤沒有 44 的高度：' + rules.join(' '));
   });
 
-  await t('球場、日期、天氣欄位至少 44 高', async () => {
+  // 依使用者要求把上方那一列壓矮（36），其餘可點的東西仍維持 44
+  await t('球場、日期、天氣欄位至少 36 高', async () => {
     const css = await builtCss();
-    t.assert(/min-height:\s*44px/.test(ruleFor(css, '.header-input')), '標題列的欄位太矮');
+    t.assert(/min-height:\s*36px/.test(ruleFor(css, '.meta-pill')), '標題列的欄位太矮');
   });
 
   await t('隊伍顏色的可點範圍有 44', async () => {

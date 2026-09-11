@@ -22,21 +22,55 @@
     --th-slate: #5b7096;
 }
 
-/* 底色：深夜藍（比原本的亮藍暗很多，球場燈光才會跳出來） */
+/* 底色：深夜藍（照片還沒載入前先墊著） */
 body {
     background: #05101c;
 }
 
-/* 每一頁各自有自己的底色，左右滑動時背景會跟著頁面一起移動 */
-#main-content {
-    background:
-        radial-gradient(ellipse 120% 55% at 50% 62%, rgba(26, 62, 92, 0.55), rgba(8, 19, 33, 0) 60%),
-        linear-gradient(180deg, #0b1a2b 0%, #081321 55%, #050d17 100%);
+/* 夜間球場底圖鋪滿整個畫面，固定在螢幕上；左右滑動頁面時它不會動 */
+#stadium-bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* 照整張寬度放，兩側的燈塔才看得到；下半部用漸層融進底色 */
+#stadium-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    min-height: 62%;
+    object-fit: cover;
+    object-position: center top;
+    display: block;
+}
+
+/* 蓋一層深色紗，字才看得清楚 */
+#stadium-bg-layer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+        rgba(4, 13, 24, 0.72) 0%,
+        rgba(4, 13, 24, 0.70) 30%,
+        rgba(4, 13, 24, 0.86) 58%,
+        #040d18 78%);
+}
+
+/* 頁面本身要透明，底圖才透得出來 */
+#app-container {
+    position: relative;
+    z-index: 1;
 }
 
 #control-panel,
+#main-content,
 #event-log-container {
-    background: linear-gradient(160deg, #102339 0%, #0a1626 60%, #070f1b 100%);
+    background: transparent;
 }
 
 /* --- 上方比賽資訊：藥丸型欄位，各自帶一個小圖示 --- */
@@ -88,7 +122,7 @@ body {
 #scoreboard {
     background: var(--th-card);
     border: 1px solid var(--th-line);
-    border-radius: 14px;
+    border-radius: 10px;
     box-shadow: var(--th-glow);
     padding: 2px;
 }
@@ -99,32 +133,45 @@ body {
 }
 
 #scoreboard thead tr th:first-child {
-    border-top-left-radius: 12px;
+    border-top-left-radius: 8px;
 }
 
 #scoreboard thead tr th:last-child {
-    border-top-right-radius: 12px;
+    border-top-right-radius: 8px;
 }
 
 /* --- 打者卡與 NEXT 卡：同款玻璃卡片 --- */
 #batter-row > #current-batter-display {
     background: var(--th-card);
     border: 1px solid var(--th-line);
-    border-radius: 14px;
+    border-radius: 10px;
     box-shadow: var(--th-glow);
 }
 
 #next-batters {
     background: var(--th-card);
     border: 1px solid var(--th-line);
-    border-radius: 14px;
+    border-radius: 10px;
     box-shadow: var(--th-glow);
 }
 
+/* 照片一律方形（依示意圖） */
 .batter-photo-main {
+    width: 44px;
+    aspect-ratio: 1 / 1;
     border-radius: 8px;
     border-color: rgba(255, 255, 255, 0.25);
 }
+
+#current-batter-display > div:first-child { width: 44px; }
+
+.player-photo-container,
+.lineup-player .player-photo-container,
+.pitcher-input-container .player-photo-container {
+    aspect-ratio: 1 / 1;
+}
+
+.player-photo-preview { border-radius: 6px; }
 
 /* --- 三顆主要按鈕：各自有顏色與圖示 --- */
 .main-actions-container {
@@ -137,7 +184,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    border-radius: 14px;
+    border-radius: 10px;
     font-weight: 700;
     background: linear-gradient(180deg, var(--th-purple), #6244e0);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -189,7 +236,7 @@ body {
 /* --- 球場外框卡片 --- */
 #game-state-display {
     border: 1px solid var(--th-line);
-    border-radius: 20px;
+    border-radius: 12px;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
     box-shadow: var(--th-glow);
 }
@@ -237,7 +284,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    border-radius: 14px;
+    border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.14);
     color: #fff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
@@ -310,7 +357,7 @@ body {
 .pitcher-input-container {
     background: var(--th-card);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 6px;
 }
 
@@ -326,7 +373,7 @@ body {
 .substitution-popover {
     background: linear-gradient(180deg, #12283f, #0a1729);
     border: 1px solid var(--th-line);
-    border-radius: 18px;
+    border-radius: 12px;
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
 }
 
@@ -409,31 +456,10 @@ body {
     #main-content > .stadium-toolbar { order: -1; }
 }
 
-/* --- 球場的夜景背景 --- */
-#stadium-bg {
-    position: absolute;
-    left: -10px;
-    right: -10px;
-    bottom: -8px;
-    top: 34px;
-    width: calc(100% + 20px);
-    height: auto;
-    min-height: calc(100% - 26px);
-    object-fit: cover;
-    object-position: center 65%;
-    border-radius: 0 0 18px 18px;
-    opacity: 0.92;
-    pointer-events: none;
-    z-index: 0;
-}
-
-/* 球場圖與壘包要蓋在夜景上面 */
-#main-field,
-#bases-container,
-#field-result-panel {
-    position: relative;
-    z-index: 1;
-}
+/* 球場上的疊層（PLAY BALL、落點結果、開賽前的壓暗）都靠 index.css 原本的
+   position 與 z-index 互相疊，這裡一律不要碰：
+   改 position 會讓它們掉到球場下面（PLAY BALL 就不見了），
+   加 z-index 會多開一層堆疊，讓 PLAY BALL 被壓暗那層蓋住。 */
 
 #sbo-display,
 #inning-display,
@@ -455,7 +481,6 @@ body {
 /* 有夜景之後球場框本身不再上底色 */
 #game-state-display {
     background: transparent;
-    overflow: hidden;
 }
 
 /* --- 快捷結果按鈕：圖示在上、字在下 --- */
@@ -482,8 +507,19 @@ body {
     .brand-text strong { font-size: 16px; }
     .brand-text small { font-size: 9px; }
 
-    #game-state-container { padding: 0.1rem 0; }
-    #game-state-display { aspect-ratio: 370 / 390; }
+    /* 球場改成「把剩下的高度吃滿」：不同機型、有沒有動態島都不會爆版 */
+    #game-state-container {
+        padding: 0.1rem 0;
+        flex: 1 1 auto;
+        min-height: 150px;
+        display: flex;
+    }
+    #game-state-display {
+        aspect-ratio: auto;
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+    }
     #quick-plays button { min-height: 48px; }
     #quick-plays button::before { font-size: 19px; }
 }
@@ -492,9 +528,15 @@ body {
 @media (max-width: 768px), (orientation: portrait) {
     /* 上緣留白縮小，但仍要避開動態島（加到主畫面時 env() 才會有值） */
     #main-content { padding-top: max(0.45rem, env(safe-area-inset-top)); row-gap: 6px; }
+
+    /* 下緣要留得下整條換頁列（52 高）＋ Home 指示條，內容才不會被壓到 */
+    #control-panel,
+    #main-content,
+    #event-log-container {
+        padding-bottom: max(74px, calc(env(safe-area-inset-bottom) + 68px));
+    }
     #game-info { margin-bottom: 0; }
     #scoreboard { margin: 0; }
-    #game-state-display { aspect-ratio: 370 / 358; }
 
     /* 各區之間不要再另外留白，統一用 row-gap，才擠得出高度 */
     #game-meta-row,
@@ -546,4 +588,506 @@ body {
     background: linear-gradient(180deg, #36b1ff, #1475d0);
     color: #fff;
     box-shadow: 0 2px 10px rgba(20, 117, 208, 0.5);
+}
+
+/* 落點結果面板：跟其他視窗同一種玻璃質感 */
+#field-result-panel {
+    background: linear-gradient(180deg, #12283f, #0a1729);
+    border: 1px solid var(--th-line);
+    border-radius: 12px;
+}
+
+#field-result-panel button {
+    background-color: rgba(255, 255, 255, 0.09);
+    border-color: var(--th-line);
+    border-radius: 12px;
+    color: var(--text-color);
+}
+
+/* ==========================================================================
+   上方資訊列：球場／日期／天氣三顆藥丸，與獨立的 OUT・局數・計時列
+   ========================================================================== */
+#game-meta-row {
+    display: grid;
+    grid-template-columns: minmax(88px, 114px) minmax(0, 1fr) minmax(56px, 64px);
+    gap: 6px;
+    align-items: stretch;
+}
+
+.meta-pill {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    min-height: 36px;
+    padding: 0 6px;
+    border-radius: 10px;
+    border: 1px solid var(--th-line);
+    background: var(--th-card);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.meta-icon {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+.meta-icon-stadium {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237fb0ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 10.5c0-2.8 4-5 9-5s9 2.2 9 5v3c0 2.8-4 5-9 5s-9-2.2-9-5z'/%3E%3Cpath d='M3 10.5c0 2.8 4 5 9 5s9-2.2 9-5'/%3E%3C/svg%3E");
+}
+
+.meta-icon-date {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237fb0ff' stroke-width='1.9' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='3'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
+}
+
+/* 三顆藥丸裡的欄位本身不再自己畫外框 */
+#game-meta-row .header-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0 2px;
+    min-height: 34px;
+    font-size: clamp(0.74rem, 3.15vw, 0.9rem);
+    text-align: left;
+}
+
+#stadium-input {
+    background-image: none;
+}
+
+#weather-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4ff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 2px center;
+    background-size: 13px 13px;
+    padding-right: 17px;
+    padding-left: 2px;
+    text-align: center;
+}
+
+#weather-pill { padding: 0 6px 0 8px; }
+
+/* 球場右邊的箭頭：叫出用過的球場 */
+.meta-caret {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4ff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat center / 13px 13px;
+    cursor: pointer;
+}
+
+.meta-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 60;
+    list-style: none;
+    margin: 0;
+    padding: 6px;
+    border-radius: 10px;
+    border: 1px solid var(--th-line);
+    background: linear-gradient(180deg, #12283f, #0a1729);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+}
+
+.stadium-history-item {
+    width: 100%;
+    min-height: 40px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.stadium-history-empty {
+    padding: 10px;
+    color: #8fa4c2;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+/* 日期：左右箭頭＋中間可點的日期字樣（點下去叫出系統日曆） */
+.date-arrow {
+    flex: 0 0 20px;
+    width: 20px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: transparent no-repeat center / 9px 15px;
+    cursor: pointer;
+}
+
+#date-prev {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a9c6e6' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E");
+}
+
+#date-next {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a9c6e6' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 5l7 7-7 7'/%3E%3C/svg%3E");
+}
+
+.date-face {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 34px;
+    cursor: pointer;
+}
+
+#date-text {
+    font-size: clamp(0.7rem, 3.05vw, 0.86rem);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 真正的日期欄位蓋在字上面但看不見，點到它才會跳出系統日曆 */
+#game-date-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    border: 0;
+    background: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* --- OUT／局數／計時：獨立一列 --- */
+#status-bar {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    min-height: 46px;
+    padding: 4px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--th-line);
+    background: var(--th-card);
+    box-shadow: var(--th-glow);
+}
+
+#status-bar #sbo-display {
+    position: static;
+    grid-column: 1;
+    justify-self: start;
+}
+
+#status-bar .sbo-row span {
+    width: auto;
+    margin-right: 4px;
+    font-size: 0.95rem;
+}
+
+#status-bar .sbo-light {
+    width: 16px;
+    height: 16px;
+}
+
+#status-bar #inning-display {
+    position: static;
+    transform: none;
+    grid-column: 2;
+    justify-self: center;
+    margin: 0;
+    padding: 5px 16px;
+    font-size: 1rem;
+    border-radius: 22px;
+    white-space: nowrap;
+}
+
+/* 上半局▲、下半局▼ */
+#inning-display[data-half="top"]::before { content: '▲ '; font-size: 0.72em; }
+#inning-display[data-half="bottom"]::before { content: '▼ '; font-size: 0.72em; }
+
+#status-bar #game-clock {
+    position: static;
+    grid-column: 3;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 34px;
+    padding: 4px 12px;
+    border-radius: 18px;
+    border: 1px solid var(--th-line);
+    background: rgba(3, 14, 24, 0.7);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #eff5ff;
+}
+
+#status-bar #game-clock::before {
+    content: '';
+    width: 15px;
+    height: 15px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23adc5df' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+
+#status-bar #clock-menu {
+    top: calc(100% + 6px);
+    right: 6px;
+    left: auto;
+}
+
+/* --- NEXT 卡片：標題有左右箭頭，兩位打者各自一格 --- */
+.next-label {
+    position: relative;
+    justify-content: center;
+    border: 1px solid rgba(45, 141, 224, 0.8);
+    border-radius: 9px;
+    background: linear-gradient(180deg, #235685, #17375c);
+    box-shadow: inset 0 0 7px rgba(83, 183, 255, 0.28);
+    color: #6ec2ff;
+    font-size: 0.62rem;
+    margin: 4px 0 3px;
+}
+
+.next-label::before,
+.next-label::after {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #7fc4ff;
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
+.next-label::before { content: '‹'; left: 7px; }
+.next-label::after { content: '›'; right: 7px; }
+
+#next-batters .next-item {
+    border: 1px solid rgba(43, 71, 98, 0.9);
+    border-top: 1px solid rgba(43, 71, 98, 0.9);
+    border-radius: 8px;
+    background: rgba(24, 42, 63, 0.6);
+    margin-bottom: 4px;
+    padding: 2px 6px;
+}
+
+/* --- 打者卡的「本場」做成小方塊 --- */
+.last-ab-label {
+    padding: 2px 7px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.09);
+    font-weight: 700;
+}
+
+/* 多了一列，排序要重新指定 */
+@media (max-width: 768px), (orientation: portrait) {
+    #main-content > #status-bar { order: 2; }
+    #main-content > #game-state-container { order: 3; }
+    #main-content > #quick-plays { order: 4; }
+    #main-content > .main-actions-container { order: 5; }
+}
+
+/* NEXT 卡片稍微寬一點，名字才不會被切掉 */
+#next-batters {
+    flex: 0 0 39%;
+    padding: 0 5px;
+}
+
+#next-batters .next-item {
+    grid-template-columns: 2.2em 1fr;
+}
+
+.next-name {
+    font-size: clamp(0.72rem, 3vw, 0.84rem);
+}
+
+/* 日期那顆要省下每一點寬度，字才放得完整 */
+#date-pill { padding: 0 2px; }
+#date-pill .meta-icon { flex-basis: 16px; width: 16px; height: 16px; }
+.date-face { gap: 4px; }
+
+/* 更窄的機型（iPhone SE／mini）：把左右兩顆縮一點，日期才放得下整串 */
+@media (max-width: 382px) {
+    #game-meta-row {
+        grid-template-columns: minmax(80px, 88px) minmax(0, 1fr) minmax(52px, 58px);
+    }
+    #date-text { font-size: 0.68rem; }
+    #weather-input { font-size: 0.74rem; }
+}
+
+/* ==========================================================================
+   依示意圖再修：卡片排版、間隔、字級、換頁列高度
+   ========================================================================== */
+
+/* 上方那排：手機端的「按鈕至少 44 高」不適用這幾顆小箭頭，
+   不然整排會被撐成 46 高，跟下面的間隔看起來就特別大 */
+.meta-caret,
+.date-arrow {
+    min-height: 0;
+    height: 34px;
+}
+
+#game-info {
+    padding: 0;
+    margin: 0;
+    gap: 0;
+}
+
+/* 打者卡：照片靠上、本場表現獨立最下面一排 */
+#batter-row > #current-batter-display {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-areas:
+        "photo info"
+        "last  last";
+    align-items: start;
+    column-gap: 8px;
+    row-gap: 4px;
+    padding: 6px 8px;
+}
+
+#current-batter-display > div:first-child { grid-area: photo; }
+#batter-info-text { grid-area: info; min-width: 0; }
+#batter-last-ab { grid-area: last; margin-top: 0; }
+
+/* 隊名＋棒次的徽章 */
+.batter-order {
+    white-space: nowrap;
+}
+
+/* NEXT 卡片的圓角也收斂 */
+.next-label { border-radius: 6px; }
+#next-batters .next-item { border-radius: 6px; }
+#next-batters { border-radius: 10px; }
+
+/* 計分板的字大一點點 */
+#scoreboard th { font-size: 0.78rem; }
+#scoreboard td { font-size: 0.95rem; }
+#scoreboard .total-col { font-size: 1.05rem; }
+.scoreboard-team-cell span { font-size: 1rem; }
+
+/* 底部換頁列壓到跟字差不多高 */
+#mobile-nav { padding: 2px; gap: 2px; }
+
+.nav-dot {
+    min-height: 30px;
+    padding: 0 13px;
+    border-radius: 11px;
+    font-size: 13px;
+}
+
+/* 本場那一排跟上面的數據用一條淡線分開（依示意圖） */
+#batter-last-ab {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 4px;
+}
+
+/* ==========================================================================
+   球場最大化、落點標記看得見、上次落點
+   ========================================================================== */
+
+/* 紅點畫大一點、外面加一圈白暈，淺色草皮上才明顯 */
+.mf-mark {
+    stroke-width: 3.5;
+    filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.55));
+}
+
+/* 這位打者先前打席的落點 */
+.mf-ghost circle {
+    fill: rgba(255, 255, 255, 0.35);
+    stroke: rgba(17, 24, 39, 0.75);
+    stroke-width: 2;
+}
+
+.mf-ghost text {
+    fill: #10233b;
+    font-size: 15px;
+    font-weight: 800;
+    paint-order: stroke;
+    stroke: rgba(255, 255, 255, 0.85);
+    stroke-width: 3;
+}
+
+.mf-ghost-last circle {
+    fill: rgba(251, 191, 36, 0.75);
+    stroke: rgba(120, 53, 15, 0.85);
+}
+
+/* 結果選單：壓低高度、可捲動，才不會整片蓋住球場 */
+#field-result-panel {
+    bottom: 2%;
+    max-height: 62%;
+    overflow-y: auto;
+    padding: 8px 9px;
+}
+
+.frp-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+/* 選單標題旁的小球場：標出剛才點的位置 */
+.frp-map {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.frp-map-fan { fill: rgba(132, 204, 22, 0.35); stroke: rgba(255, 255, 255, 0.45); stroke-width: 4; }
+.frp-map-infield { fill: rgba(251, 191, 36, 0.35); stroke: none; }
+.frp-map-dot { fill: #e11d48; stroke: #fff; stroke-width: 8; }
+
+/* --- 把上下擠出來的空間全部讓給球場 --- */
+@media (max-width: 768px), (orientation: portrait) {
+    #main-content { row-gap: 4px; }
+
+    .stadium-toolbar { gap: 6px; }
+    .brand-ball { font-size: 23px; }
+    .brand-text strong { font-size: 15px; }
+    .brand-text small { font-size: 9px; }
+
+    #status-bar { min-height: 40px; padding: 3px 9px; }
+    #status-bar #inning-display { padding: 3px 14px; font-size: 0.95rem; }
+    #status-bar #game-clock { min-height: 30px; padding: 3px 10px; }
+    #status-bar .sbo-light { width: 14px; height: 14px; }
+
+    /* 快捷結果按鈕改成圖示與字同一行，省下一整排的高度 */
+    #quick-plays button {
+        flex-direction: row;
+        gap: 5px;
+        min-height: 40px;
+    }
+    #quick-plays button::before { font-size: 16px; }
+
+    .main-action-btn { min-height: 38px; padding: 0.3rem 0.15rem; }
+
+    #scoreboard th { padding: 2px 0; }
+    #scoreboard td { padding: 4px 1px; }
+
+    #batter-row > #current-batter-display { padding: 5px 7px; }
+
+    /* 球場外框本身的留白也收掉，圖才畫得更大 */
+    #game-state-display { padding: 0.15rem; }
+    #game-state-container { padding: 0; }
 }

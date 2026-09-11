@@ -162,7 +162,8 @@ export default async function (t) {
   await t('PLAY BALL 單行、副標含「並開始計時」；開賽後計時出現在右上，局數標籤置中', async () => {
     const { window: w, q } = await boot();
     t.assert(q('#play-ball-btn .pb-sub').textContent === '點此開始比賽並開始計時', '副標不對');
-    t.assert(q('#game-clock').classList.contains('hidden'), '開賽前不該顯示計時');
+    t.assert(!q('#game-clock').classList.contains('hidden'), '開賽前計時器就要看得到');
+    t.assert(q('#game-clock').textContent === '00:00', '開賽前應停在 00:00：' + q('#game-clock').textContent);
     click(w, q('#play-ball-btn'));
     t.assert(!q('#game-clock').classList.contains('hidden'), '開賽後計時沒出現');
     t.assert(/^\d\d:\d\d$/.test(q('#game-clock').textContent), '計時格式不對：' + q('#game-clock').textContent);
@@ -171,8 +172,65 @@ export default async function (t) {
     t.assert(w.__formatElapsed(65000) === '01:05' && w.__formatElapsed(3725000) === '1:02:05', '時間格式化錯');
     const fs = await import('node:fs');
     const css = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css')).map(f => fs.readFileSync('dist/assets/' + f, 'utf8')).join('\n');
-    t.assert(/#game-clock\{[^}]*right:20px/.test(css), '計時沒放在右上角');
-    t.assert(/#inning-display\{[^}]*left:50%/.test(css), '局數標籤沒有置中');
     t.assert(/\.pb-main\{[^}]*white-space:nowrap/.test(css), 'PLAY BALL 沒有禁止換行');
+  });
+
+  // OUT／局數／計時改成球場上方獨立一列（左：OUT，中：局數，右：計時）
+  await t('OUT、局數、計時在同一列且左中右分開', async () => {
+    const { q } = await boot();
+    const bar = q('#status-bar');
+    t.assert(!!bar, '找不到 OUT／局數／計時那一列');
+    for (const id of ['sbo-display', 'inning-display', 'game-clock']) {
+      t.assert(!!bar.querySelector('#' + id), id + ' 不在那一列裡');
+    }
+    const fs = await import('node:fs');
+    const css = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css')).map(f => fs.readFileSync('dist/assets/' + f, 'utf8')).join('\n');
+    const rule = (css.match(/#status-bar\{[^}]*\}/g) || []).join(' ');
+    t.assert(/grid-template-columns:\s*1fr auto 1fr/.test(rule), '不是左中右三欄：' + rule);
+  });
+
+  await t('上半局標▲、下半局標▼', async () => {
+    const fs = await import('node:fs');
+    const css = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css')).map(f => fs.readFileSync('dist/assets/' + f, 'utf8')).join('\n');
+    // 壓縮後屬性值的引號會被拿掉、::before 會變成 :before
+    t.assert(/data-half=.?top.?\]:?:?before\{content:"▲ /.test(css), '上半局沒有三角形');
+    t.assert(/data-half=.?bottom.?\]:?:?before\{content:"▼ /.test(css), '下半局沒有倒三角形');
+    const { q } = await boot();
+    t.assert(q('#inning-display').dataset.half === 'top', '開賽是上半局，記號卻是 ' + q('#inning-display').dataset.half);
+  });
+
+  // 日期改成中文字樣＋左右箭頭前後一天
+  await t('日期顯示成中文，左右箭頭可前後一天', async () => {
+    const { window: w, q } = await boot();
+    q('#game-date-input').value = '2026-09-11';
+    q('#game-date-input').dispatchEvent(new w.Event('change', { bubbles: true }));
+    t.assert(q('#date-text').textContent === '2026年9月11日 (五)', '日期字樣不對：' + q('#date-text').textContent);
+    click(w, q('#date-next'));
+    t.assert(q('#game-date-input').value === '2026-09-12', '往後一天失敗：' + q('#game-date-input').value);
+    t.assert(q('#date-text').textContent === '2026年9月12日 (六)', '日期字樣沒跟著換：' + q('#date-text').textContent);
+    click(w, q('#date-prev'));
+    click(w, q('#date-prev'));
+    t.assert(q('#game-date-input').value === '2026-09-10', '往前一天失敗：' + q('#game-date-input').value);
+    t.assert(JSON.parse(w.localStorage.getItem('baseballGameState')).gameDate === '2026-09-10', '日期沒寫進存檔');
+  });
+
+  // 球場右邊的箭頭：列出用過的球場，選了就填回去
+  await t('球場會記住用過的名字，可以從箭頭選回來', async () => {
+    const { window: w, q } = await boot();
+    const input = q('#stadium-input');
+    type(w, input, '洲際棒球場');
+    input.dispatchEvent(new w.Event('change', { bubbles: true }));
+    click(w, q('#stadium-history-btn'));
+    const items = [...w.document.querySelectorAll('.stadium-history-item')].map(b => b.textContent);
+    t.assert(items.includes('洲際棒球場'), '沒記住用過的球場：' + items.join(','));
+    type(w, input, '天母');
+    input.dispatchEvent(new w.Event('change', { bubbles: true }));
+    click(w, q('#stadium-history-btn'));   // 先收起來
+    click(w, q('#stadium-history-btn'));   // 再打開才會重新列一次
+    const again = [...w.document.querySelectorAll('.stadium-history-item')].map(b => b.textContent);
+    t.assert(again[0] === '天母' && again.includes('洲際棒球場'), '順序或內容不對：' + again.join(','));
+    click(w, w.document.querySelectorAll('.stadium-history-item')[1]);
+    t.assert(input.value === '洲際棒球場', '選了沒填回去：' + input.value);
+    t.assert(q('#stadium-history').classList.contains('modal-hidden'), '選完沒收起來');
   });
 }

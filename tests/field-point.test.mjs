@@ -17,6 +17,64 @@ function clickFieldThen(w, zone, play) {
 }
 
 export default async function (t) {
+  // 按住拖曳到想要的位置再放開，放開才跳出結果選單
+  await t('按住拖曳才放開，過程看得到紅點', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    const field = q('#main-field');
+    const mark = q('#mf-mark');
+    const panel = q('#field-result-panel');
+    const fire = (type, x, y) => field.dispatchEvent(new w.MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    fire('pointerdown', 202, 250);
+    t.assert(mark.style.display !== 'none', '按下去沒有出現紅點');
+    t.assert(mark.getAttribute('cx') === '202', '紅點位置不對：' + mark.getAttribute('cx'));
+    t.assert(panel.classList.contains('hidden'), '還沒放開就跳出選單了');
+    fire('pointermove', 150, 150);
+    t.assert(mark.getAttribute('cx') === '150' && mark.getAttribute('cy') === '150',
+      '紅點沒有跟著手指移動：' + mark.getAttribute('cx') + ',' + mark.getAttribute('cy'));
+    t.assert(panel.classList.contains('hidden'), '拖曳中不該跳出選單');
+    fire('pointerup', 120, 120);
+    t.assert(!panel.classList.contains('hidden'), '放開後沒跳出選單');
+    t.assert(mark.getAttribute('cx') === '120', '放開的位置沒記住：' + mark.getAttribute('cx'));
+  });
+
+  // 選單會蓋住球場，所以標題旁要有小圖標出剛才點的位置
+  await t('結果選單的標題有小球場與紅點', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    clickZone(w, 'outfield');
+    t.assert(!!q('#field-result-panel .frp-map'), '選單裡沒有小球場');
+    t.assert(!!q('#field-result-panel .frp-map-dot'), '小球場上沒有標出落點');
+  });
+
+  // 同一位打者再上來打擊時，球場上要看得到他上一次的落點與結果
+  await t('球場會顯示這位打者先前打席的落點', async () => {
+    const first = await boot();
+    startGame(first.window);
+    const st = JSON.parse(first.window.localStorage.getItem('baseballGameState'));
+    st.teams.a.roster[0].hitPoints = [{ play: '二安', x: 62, y: 118, inning: 3 }];
+    const { q } = await boot({ storage: { baseballGameState: JSON.stringify(st) } });
+    const ghosts = q('#mf-ghosts').querySelectorAll('.mf-ghost');
+    t.assert(ghosts.length === 1, '沒有畫出先前的落點：' + ghosts.length);
+    t.assert(/二安/.test(ghosts[0].textContent), '沒有寫出結果：' + ghosts[0].textContent);
+    t.assert(/3局/.test(ghosts[0].textContent), '沒有寫出局數：' + ghosts[0].textContent);
+    const c = ghosts[0].querySelector('circle');
+    t.assert(Number(c.getAttribute('cx')) < 202, '落點應該在左半邊：' + c.getAttribute('cx'));
+  });
+
+  // PLAY BALL 與落點結果面板是疊在球場上的，樣式一改到 #bases-container 的
+  // position 或 z-index，按鈕就會掉到球場下面或被開賽前的壓暗蓋住（踩過一次）
+  await t('PLAY BALL 疊在球場上沒被蓋住', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const dir = path.join('dist', 'assets');
+    const css = fs.readFileSync(path.join(dir,
+      fs.readdirSync(dir).find(f => f.endsWith('.css'))), 'utf8');
+    const rules = (css.match(/#bases-container\{[^}]*\}/g) || []).join(' ');
+    t.assert(!/position:\s*(relative|static)/.test(rules), '#bases-container 的 position 被改掉了：' + rules);
+    t.assert(!/z-index/.test(rules), '#bases-container 不能自己開一層堆疊，會蓋掉 PLAY BALL：' + rules);
+  });
+
   await t('座標換算：本壘對本壘', async () => {
     const { window: w } = await boot();
     const p = w.__fieldMath.mainPointToMini({ x: 202, y: 341 });

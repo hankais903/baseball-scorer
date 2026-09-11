@@ -223,15 +223,15 @@ export default async function (t) {
     t.assert(rows.every(r => r.includes('主隊球員')), '仍停在客隊打序：' + rows.join(' / '));
   });
 
-  await t('打者卡照片尺寸與名單頁一致', async () => {
+  await t('打者卡照片是方形', async () => {
     const fs = await import('fs');
     const path = await import('path');
     const dir = path.join('dist', 'assets');
     const css = fs.readFileSync(path.join(dir,
       fs.readdirSync(dir).find(f => f.endsWith('.css'))), 'utf8');
     const rule = (css.match(/\.batter-photo-main\{[^}]*\}/g) || []).join(' ');
-    t.assert(/width:\s*38px/.test(rule), '照片寬度不是 38px：' + rule);
-    t.assert(/aspect-ratio:\s*3\s*\/\s*4/.test(rule), '照片比例不是 3/4：' + rule);
+    t.assert(/width:\s*44px/.test(rule), '照片寬度不是 44px：' + rule);
+    t.assert(/aspect-ratio:\s*1\s*\/\s*1/.test(rule), '照片不是方形：' + rule);
   });
 
   await t('沒上傳照片的球員用背號當頭像', async () => {

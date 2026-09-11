@@ -78,6 +78,26 @@ function mainPointToMini(p: { x: number; y: number }) {
     };
 }
 
+// mainPointToMini 的反向換算：把存起來的小圖座標放回主球場上
+function miniPointToMain(p: { x: number; y: number }) {
+    const dx = p.x - MINI_FIELD_GEO.hx;
+    const dy = p.y - MINI_FIELD_GEO.hy;
+    const rm = Math.hypot(dx, dy);
+    if (rm < 0.5) return { x: MAIN_FIELD_GEO.hx, y: MAIN_FIELD_GEO.hy };
+    let r;
+    if (rm <= MINI_FIELD_GEO.rInfield) {
+        r = rm / MINI_FIELD_GEO.rInfield * MAIN_FIELD_GEO.rInfield;
+    }
+    else {
+        const t = (rm - MINI_FIELD_GEO.rInfield) / (MINI_FIELD_GEO.rFence - MINI_FIELD_GEO.rInfield);
+        r = MAIN_FIELD_GEO.rInfield + t * (MAIN_FIELD_GEO.rFence - MAIN_FIELD_GEO.rInfield);
+    }
+    return {
+        x: Math.round(MAIN_FIELD_GEO.hx + dx / rm * r),
+        y: Math.round(MAIN_FIELD_GEO.hy + dy / rm * r)
+    };
+}
+
 // 依小圖上的落點推出處理野手；界外或無法判定時回傳 null
 function fielderFromMiniPoint(p: { x: number; y: number }) {
     const dx = p.x - MINI_FIELD_GEO.hx;
@@ -648,6 +668,57 @@ document.addEventListener('DOMContentLoaded', () => {
     const stadiumInput = document.getElementById('stadium-input') as HTMLInputElement;
     const gameDateInput = document.getElementById('game-date-input') as HTMLInputElement;
     const weatherInput = document.getElementById('weather-input') as HTMLSelectElement;
+    // === 上方資訊列：日期顯示成中文、左右箭頭前後一天 ===
+    const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六'];
+    function pad2(n: number) { return String(n).padStart(2, '0'); }
+    function renderDateFace() {
+        const el = document.getElementById('date-text');
+        if (!el) return;
+        const v = gameDateInput.value;
+        if (!v) { el.textContent = '選擇日期'; return; }
+        const [y, m, d] = v.split('-').map(Number);
+        const dt = new Date(y, m - 1, d);
+        el.textContent = `${y}年${m}月${d}日 (${WEEKDAY_ZH[dt.getDay()]})`;
+    }
+    function shiftGameDate(days: number) {
+        const v = gameDateInput.value || new Date().toISOString().split('T')[0];
+        const [y, m, d] = v.split('-').map(Number);
+        const dt = new Date(y, m - 1, d + days);
+        gameDateInput.value = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+        gameDateInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    // === 球場：記住用過的名字，右邊箭頭可以直接選 ===
+    const STADIUM_HISTORY_KEY = 'baseball_stadium_history';
+    function stadiumHistory(): string[] {
+        try {
+            const raw = JSON.parse(localStorage.getItem(STADIUM_HISTORY_KEY) || '[]');
+            return Array.isArray(raw) ? raw.filter(x => typeof x === 'string' && x.trim()) : [];
+        }
+        catch { return []; }
+    }
+    function rememberStadium(name: string) {
+        const n = (name || '').trim();
+        if (!n) return;
+        const list = stadiumHistory().filter(x => x !== n);
+        list.unshift(n);
+        try { localStorage.setItem(STADIUM_HISTORY_KEY, JSON.stringify(list.slice(0, 8))); }
+        catch { /* 存不下就算了，不影響記錄 */ }
+    }
+    function renderStadiumHistory() {
+        const menu = document.getElementById('stadium-history');
+        if (!menu) return;
+        const list = stadiumHistory();
+        menu.innerHTML = list.length
+            ? list.map(n => `<li><button type="button" class="stadium-history-item">${n}</button></li>`).join('')
+            : '<li class="stadium-history-empty">還沒有用過的球場</li>';
+    }
+    function toggleStadiumHistory(show?: boolean) {
+        const menu = document.getElementById('stadium-history');
+        if (!menu) return;
+        const next = show === undefined ? menu.classList.contains('modal-hidden') : show;
+        if (next) renderStadiumHistory();
+        menu.classList.toggle('modal-hidden', !next);
+    }
     const appContainer = document.getElementById('app-container') as HTMLDivElement;
     const mobileNav = document.getElementById('mobile-nav') as HTMLDivElement;
     const loadRosterModal = document.getElementById('load-roster-modal');
@@ -1580,10 +1651,28 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.stadium = stadiumInput.value;
             saveState();
         });
+        stadiumInput.addEventListener('change', () => rememberStadium(stadiumInput.value));
+        document.getElementById('stadium-history-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            tapFeedback();
+            toggleStadiumHistory();
+        });
+        document.getElementById('stadium-history')?.addEventListener('click', (e) => {
+            const btn = (e.target as HTMLElement).closest('.stadium-history-item') as HTMLButtonElement | null;
+            if (!btn) return;
+            stadiumInput.value = btn.textContent || '';
+            stadiumInput.dispatchEvent(new Event('input', { bubbles: true }));
+            rememberStadium(stadiumInput.value);
+            toggleStadiumHistory(false);
+        });
+        document.addEventListener('click', () => toggleStadiumHistory(false));
         gameDateInput.addEventListener('change', () => {
             gameState.gameDate = gameDateInput.value;
+            renderDateFace();
             saveState();
         });
+        document.getElementById('date-prev')?.addEventListener('click', () => { tapFeedback(); shiftGameDate(-1); });
+        document.getElementById('date-next')?.addEventListener('click', () => { tapFeedback(); shiftGameDate(1); });
         if (weatherInput) {
             weatherInput.addEventListener('change', () => {
                 gameState.weather = weatherInput.value;
@@ -1659,8 +1748,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
             const main = list.filter(fits);
             const rest = list.filter(o => !fits(o));
+            // 選單會蓋住球場，所以在標題旁放一張小圖，隨時看得到剛才點在哪裡
+            const dot = pendingPoint
+                ? `<circle class="frp-map-dot" cx="${pendingPoint.x}" cy="${pendingPoint.y}" r="26"/>` : '';
+            const miniMap = `<svg class="frp-map" viewBox="18 -35 370 425" aria-hidden="true">`
+                + `<path class="frp-map-fan" d="M202 341 L15 154 A265 265 0 0 1 389 154 Z"/>`
+                + `<path class="frp-map-infield" d="M202 341 L127 271 L202 198 L275 272 Z"/>`
+                + dot + `</svg>`;
             resultPanel.innerHTML =
-                `<div class="frp-title">落點：${zoneWord}　選擇結果</div>`
+                `<div class="frp-title">${miniMap}<span>落點：${zoneWord}　選擇結果</span></div>`
                 + section(main)
                 + (rest.length
                     ? `<button type="button" class="frp-more" data-more="1">其他結果（${rest.length}）</button>`
@@ -1711,27 +1807,67 @@ document.addEventListener('DOMContentLoaded', () => {
             clearPendingPoint();
         }
 
+        // 落點標記：把紅點移到座標上（拖曳過程中也一直呼叫）
+        function moveMarkTo(point, animate = false) {
+            const mark = document.getElementById('mf-mark');
+            if (!mark) return;
+            mark.setAttribute('cx', String(point.x));
+            mark.setAttribute('cy', String(point.y));
+            (mark as any).style.display = '';
+            if (animate) {
+                // 重新播一次擴散動畫，讓人看得出「這一下有點到」
+                mark.classList.remove('just-tapped');
+                void (mark as any).getBoundingClientRect();
+                mark.classList.add('just-tapped');
+            }
+        }
+        // 點一下就標好，也可以按著拖到想要的位置再放開；放開才跳出結果選單
+        function canMarkField(e) {
+            if ((e.target as HTMLElement).closest('.mf-base.occupied')) return false;   // 點跑者＝代跑
+            if (gameState.isGameOver || !gameState.started) return false;               // 未開賽先按 PLAY BALL
+            // 球場圖上任何一點都可以標（連壘包上也行），區域一律由座標判斷
+            return true;
+        }
+        function setPendingFromEvent(e) {
+            pendingPoint = fieldPointFrom(e, mainField as any);
+            pendingZone = zoneOfPoint(pendingPoint);
+        }
         if (mainField) {
+            let dragging = false;
+            mainField.addEventListener('pointerdown', (e) => {
+                if (!canMarkField(e)) return;
+                // 這裡要自己吃掉事件，不然按著拖會被當成左右滑動換頁
+                e.preventDefault();
+                e.stopPropagation();
+                dragging = true;
+                if (resultPanel) { resultPanel.classList.add('hidden'); resultPanel.innerHTML = ''; }
+                setPendingFromEvent(e);
+                moveMarkTo(pendingPoint, true);
+                tapFeedback();
+                try { (mainField as any).setPointerCapture((e as PointerEvent).pointerId); } catch { /* 不支援就算了 */ }
+            });
+            mainField.addEventListener('pointermove', (e) => {
+                if (!dragging) return;
+                e.preventDefault();
+                setPendingFromEvent(e);
+                moveMarkTo(pendingPoint);
+            });
+            const finishDrag = (e) => {
+                if (!dragging) return;
+                dragging = false;
+                try { (mainField as any).releasePointerCapture((e as PointerEvent).pointerId); } catch { /* 同上 */ }
+                setPendingFromEvent(e);
+                moveMarkTo(pendingPoint);
+                showResultOptions(pendingZone);
+            };
+            mainField.addEventListener('pointerup', finishDrag);
+            mainField.addEventListener('pointercancel', () => { dragging = false; });
+            // 沒有 pointer 事件的環境（例如測試用的 jsdom）仍走原本的點一下
             mainField.addEventListener('click', (e) => {
-                if ((e.target as HTMLElement).closest('.mf-base.occupied')) return;   // 點跑者＝代跑
-                if (gameState.isGameOver) return;
-                if (!gameState.started) return;          // 未開賽先按 PLAY BALL
-                const target = e.target as Element;
-                const zoneEl = target.closest('[data-zone]') as SVGPathElement | null;
-                if (!zoneEl) return;
-                const zone = (zoneEl as any).dataset.zone;
-                pendingPoint = fieldPointFrom(e, mainField as any);
-                pendingZone = zoneOfPoint(pendingPoint);
-                const mark = document.getElementById('mf-mark');
-                if (mark) {
-                    mark.setAttribute('cx', String(pendingPoint.x));
-                    mark.setAttribute('cy', String(pendingPoint.y));
-                    (mark as any).style.display = '';
-                    // 重新播一次擴散動畫，讓人看得出「這一下有點到」
-                    mark.classList.remove('just-tapped');
-                    void (mark as any).getBoundingClientRect();
-                    mark.classList.add('just-tapped');
-                }
+                if ((window as any).PointerEvent) return;      // 已由上面處理過
+                if (!canMarkField(e)) return;
+                setPendingFromEvent(e);
+                moveMarkTo(pendingPoint, true);
                 tapFeedback();
                 showResultOptions(pendingZone);
             });
@@ -2361,6 +2497,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderHeaderInputs() {
         stadiumInput.value = gameState.stadium || '';
         gameDateInput.value = gameState.gameDate || new Date().toISOString().split('T')[0];
+        renderDateFace();
         if (weatherInput)
             weatherInput.value = gameState.weather || 'sunny';
     }
@@ -2412,8 +2549,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderGameClock() {
         const el = document.getElementById('game-clock');
         if (!el) return;
-        if (!gameState.started || !gameState.startTime) { el.classList.add('hidden'); return; }
         el.classList.remove('hidden');
+        // 還沒開賽也要看得到計時器，停在 00:00，按了 PLAY BALL 才開始跑
+        if (!gameState.started || !gameState.startTime) {
+            el.textContent = '00:00';
+            el.classList.remove('stopped', 'paused');
+            return;
+        }
         const end = gameState.endTime || gameState.pausedAt || Date.now();
         el.textContent = formatElapsed(end - gameState.startTime - (gameState.pausedMs || 0));
         el.classList.toggle('stopped', !!gameState.endTime);
@@ -2461,6 +2603,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             e.stopPropagation();
             if (gameState.endTime) return;              // 已結束就沒得調整
+            if (!gameState.started) return;             // 還沒開賽，沒有東西可以暫停
             pauseBtn.textContent = gameState.pausedAt ? '繼續計時' : '暫停計時';
             menu.classList.toggle('modal-hidden');
         });
@@ -2474,8 +2617,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderGameStateDisplay() {
         const { inning, isTop, outs } = gameState;
         // 比賽結束就顯示「終場」，取代原本大比分列上的狀態字
-        (document.getElementById('inning-display')).textContent =
-            gameState.isGameOver ? '終場' : `${inning}局${isTop ? '上' : '下'}`;
+        const inningEl = document.getElementById('inning-display');
+        inningEl.textContent = gameState.isGameOver ? '終場' : `${inning}局${isTop ? '上' : '下'}`;
+        // 上半局標▲、下半局標▼（三角形由 CSS 依這個記號畫）
+        inningEl.dataset.half = gameState.isGameOver ? 'over' : (isTop ? 'top' : 'bottom');
         const batterDisplayContainer = document.getElementById('current-batter-display');
         batterDisplayContainer.innerHTML = ''; // Clear previous content
         const batter = getCurrentBatter();
@@ -2491,8 +2636,9 @@ document.addEventListener('DOMContentLoaded', () => {
             mainInfoEl.id = 'batter-main-info';
             const lastAbEl = document.createElement('div');
             lastAbEl.id = 'batter-last-ab';
-            infoTextEl.append(mainInfoEl, lastAbEl);
-            batterDisplayContainer.append(photoContainer, infoTextEl);
+            infoTextEl.append(mainInfoEl);
+            // 本場表現獨立成最下面一排（照片靠上對齊，這排跨滿整張卡片）
+            batterDisplayContainer.append(photoContainer, infoTextEl, lastAbEl);
             mainInfoEl.style.setProperty('--team-accent', team.color);
             const calculateStatString = (value) => {
                 if (isNaN(value) || !isFinite(value))
@@ -2512,7 +2658,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             mainInfoEl.innerHTML = `
                 <div class="batter-name-row">
-                    <span class="batter-order">${batterIndex + 1}棒</span>
+                    <span class="batter-order">${team.name || ''} ${batterIndex + 1}棒</span>
                     <span class="batter-name">${batter.name || '未命名'}</span>
                 </div>
                 <div class="batter-team-name">${team.name}</div>
@@ -2528,9 +2674,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 : `<span class="last-ab-label">本場</span><span class="ab-chip ab-chip-empty">尚未上場</span>`;
         }
         else {
-            batterDisplayContainer.innerHTML = `<div id="batter-info-text"><div id="batter-main-info">請設定打序</div><div id="batter-last-ab"></div></div>`;
+            batterDisplayContainer.innerHTML = `<div id="batter-info-text"><div id="batter-main-info">請設定打序</div></div><div id="batter-last-ab"></div>`;
         }
         renderNextBatters();
+        renderPreviousHits(batter);
         document.querySelectorAll('#sbo-display .sbo-row:nth-child(1) .sbo-light').forEach((l, i) => l.classList.toggle('o-on', i < outs));
         // 壘包已改畫在球場 SVG 上（mf-first/second/third），由 render 統一更新
         playBallBtn.classList.remove('hidden');
@@ -2937,6 +3084,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     player.abResults = [...player.abResults];
                 }
             });
+        });
+    }
+    // 這位打者本場先前打席的落點：在球場上畫淡色的點與結果，方便比較守備位置
+    function renderPreviousHits(batter) {
+        const layer = document.getElementById('mf-ghosts');
+        if (!layer) return;
+        layer.innerHTML = '';
+        const points = (batter && Array.isArray(batter.hitPoints)) ? batter.hitPoints.slice(-3) : [];
+        if (!points.length) return;
+        const last = points.length - 1;
+        points.forEach((hp, i) => {
+            if (typeof hp?.x !== 'number' || typeof hp?.y !== 'number') return;
+            const p = miniPointToMain(hp);
+            const label = (PLAY_ABBREVIATIONS[hp.play] || hp.play || '') + (hp.inning ? `　${hp.inning}局` : '');
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('class', 'mf-ghost' + (i === last ? ' mf-ghost-last' : ''));
+            g.innerHTML =
+                `<circle cx="${p.x}" cy="${p.y}" r="9"/>`
+                + `<text x="${p.x}" y="${p.y - 14}" text-anchor="middle">${label}</text>`;
+            layer.appendChild(g);
         });
     }
     // 打者卡旁邊的「NEXT」：接下來兩位打者的棒次與姓名
