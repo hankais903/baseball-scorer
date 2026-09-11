@@ -68,6 +68,7 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 
 ## 交付習慣
 - **每改完一次就更新預覽，等使用者說 OK 才上線**：跑 `npm run build:preview`，把 `preview/*-device.html`（iPhone 外框版）發布到同一個預覽網址（`Artifact` 工具，url 固定用 https://claude.ai/code/artifact/32d5482a-fe7a-462b-bfdb-ec40da09613d ，先 read 再 publish），再附幾張截圖。得到「可以上線」才合併進 `main`（推 `main` 會自動部署到 GitHub Pages）。平常只推工作分支。
+- 合併上線之後**要立刻 `git checkout` 回工作分支**：留在 `main` 上的話，下一批修改會直接提交到 `main`，等於繞過「先給預覽再上線」的規矩（已經發生過兩次，都是事後把 commit 搬回工作分支、`main` 退回 origin 才修正）。
 - 量版面要量兩種情況：一般 Safari（`env()` 為 0）和加到主畫面（動態島上 62、下 34，用機身外框版量）。球場高度已改成吃剩餘空間，頁面下緣留 `max(74px, 安全區+68px)` 給換頁列。
 - 外觀調整走 `theme.css`（排在 `index.css`、`mobile.css` 之後，只改長相不動功能）；要退回舊樣子就拿掉 `index.html` 裡那行連結。成績表的圓角要加在外層 `.table-scroll`，加在 `table` 上會讓鎖住的姓名欄失效。
 - 完整 zip 之外，另出「只含變動檔案」的 zip 與清單（使用者手動覆蓋 GitHub）。
