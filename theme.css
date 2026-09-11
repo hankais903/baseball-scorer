@@ -1,0 +1,359 @@
+/* ==========================================================================
+   美化主題（第一層：只換外觀，不動任何功能與文字）
+   載入順序排在 index.css、mobile.css 之後，所以這裡的規則會蓋過前面。
+   要退回舊樣子，只要把 index.html 裡這支檔案的 <link> 拿掉即可。
+   ========================================================================== */
+
+:root {
+    /* 深藍夜空色系 */
+    --bg-color: #0b1a38;
+    --panel-bg-color: #13264d;
+    --border-color: rgba(255, 255, 255, 0.16);
+    --text-color: #eaf1ff;
+    --primary-color: #2f6fed;
+
+    /* 主題自用色 */
+    --th-card: rgba(255, 255, 255, 0.07);
+    --th-card-strong: rgba(255, 255, 255, 0.11);
+    --th-line: rgba(255, 255, 255, 0.14);
+    --th-glow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    --th-orange: #f2994a;
+    --th-purple: #7c5cff;
+    --th-slate: #5b7096;
+}
+
+/* 整個畫面的夜空漸層：固定在螢幕上，左右滑動面板時背景不會跟著跑 */
+body {
+    background:
+        radial-gradient(120% 80% at 50% -10%, rgba(58, 122, 255, 0.35) 0%, rgba(11, 26, 56, 0) 60%),
+        linear-gradient(168deg, #12336c 0%, #0d224b 45%, #081733 100%);
+    background-attachment: fixed;
+    background-color: #0b1a38;
+}
+
+/* 三個面板本身不再上底色，直接透出夜空 */
+#control-panel,
+#main-content,
+#event-log-container {
+    background-color: transparent;
+}
+
+/* --- 上方比賽資訊：藥丸型欄位，各自帶一個小圖示 --- */
+#game-meta-row {
+    gap: 6px;
+}
+
+.header-input {
+    background-color: var(--th-card);
+    border: 1px solid var(--th-line);
+    border-radius: 999px;
+    color: var(--text-color);
+    padding-left: 30px;
+    background-repeat: no-repeat;
+    background-position: 9px center;
+    background-size: 15px 15px;
+    text-align: left;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+#stadium-input {
+    /* 球場圖示 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4ff' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 18a9 9 0 0 1 18 0'/%3E%3Cpath d='M12 18V7'/%3E%3Ccircle cx='12' cy='5' r='2'/%3E%3C/svg%3E");
+}
+
+#game-date-input {
+    /* 日曆圖示 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4ff' stroke-width='2' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='3'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
+}
+
+/* 天氣本身的選項就有太陽／雲的圖案，不再另外加圖示 */
+#weather-input {
+    padding-left: 12px;
+    padding-right: 6px;
+}
+
+/* --- 計分板：玻璃卡片 --- */
+#scoreboard {
+    background: var(--th-card);
+    border: 1px solid var(--th-line);
+    border-radius: 14px;
+    box-shadow: var(--th-glow);
+    padding: 2px;
+}
+
+#scoreboard th {
+    background: rgba(47, 111, 237, 0.22);
+    color: #cfe0ff;
+}
+
+#scoreboard thead tr th:first-child {
+    border-top-left-radius: 12px;
+}
+
+#scoreboard thead tr th:last-child {
+    border-top-right-radius: 12px;
+}
+
+/* --- 打者卡與 NEXT 卡：同款玻璃卡片 --- */
+#batter-row > #current-batter-display {
+    background: var(--th-card);
+    border: 1px solid var(--th-line);
+    border-radius: 14px;
+    box-shadow: var(--th-glow);
+}
+
+#next-batters {
+    background: var(--th-card);
+    border: 1px solid var(--th-line);
+    border-radius: 14px;
+    box-shadow: var(--th-glow);
+}
+
+.batter-photo-main {
+    border-radius: 8px;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* --- 三顆主要按鈕：各自有顏色與圖示 --- */
+.main-actions-container {
+    gap: 8px;
+}
+
+.main-action-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 14px;
+    font-weight: 700;
+    background: linear-gradient(180deg, var(--th-purple), #6244e0);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.main-action-btn::before {
+    content: '';
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+
+#undo-btn {
+    background: linear-gradient(180deg, #f7b267, #e8873a);
+}
+
+#undo-btn::before {
+    /* 復原箭頭 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 5v6h6'/%3E%3Cpath d='M4 11a8 8 0 1 1 2.5 6'/%3E%3C/svg%3E");
+}
+
+#runner-action-btn {
+    background: linear-gradient(180deg, #6f86ad, #4d6289);
+}
+
+#runner-action-btn::before {
+    /* 跑壘：左右箭頭 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9h16l-4-4'/%3E%3Cpath d='M20 15H4l4 4'/%3E%3C/svg%3E");
+}
+
+#management-btn::before {
+    /* 換人：人像加箭頭 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='8' r='3.2'/%3E%3Cpath d='M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5'/%3E%3Cpath d='M17 8h4l-2-2M21 12h-4l2 2'/%3E%3C/svg%3E");
+}
+
+.main-action-btn:disabled,
+#undo-btn:disabled,
+#runner-action-btn:disabled,
+#management-btn:disabled {
+    background: #33405c;
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+}
+
+/* --- 球場外框卡片 --- */
+#game-state-display {
+    border: 1px solid var(--th-line);
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    box-shadow: var(--th-glow);
+}
+
+/* 球場上方的全壘打區：跟著換成夜空色 */
+.mf-wall-area {
+    fill: #0a1a38;
+}
+
+/* 局數膠囊：藍色發光 */
+#inning-display {
+    background: linear-gradient(180deg, #3b82f6, #1d5ad6);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 4px 14px rgba(29, 90, 214, 0.5);
+    letter-spacing: 1px;
+}
+
+/* 出局燈：亮起時是紅色會發光的圓點 */
+.sbo-row span {
+    letter-spacing: 1px;
+    color: #b9c9e8;
+}
+
+.sbo-light {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.sbo-light.o-on {
+    background-color: #ff4d5a;
+    box-shadow: 0 0 8px rgba(255, 77, 90, 0.85);
+}
+
+.sbo-light.s-on {
+    box-shadow: 0 0 8px rgba(247, 183, 49, 0.7);
+}
+
+.sbo-light.b-on {
+    box-shadow: 0 0 8px rgba(38, 222, 129, 0.7);
+}
+
+/* --- 下排快捷結果按鈕：橘、灰、紫，跟按鈕圖示 --- */
+#quick-plays button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+    background: linear-gradient(180deg, #6f86ad, #4d6289);
+}
+
+#quick-plays button[data-play="三振"] {
+    background: linear-gradient(180deg, #f7b267, #e8873a);
+}
+
+#quick-plays button[data-play="四壞"] {
+    background: linear-gradient(180deg, #6f86ad, #4d6289);
+}
+
+#quick-plays button[data-play="觸身球"] {
+    background: linear-gradient(180deg, #9b7bff, #6d4ce0);
+}
+
+#quick-plays button[data-play="__more"] {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+}
+
+/* --- 事件頁、名單頁的小元件跟著換色 --- */
+.panel-tab.active,
+.tab-button.active {
+    box-shadow: 0 3px 10px rgba(47, 111, 237, 0.45);
+}
+
+#panel-tabs,
+#team-settings-tabs {
+    border-radius: 12px;
+}
+
+.event-log-header,
+#log-actions button,
+#top-actions button {
+    border-radius: 12px;
+}
+
+/* 底部頁面指示點 */
+#mobile-nav {
+    background: rgba(10, 22, 46, 0.72);
+    border: 1px solid var(--th-line);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* --- 名單頁、各種視窗裡的輸入框：一律換成深藍玻璃 --- */
+#app-container input:not(.header-input),
+#app-container select:not(.header-input),
+#app-container textarea,
+.modal input,
+.modal select,
+.modal textarea,
+.substitution-popover select,
+.management-player-list li {
+    background-color: rgba(255, 255, 255, 0.09);
+    border-color: var(--th-line);
+    color: var(--text-color);
+    border-radius: 10px;
+}
+
+#app-container input::placeholder,
+.modal input::placeholder {
+    color: rgba(234, 241, 255, 0.45);
+}
+
+/* 名單列本身做成一張小卡 */
+.lineup-player,
+.pitcher-input-container {
+    background: var(--th-card);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 6px;
+}
+
+.player-photo-preview,
+.team-logo-preview {
+    background-color: rgba(255, 255, 255, 0.09);
+    border-color: var(--th-line);
+}
+
+/* 視窗（彈出面板）也跟著換深藍底 */
+#modal-content,
+.draggable-modal-content,
+.substitution-popover {
+    background: linear-gradient(180deg, #172f5c, #0e2148);
+    border: 1px solid var(--th-line);
+    border-radius: 18px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* --- 事件頁：成績表與事件列 ---
+   圓角要加在外框，不能加在表格本身：表格若設 overflow 會讓鎖住的姓名欄失效。 */
+.panel-pane .table-scroll {
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.panel-pane th {
+    background: rgba(47, 111, 237, 0.22);
+    color: #cfe0ff;
+}
+
+#event-log li {
+    border-radius: 10px;
+}
+
+/* 視窗裡沒有特別上色的選項按鈕 */
+.modal-options button {
+    background-color: rgba(255, 255, 255, 0.09);
+    border: 1px solid var(--th-line);
+    border-radius: 12px;
+}
+
+.modal-options button:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.modal-options button:disabled,
+.modal-options button:disabled:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #7f8ca6;
+}
+
+.modal-options button.selected {
+    background-color: var(--primary-color);
+    border-color: #7aa7ff;
+    box-shadow: 0 0 10px rgba(47, 111, 237, 0.5);
+}
