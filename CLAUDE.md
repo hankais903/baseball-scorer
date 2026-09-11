@@ -16,6 +16,7 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 ## 檔案結構
 - `index.tsx`（主程式，單一 IIFE）、`index.css`、`mobile.css`（手機／直向覆寫）、`index.html`
 - `public/*.js`：不經 Vite 打包的全域腳本 — `game-manager.js`（多場比賽／自動儲存）、`game-list-ui.js`、`game-helpers.js`、`game-integration.js`、`official-sheet.js`（正式記錄表，另開視窗列印）、`service-worker.js`
+- `public/img/stadium-night.jpg`（820×1230）：主頁球場後面的夜景照；`public/img/batter-default.jpg`（330×440）：主頁打者卡沒照片時的卡通小打者（名單頁仍用背號頭像）。兩張都在 service worker 的離線清單裡，預覽檔也會內嵌。
 - `public/img/field.png`（412×402）：主頁球場圖，也給球員調度的守位圖用。本壘 (202,341)、一壘 (275,272)、二壘 (202,198)、三壘 (127,271)。主球場 SVG viewBox 為 `18 -35 370 425`（上方多 60 單位是全壘打區）。
 - `tests/harness.mjs`：jsdom 開機、`click`、`clickZone(w, 'infield'|'outfield'|'foul'|'deepcf')` 等工具。
 
@@ -48,11 +49,13 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 **敘述不附守備代號**（不寫「（4-3）」）：`chainTail()` 一律回傳空字串；代號仍留給記錄當下的提示（「已選：二→一（4-3）」）與正式記錄表用。局數列與「比賽開始。」走 `.ev-inning`，字級放大加粗。
 
 ## 介面規則
-- 手機優先（iPhone 393×852，動態島 59px 用 `env(safe-area-inset-*)`），三面板左右滑動：名單頁／主頁／事件頁。表格（打擊、投手、戰況表）可橫向捲動，手指在表格上時面板手勢要讓路。
+- 手機優先（iPhone 393×852，動態島 59px 用 `env(safe-area-inset-*)`），三面板左右滑動：名單頁／主頁／事件頁，底部用文字換頁（名單／比賽／紀錄，仍是 `.nav-dot`）。每頁各自有底色（深夜藍），滑動時背景會跟著頁面一起移動，不要用固定在螢幕上的背景。表格（打擊、投手、戰況表）可橫向捲動，手指在表格上時面板手勢要讓路。
+- 主頁最上面是標題列（`.stadium-toolbar`：⚾＋「棒球比賽紀錄」），只有標題沒有功能鍵。球場後面鋪夜景照（`#stadium-bg`，`pointer-events:none`），全壘打區 `.mf-wall-area` 設成透明讓看台透出來。
+- 主頁高度很緊：402×874 下最下面那排按鈕底部要留在 800 以內，指示點才不會擋到。改版面後用 playwright 量一次。
 - 主頁：計分板全顯示；球場滿版；開賽前球場壓暗、PLAY BALL 黃色膠囊；開賽後計時在右上、局數標籤置中。打者卡片只放打者資訊。
 - 名單頁：預設名稱「客隊球員01～10／主隊球員01～10」，板凳預設空白、「＋新增板凳球員」揭開一列、往右滑刪除；自動儲存（無套用鈕）；守位互換（A 改成 B 的守位，B 換成 A 的舊守位）；投手守位固定 P；比賽中鎖住拖曳。
 - 比賽中換人：球員調度視窗上方「代打」「換投」（標籤要寫出是哪一隊）、點壘上跑者人像「代跑」、守位圖（用主頁球場圖＋半身人像）點兩個守位互換或板凳籌碼→守位。守位圖的名字只取後 4 字，一、三壘與投手、DH 的名字放圖示下面（`DEF_LABEL_DY`），其餘放上面，靠邊的改變對齊方向，避免名字互相重疊或被切掉。
-- 可點的東西一律至少 44×44（小圓點用 `::after` 畫小圓、外框撐大；分頁標籤、標題列欄位、隊伍顏色同理）。按不動的按鈕要寫原因（例：「壘間事件（壘上無人）」）。復原不在事件列表留下任何一行。
+- 可點的東西一律至少 44×44（底部換頁、分頁標籤、標題列欄位、隊伍顏色同理）。按不動的按鈕要寫原因（例：「壘間事件（壘上無人）」）。復原不在事件列表留下任何一行。
 - 事件頁分頁：即時事件、戰況表，以及兩隊各一頁（標籤直接用隊名），每隊那頁同時放該隊的打擊與投球成績；主標「事件及記錄」，下方「匯出紀錄／正式記錄表」並排。成績表的姓名欄鎖在左邊、寬度固定（`--name-col`），其餘欄位左右滑，捲軸隱藏。
 - 沒上傳照片的球員用背號當頭像（`playerPhotoSrc`／`jerseyAvatar`）；產生的頭像帶 `data-avatar="jersey"` 記號，讀回 gameState 前會用 `isGeneratedAvatar` 還原成預設值，不會被當成上傳的照片。照片右上角有移除鍵（`.image-remove-btn`），只在真的上傳過照片時出現（`.player-photo-container.has-photo`），按了就還原成預設、背號頭像自己回來。
 - 點擊回饋：`mobile.css` 關掉了 iOS 預設的灰色點擊框，所以按鈕要自己給回饋——一律 `:active` 變亮，記錄流程的大按鈕再加 `scale(0.95)`；點球場時落點標記播 `mf-mark-pop` 擴散動畫；`tapFeedback()` 會試著震動（Android 有效，iPhone 的 Safari 不支援）。動畫都要尊重 `prefers-reduced-motion`。
@@ -60,6 +63,8 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 正式記錄表暫時只顯示與「匯出紀錄」相同的內容，在 APP 內開視窗，不另開新視窗。
 
 ## 交付習慣
+- **上線前一定要先問過使用者**：改完先 build＋test、出預覽截圖給使用者看，得到「可以上線」才合併進 `main`（推 `main` 會自動部署到 GitHub Pages）。平常只推工作分支。
+- 外觀調整走 `theme.css`（排在 `index.css`、`mobile.css` 之後，只改長相不動功能）；要退回舊樣子就拿掉 `index.html` 裡那行連結。成績表的圓角要加在外層 `.table-scroll`，加在 `table` 上會讓鎖住的姓名欄失效。
 - 完整 zip 之外，另出「只含變動檔案」的 zip 與清單（使用者手動覆蓋 GitHub）。
 - 預覽檔（單檔 HTML）用 `npm run build:preview` 產生（`tools/build-preview.mjs`），要內嵌字型／球場圖，並帶版本戳記：新版本開啟即為新比賽（清 `baseballGameState`、`baseball_current_game_id`，保留名單）。輸出兩份到 `preview/`：完整單檔，以及拆掉最外層 `<html>／<head>／<body>` 的嵌入版。
   - 兩個踩過的坑：取代內容一律用函式（壓縮後的 JS 含 `$&`，當字串取代會被吃掉）；拆骨架只能從檔頭、檔尾、`</head>\n<body>` 交界下刀（`official-sheet.js` 的列印樣板字串裡也有這些標籤）。

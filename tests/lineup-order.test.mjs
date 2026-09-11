@@ -240,12 +240,19 @@ export default async function (t) {
     j.value = '27';
     j.dispatchEvent(new w.Event('change', { bubbles: true }));
     await sleep(400);
-    click(w, q('#play-ball-btn'));
-    await sleep(150);
-    const src = q('#current-batter-display .batter-photo-main').getAttribute('src');
+    const src = q('#player-photo-preview-a-0').getAttribute('src');
     t.assert(src.startsWith('data:image/svg+xml;base64,'), '頭像不是產生出來的圖：' + src.slice(0, 40));
     const svg = w.atob(src.split(',')[1]);
     t.assert(svg.includes('>27<'), '頭像上沒有背號：' + svg.slice(0, 200));
+  });
+
+  // 主頁的打者卡只有一個人，用卡通小打者比背號好認（名單頁仍用背號）
+  await t('主頁打者卡沒照片時用卡通小打者', async () => {
+    const { window: w, q } = await boot();
+    click(w, q('#play-ball-btn'));
+    await sleep(150);
+    const src = q('#current-batter-display .batter-photo-main').getAttribute('src');
+    t.assert(/batter-default\.jpg$/.test(src), '打者卡沒有用卡通頭像：' + src.slice(0, 60));
   });
 
   await t('連背號都沒有才用剪影', async () => {
@@ -254,9 +261,7 @@ export default async function (t) {
     j.value = '';                       // 預設背號是 01，先清掉
     j.dispatchEvent(new w.Event('change', { bubbles: true }));
     await sleep(400);
-    click(w, q('#play-ball-btn'));
-    await sleep(150);
-    const src = q('#current-batter-display .batter-photo-main').getAttribute('src');
+    const src = q('#player-photo-preview-a-0').getAttribute('src');
     const svg = w.atob(src.split(',')[1]);
     t.assert(svg.includes('<circle'), '沒有背號時應該用剪影：' + svg.slice(0, 120));
   });

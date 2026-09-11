@@ -6,8 +6,8 @@
 
 :root {
     /* 深藍夜空色系 */
-    --bg-color: #0b1a38;
-    --panel-bg-color: #13264d;
+    --bg-color: #07111f;
+    --panel-bg-color: #0e2036;
     --border-color: rgba(255, 255, 255, 0.16);
     --text-color: #eaf1ff;
     --primary-color: #2f6fed;
@@ -22,20 +22,21 @@
     --th-slate: #5b7096;
 }
 
-/* 整個畫面的夜空漸層：固定在螢幕上，左右滑動面板時背景不會跟著跑 */
+/* 底色：深夜藍（比原本的亮藍暗很多，球場燈光才會跳出來） */
 body {
-    background:
-        radial-gradient(120% 80% at 50% -10%, rgba(58, 122, 255, 0.35) 0%, rgba(11, 26, 56, 0) 60%),
-        linear-gradient(168deg, #12336c 0%, #0d224b 45%, #081733 100%);
-    background-attachment: fixed;
-    background-color: #0b1a38;
+    background: #05101c;
 }
 
-/* 三個面板本身不再上底色，直接透出夜空 */
+/* 每一頁各自有自己的底色，左右滑動時背景會跟著頁面一起移動 */
+#main-content {
+    background:
+        radial-gradient(ellipse 120% 55% at 50% 62%, rgba(26, 62, 92, 0.55), rgba(8, 19, 33, 0) 60%),
+        linear-gradient(180deg, #0b1a2b 0%, #081321 55%, #050d17 100%);
+}
+
 #control-panel,
-#main-content,
 #event-log-container {
-    background-color: transparent;
+    background: linear-gradient(160deg, #102339 0%, #0a1626 60%, #070f1b 100%);
 }
 
 /* --- 上方比賽資訊：藥丸型欄位，各自帶一個小圖示 --- */
@@ -66,10 +67,21 @@ body {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4ff' stroke-width='2' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='3'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
 }
 
-/* 天氣本身的選項就有太陽／雲的圖案，不再另外加圖示 */
+/* 天氣本身的選項就有太陽／雲的圖案，不再另外加圖示；
+   下拉選單要自己畫箭頭，不然 iOS 會給它一塊灰底 */
 #weather-input {
+    -webkit-appearance: none;
+    appearance: none;
+    /* index.css 的 #weather-input 也有設底色與圓角，這裡要一起蓋掉才會變成藥丸型 */
+    background-color: var(--th-card);
+    border: 1px solid var(--th-line);
+    border-radius: 999px;
     padding-left: 12px;
-    padding-right: 6px;
+    padding-right: 26px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4ff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 7px center;
+    background-size: 14px 14px;
 }
 
 /* --- 計分板：玻璃卡片 --- */
@@ -184,7 +196,7 @@ body {
 
 /* 球場上方的全壘打區：跟著換成夜空色 */
 .mf-wall-area {
-    fill: #0a1a38;
+    fill: #081321;
 }
 
 /* 局數膠囊：藍色發光 */
@@ -312,7 +324,7 @@ body {
 #modal-content,
 .draggable-modal-content,
 .substitution-popover {
-    background: linear-gradient(180deg, #172f5c, #0e2148);
+    background: linear-gradient(180deg, #12283f, #0a1729);
     border: 1px solid var(--th-line);
     border-radius: 18px;
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
@@ -356,4 +368,182 @@ body {
     background-color: var(--primary-color);
     border-color: #7aa7ff;
     box-shadow: 0 0 10px rgba(47, 111, 237, 0.5);
+}
+
+/* ==========================================================================
+   夜間球場（第二層）：標題列、球場夜景背景、快捷鍵圖示
+   ========================================================================== */
+
+/* --- 上方標題列：只有棒球圖示與名稱，沒有功能鍵 --- */
+.stadium-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+
+.brand-ball {
+    font-size: 27px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 7px rgba(247, 85, 76, 0.35));
+}
+
+.brand-text strong {
+    display: block;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+}
+
+.brand-text small {
+    display: block;
+    font-size: 10px;
+    line-height: 1.2;
+    color: #86afd5;
+    letter-spacing: 0.05em;
+}
+
+@media (max-width: 768px), (orientation: portrait) {
+    #main-content > .stadium-toolbar { order: -1; }
+}
+
+/* --- 球場的夜景背景 --- */
+#stadium-bg {
+    position: absolute;
+    left: -10px;
+    right: -10px;
+    bottom: -8px;
+    top: 34px;
+    width: calc(100% + 20px);
+    height: auto;
+    min-height: calc(100% - 26px);
+    object-fit: cover;
+    object-position: center 65%;
+    border-radius: 0 0 18px 18px;
+    opacity: 0.92;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* 球場圖與壘包要蓋在夜景上面 */
+#main-field,
+#bases-container,
+#field-result-panel {
+    position: relative;
+    z-index: 1;
+}
+
+#sbo-display,
+#inning-display,
+#game-clock,
+#clock-menu {
+    z-index: 5;
+}
+
+/* 全壘打區改成透明，讓夜景的看台透出來 */
+.mf-wall-area {
+    fill: transparent;
+}
+
+/* 草皮配色調亮一點，才不會被夜景吃掉 */
+#main-field image {
+    filter: saturate(1.45) brightness(1.04);
+}
+
+/* 有夜景之後球場框本身不再上底色 */
+#game-state-display {
+    background: transparent;
+    overflow: hidden;
+}
+
+/* --- 快捷結果按鈕：圖示在上、字在下 --- */
+#quick-plays button {
+    flex-direction: column;
+    gap: 3px;
+    min-height: 58px;
+}
+
+#quick-plays button::before {
+    content: '◇';
+    font-size: 21px;
+    line-height: 1;
+    font-weight: 700;
+}
+
+#quick-plays button[data-play="四壞"]::before { content: '✋'; }
+#quick-plays button[data-play="觸身球"]::before { content: '⚾'; }
+#quick-plays button[data-play="__more"]::before { content: '•••'; letter-spacing: 2px; }
+
+/* --- 多了標題列之後要省一點高度，主頁才不會被下緣切到 --- */
+@media (max-width: 768px), (orientation: portrait) {
+    .stadium-toolbar { gap: 7px; }
+    .brand-text strong { font-size: 16px; }
+    .brand-text small { font-size: 9px; }
+
+    #game-state-container { padding: 0.1rem 0; }
+    #game-state-display { aspect-ratio: 370 / 390; }
+    #quick-plays button { min-height: 48px; }
+    #quick-plays button::before { font-size: 19px; }
+}
+
+/* 再擠出一點高度，讓最下面那排按鈕不會碰到頁面指示點 */
+@media (max-width: 768px), (orientation: portrait) {
+    /* 上緣留白縮小，但仍要避開動態島（加到主畫面時 env() 才會有值） */
+    #main-content { padding-top: max(0.45rem, env(safe-area-inset-top)); row-gap: 6px; }
+    #game-info { margin-bottom: 0; }
+    #scoreboard { margin: 0; }
+    #game-state-display { aspect-ratio: 370 / 358; }
+
+    /* 各區之間不要再另外留白，統一用 row-gap，才擠得出高度 */
+    #game-meta-row,
+    #batter-row,
+    #quick-plays,
+    .main-actions-container { margin: 0; }
+
+    /* 指示點回到最底下（原本因為會擋到按鈕才往上抬） */
+    #mobile-nav:has(.nav-dot[data-index="1"].active) {
+        bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+    }
+}
+
+/* --- 底部換頁改成文字（名單／比賽／紀錄），跟參考圖一樣 --- */
+#mobile-nav {
+    gap: 4px;
+    padding: 3px;
+    border-radius: 22px;
+    background: rgba(9, 22, 38, 0.92);
+    border: 1px solid #2d4a68;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.nav-dot {
+    width: auto;
+    height: auto;
+    min-width: 74px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 14px;
+    border: none;
+    border-radius: 17px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: #a9c6e6;
+    background: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 原本畫小圓點的那一層拿掉 */
+.nav-dot::after {
+    content: none;
+}
+
+.nav-dot.active {
+    background: linear-gradient(180deg, #36b1ff, #1475d0);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(20, 117, 208, 0.5);
 }

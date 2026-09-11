@@ -14,12 +14,15 @@ const ruleFor = (css, selector) =>
   (css.match(new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\{[^}]*\\}', 'g')) || []).join(' ');
 
 export default async function (t) {
-  await t('面板小圓點的可點範圍有 44', async () => {
+  await t('底部換頁是文字，可點範圍有 44', async () => {
     const css = await builtCss();
     const rule = ruleFor(css, '.nav-dot');
-    t.assert(/width:\s*44px/.test(rule) && /height:\s*44px/.test(rule), '小圓點可點範圍不足：' + rule);
-    // 壓縮後 ::after 會變成 :after，兩種都接受
-    t.assert(/\.nav-dot::?after\{[^}]*width:\s*10px/.test(css), '看起來的圓點應該還是 10px');
+    t.assert(/min-height:\s*44px/.test(rule), '換頁按鈕高度不足：' + rule);
+    const fs = await import('fs');
+    const html = fs.readFileSync('dist/index.html', 'utf8');
+    for (const label of ['名單', '比賽', '紀錄']) {
+      t.assert(html.includes('>' + label + '</button>'), '底部少了「' + label + '」這一頁');
+    }
   });
 
   await t('分頁標籤至少 44 高', async () => {
