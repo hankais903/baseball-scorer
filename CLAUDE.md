@@ -50,6 +50,7 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 
 ## 介面規則
 - 手機優先（iPhone 393×852，動態島 59px 用 `env(safe-area-inset-*)`），三面板左右滑動：名單頁／主頁／事件頁，底部用文字換頁（名單／比賽／紀錄，仍是 `.nav-dot`）。每頁各自有底色（深夜藍），滑動時背景會跟著頁面一起移動，不要用固定在螢幕上的背景。表格（打擊、投手、戰況表）可橫向捲動，手指在表格上時面板手勢要讓路。
+- 上方資訊列（依使用者提供的示意圖）：三顆藥丸——球場（圖示＋可輸入，右邊箭頭列出用過的球場，存在 `baseball_stadium_history`）／日期（左右箭頭前後一天，中間顯示「2026年9月11日 (五)」，真正的 `input[type=date]` 透明疊在上面點了叫日曆）／天氣。OUT、局數、計時改成球場上方**獨立一列** `#status-bar`（左 OUT、中局數、右計時），局數依 `data-half` 顯示 ▲／▼。
 - 主頁最上面是標題列（`.stadium-toolbar`：⚾＋「棒球比賽紀錄」），只有標題沒有功能鍵。夜景照是**整個畫面的底圖**（`#stadium-bg-layer`，放在 `#app-container` 外面、`position:fixed`，左右滑頁時不會跟著動），上面蓋一層深色漸層紗保持字的清晰度；三個頁面本身都是透明的。全壘打區 `.mf-wall-area` 設成透明讓底圖透出來。
 - 主頁高度很緊：改版面後用 playwright 量一次，最下排按鈕底部要跟換頁列留至少 6px。
 - 球場上的疊層（`#bases-container` 裡的 PLAY BALL、`#field-result-panel` 落點結果、開賽前壓暗的 `.pregame::after`）靠 `index.css` 原本的 position 與 z-index 互相疊。**不要在主題檔裡改它們的 position，也不要另外給 z-index**：改 position 會讓 PLAY BALL 掉到球場下面不見，加 z-index 會多開一層堆疊、讓 PLAY BALL 被壓暗那層蓋住。已有回歸測試釘住。

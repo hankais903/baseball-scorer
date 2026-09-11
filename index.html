@@ -83,13 +83,30 @@
             </div>
             <header id="game-info">
                 <div id="game-meta-row">
-                    <input type="text" id="stadium-input" class="header-input" placeholder="比賽球場">
-                    <input type="date" id="game-date-input" class="header-input">
-                    <select id="weather-input" class="header-input" aria-label="天氣">
-                        <option value="sunny">☀ 晴</option>
-                        <option value="cloudy">☁ 陰</option>
-                        <option value="rainy">☂ 雨</option>
-                    </select>
+                    <!-- 球場：可直接打字，右邊的箭頭會列出用過的球場 -->
+                    <div class="meta-pill" id="stadium-pill">
+                        <span class="meta-icon meta-icon-stadium" aria-hidden="true"></span>
+                        <input type="text" id="stadium-input" class="header-input" placeholder="比賽球場">
+                        <button type="button" id="stadium-history-btn" class="meta-caret" aria-label="用過的球場"></button>
+                        <ul id="stadium-history" class="meta-menu modal-hidden"></ul>
+                    </div>
+                    <!-- 日期：左右箭頭前後一天，點中間叫出日曆 -->
+                    <div class="meta-pill" id="date-pill">
+                        <button type="button" id="date-prev" class="date-arrow" aria-label="前一天"></button>
+                        <label class="date-face" for="game-date-input">
+                            <span class="meta-icon meta-icon-date" aria-hidden="true"></span>
+                            <span id="date-text">　</span>
+                            <input type="date" id="game-date-input" aria-label="比賽日期">
+                        </label>
+                        <button type="button" id="date-next" class="date-arrow" aria-label="後一天"></button>
+                    </div>
+                    <div class="meta-pill" id="weather-pill">
+                        <select id="weather-input" class="header-input" aria-label="天氣">
+                            <option value="sunny">☀ 晴</option>
+                            <option value="cloudy">☁ 陰</option>
+                            <option value="rainy">☂ 雨</option>
+                        </select>
+                    </div>
                 </div>
             </header>
             <div id="scoreboard">
@@ -124,19 +141,22 @@
                  <button type="button" id="runner-action-btn" class="main-action-btn">壘間事件</button>
                  <button type="button" id="management-btn" class="main-action-btn">球員調度</button>
             </div>
+            <!-- 出局數／局數／計時：獨立一列，不再疊在球場上 -->
+            <div id="status-bar">
+                <div id="sbo-display">
+                     <div class="sbo-row">
+                        <span>OUT</span><div class="sbo-light"></div><div class="sbo-light"></div>
+                    </div>
+                </div>
+                <div id="inning-display">1局上</div>
+                <button type="button" id="game-clock" class="hidden" aria-label="比賽經過時間，點一下可暫停或結束">00:00</button>
+                <div id="clock-menu" class="modal-hidden">
+                    <button type="button" id="clock-pause-btn">暫停計時</button>
+                    <button type="button" id="clock-stop-btn">結束計時</button>
+                </div>
+            </div>
             <div id="game-state-container">
                 <div id="game-state-display" role="button" aria-label="紀錄打席">
-                    <div id="inning-display">1局上</div>
-                    <button type="button" id="game-clock" class="hidden" aria-label="比賽經過時間，點一下可暫停或結束">00:00</button>
-                    <div id="clock-menu" class="modal-hidden">
-                        <button type="button" id="clock-pause-btn">暫停計時</button>
-                        <button type="button" id="clock-stop-btn">結束計時</button>
-                    </div>
-                    <div id="sbo-display">
-                         <div class="sbo-row">
-                            <span>OUT</span><div class="sbo-light"></div><div class="sbo-light"></div>
-                        </div>
-                    </div>
                     <!-- 可點擊的球場：點落點 → 依區域給結果選項 -->
                     <svg id="main-field" viewBox="18 -35 370 425" aria-label="點擊標示擊球落點">
                         <rect class="mf-wall-area" x="18" y="-35" width="370" height="36"/>

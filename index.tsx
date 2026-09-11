@@ -648,6 +648,57 @@ document.addEventListener('DOMContentLoaded', () => {
     const stadiumInput = document.getElementById('stadium-input') as HTMLInputElement;
     const gameDateInput = document.getElementById('game-date-input') as HTMLInputElement;
     const weatherInput = document.getElementById('weather-input') as HTMLSelectElement;
+    // === 上方資訊列：日期顯示成中文、左右箭頭前後一天 ===
+    const WEEKDAY_ZH = ['日', '一', '二', '三', '四', '五', '六'];
+    function pad2(n: number) { return String(n).padStart(2, '0'); }
+    function renderDateFace() {
+        const el = document.getElementById('date-text');
+        if (!el) return;
+        const v = gameDateInput.value;
+        if (!v) { el.textContent = '選擇日期'; return; }
+        const [y, m, d] = v.split('-').map(Number);
+        const dt = new Date(y, m - 1, d);
+        el.textContent = `${y}年${m}月${d}日 (${WEEKDAY_ZH[dt.getDay()]})`;
+    }
+    function shiftGameDate(days: number) {
+        const v = gameDateInput.value || new Date().toISOString().split('T')[0];
+        const [y, m, d] = v.split('-').map(Number);
+        const dt = new Date(y, m - 1, d + days);
+        gameDateInput.value = `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+        gameDateInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    // === 球場：記住用過的名字，右邊箭頭可以直接選 ===
+    const STADIUM_HISTORY_KEY = 'baseball_stadium_history';
+    function stadiumHistory(): string[] {
+        try {
+            const raw = JSON.parse(localStorage.getItem(STADIUM_HISTORY_KEY) || '[]');
+            return Array.isArray(raw) ? raw.filter(x => typeof x === 'string' && x.trim()) : [];
+        }
+        catch { return []; }
+    }
+    function rememberStadium(name: string) {
+        const n = (name || '').trim();
+        if (!n) return;
+        const list = stadiumHistory().filter(x => x !== n);
+        list.unshift(n);
+        try { localStorage.setItem(STADIUM_HISTORY_KEY, JSON.stringify(list.slice(0, 8))); }
+        catch { /* 存不下就算了，不影響記錄 */ }
+    }
+    function renderStadiumHistory() {
+        const menu = document.getElementById('stadium-history');
+        if (!menu) return;
+        const list = stadiumHistory();
+        menu.innerHTML = list.length
+            ? list.map(n => `<li><button type="button" class="stadium-history-item">${n}</button></li>`).join('')
+            : '<li class="stadium-history-empty">還沒有用過的球場</li>';
+    }
+    function toggleStadiumHistory(show?: boolean) {
+        const menu = document.getElementById('stadium-history');
+        if (!menu) return;
+        const next = show === undefined ? menu.classList.contains('modal-hidden') : show;
+        if (next) renderStadiumHistory();
+        menu.classList.toggle('modal-hidden', !next);
+    }
     const appContainer = document.getElementById('app-container') as HTMLDivElement;
     const mobileNav = document.getElementById('mobile-nav') as HTMLDivElement;
     const loadRosterModal = document.getElementById('load-roster-modal');
@@ -1580,10 +1631,28 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.stadium = stadiumInput.value;
             saveState();
         });
+        stadiumInput.addEventListener('change', () => rememberStadium(stadiumInput.value));
+        document.getElementById('stadium-history-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            tapFeedback();
+            toggleStadiumHistory();
+        });
+        document.getElementById('stadium-history')?.addEventListener('click', (e) => {
+            const btn = (e.target as HTMLElement).closest('.stadium-history-item') as HTMLButtonElement | null;
+            if (!btn) return;
+            stadiumInput.value = btn.textContent || '';
+            stadiumInput.dispatchEvent(new Event('input', { bubbles: true }));
+            rememberStadium(stadiumInput.value);
+            toggleStadiumHistory(false);
+        });
+        document.addEventListener('click', () => toggleStadiumHistory(false));
         gameDateInput.addEventListener('change', () => {
             gameState.gameDate = gameDateInput.value;
+            renderDateFace();
             saveState();
         });
+        document.getElementById('date-prev')?.addEventListener('click', () => { tapFeedback(); shiftGameDate(-1); });
+        document.getElementById('date-next')?.addEventListener('click', () => { tapFeedback(); shiftGameDate(1); });
         if (weatherInput) {
             weatherInput.addEventListener('change', () => {
                 gameState.weather = weatherInput.value;
@@ -2361,6 +2430,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderHeaderInputs() {
         stadiumInput.value = gameState.stadium || '';
         gameDateInput.value = gameState.gameDate || new Date().toISOString().split('T')[0];
+        renderDateFace();
         if (weatherInput)
             weatherInput.value = gameState.weather || 'sunny';
     }
@@ -2474,8 +2544,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderGameStateDisplay() {
         const { inning, isTop, outs } = gameState;
         // 比賽結束就顯示「終場」，取代原本大比分列上的狀態字
-        (document.getElementById('inning-display')).textContent =
-            gameState.isGameOver ? '終場' : `${inning}局${isTop ? '上' : '下'}`;
+        const inningEl = document.getElementById('inning-display');
+        inningEl.textContent = gameState.isGameOver ? '終場' : `${inning}局${isTop ? '上' : '下'}`;
+        // 上半局標▲、下半局標▼（三角形由 CSS 依這個記號畫）
+        inningEl.dataset.half = gameState.isGameOver ? 'over' : (isTop ? 'top' : 'bottom');
         const batterDisplayContainer = document.getElementById('current-batter-display');
         batterDisplayContainer.innerHTML = ''; // Clear previous content
         const batter = getCurrentBatter();
