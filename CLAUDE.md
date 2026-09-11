@@ -54,7 +54,8 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 比賽中換人：球員調度視窗上方「代打」「換投」（標籤要寫出是哪一隊）、點壘上跑者人像「代跑」、守位圖（用主頁球場圖＋半身人像）點兩個守位互換或板凳籌碼→守位。守位圖的名字只取後 4 字，一、三壘與投手、DH 的名字放圖示下面（`DEF_LABEL_DY`），其餘放上面，靠邊的改變對齊方向，避免名字互相重疊或被切掉。
 - 可點的東西一律至少 44×44（小圓點用 `::after` 畫小圓、外框撐大；分頁標籤、標題列欄位、隊伍顏色同理）。按不動的按鈕要寫原因（例：「壘間事件（壘上無人）」）。復原不在事件列表留下任何一行。
 - 事件頁分頁：即時事件、戰況表，以及兩隊各一頁（標籤直接用隊名），每隊那頁同時放該隊的打擊與投球成績；主標「事件及記錄」，下方「匯出紀錄／正式記錄表」並排。成績表的姓名欄鎖在左邊、寬度固定（`--name-col`），其餘欄位左右滑，捲軸隱藏。
-- 沒上傳照片的球員用背號當頭像（`playerPhotoSrc`／`jerseyAvatar`）；產生的頭像帶 `data-avatar="jersey"` 記號，讀回 gameState 前會用 `isGeneratedAvatar` 還原成預設值，不會被當成上傳的照片。
+- 沒上傳照片的球員用背號當頭像（`playerPhotoSrc`／`jerseyAvatar`）；產生的頭像帶 `data-avatar="jersey"` 記號，讀回 gameState 前會用 `isGeneratedAvatar` 還原成預設值，不會被當成上傳的照片。照片右上角有移除鍵（`.image-remove-btn`），只在真的上傳過照片時出現（`.player-photo-container.has-photo`），按了就還原成預設、背號頭像自己回來。
+- 點擊回饋：`mobile.css` 關掉了 iOS 預設的灰色點擊框，所以按鈕要自己給回饋——一律 `:active` 變亮，記錄流程的大按鈕再加 `scale(0.95)`；點球場時落點標記播 `mf-mark-pop` 擴散動畫；`tapFeedback()` 會試著震動（Android 有效，iPhone 的 Safari 不支援）。動畫都要尊重 `prefers-reduced-motion`。
 - 計時器可點：叫出「暫停／繼續」與「結束計時」（`pausedMs`／`pausedAt` 記錄暫停時間）。
 - 正式記錄表暫時只顯示與「匯出紀錄」相同的內容，在 APP 內開視窗，不另開新視窗。
 

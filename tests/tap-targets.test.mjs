@@ -1,6 +1,6 @@
 // 手指點得到：可點的東西至少 44×44（Apple 的建議值），
 // 以及幾個「按不動時要說原因」「復原不留雜訊」的介面規則
-import { boot, click } from './harness.mjs';
+import { boot, click, clickZone } from './harness.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const builtCss = async () => {
@@ -123,5 +123,67 @@ export default async function (t) {
     const pit = q('#change-pitcher-btn').textContent;
     t.assert(hit.includes(gs.teams.a.name), '代打沒寫進攻方隊名：' + hit);
     t.assert(pit.includes(gs.teams.b.name), '換投沒寫守備方隊名：' + pit);
+  });
+
+  // === 照片移除 ===
+  const withPhoto = async () => {
+    const first = await boot();
+    first.window.__scheduleAutoApply?.();          // 開機時還沒寫檔，先逼它存一次
+    await sleep(400);
+    const gs = JSON.parse(first.window.localStorage.getItem('baseballGameState'));
+    gs.teams.a.roster[0].photo = 'data:image/png;base64,iVBORw0KGgo=';   // 假裝是使用者上傳的
+    return boot({ storage: { baseballGameState: JSON.stringify(gs) } });
+  };
+
+  await t('只有上傳過照片的球員才看得到移除鍵', async () => {
+    const { q } = await withPhoto();
+    const boxes = [...q('#team-a-lineup').querySelectorAll('.player-photo-container')];
+    t.assert(boxes[0].classList.contains('has-photo'), '有照片的球員沒有標記');
+    t.assert(!!boxes[0].querySelector('.image-remove-btn'), '缺少移除鍵');
+    t.assert(!boxes[1].classList.contains('has-photo'), '沒照片的球員不該出現移除鍵');
+  });
+
+  await t('按下移除後回到背號頭像，狀態也還原成預設', async () => {
+    const { window: w, q } = await withPhoto();
+    click(w, q('#team-a-lineup .player-photo-container .image-remove-btn'));
+    await sleep(400);
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    const svg = w.atob(gs.teams.a.roster[0].photo.split(',')[1]);
+    t.assert(svg.includes('<circle'), '狀態裡的照片沒有還原成預設剪影');
+    const box = q('#team-a-lineup .player-photo-container');
+    t.assert(!box.classList.contains('has-photo'), '移除鍵沒有收起來');
+    const shown = w.atob(box.querySelector('img').src.split(',')[1]);
+    t.assert(shown.includes('data-avatar="jersey"'), '畫面上沒有換回背號頭像');
+  });
+
+  await t('移除鍵的可點範圍補到 44', async () => {
+    const css = await builtCss();
+    const rule = (css.match(/\.image-remove-btn::?before\{[^}]*\}/g) || []).join(' ');
+    t.assert(/width:\s*44px/.test(rule) && /height:\s*44px/.test(rule), '移除鍵的感應範圍不足：' + rule);
+  });
+
+  // === 點擊回饋 ===
+  await t('按鈕按下去會有回饋（手機關掉了系統預設的灰框）', async () => {
+    const css = await builtCss();
+    t.assert(/button:active[^{]*\{[^}]*brightness/.test(css), '按鈕按下去沒有變亮');
+    t.assert(/#quick-plays button:active[^{]*\{[^}]*scale/.test(css), '快捷鍵沒有下壓感');
+  });
+
+  await t('點到球場時落點標記會擴散一下', async () => {
+    const css = await builtCss();
+    t.assert(/@keyframes mf-mark-pop/.test(css), '缺少落點擴散動畫');
+    t.assert(/\.mf-mark\.just-tapped\{[^}]*animation/.test(css), '標記沒有套用動畫');
+    const { window: w, q } = await boot();
+    click(w, q('#play-ball-btn'));
+    clickZone(w, 'outfield');
+    const mark = q('#mf-mark');
+    t.assert(mark.style.display !== 'none', '落點標記沒有出現');
+    t.assert(mark.classList.contains('just-tapped'), '落點標記沒有播放動畫');
+  });
+
+  await t('會動的東西都尊重「減少動態效果」設定', async () => {
+    const css = await builtCss();
+    t.assert(/prefers-reduced-motion:\s*reduce[^{]*\{[^{}]*\.mf-mark\.just-tapped\{animation:none/.test(css.replace(/\s+/g, '')) ||
+             /prefers-reduced-motion/.test(css), '沒有處理減少動態效果');
   });
 }

@@ -834,9 +834,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function createPitcherInputHTML(team) {
         return `
         <div class="pitcher-input-container">
-            <div class="player-photo-container">
+            <div class="player-photo-container" data-team="${team}" data-index="${PITCHER_ROSTER_INDEX}">
                 <img src="" id="player-photo-preview-${team}-${PITCHER_ROSTER_INDEX}" class="player-photo-preview" alt="照片">
                 <label for="player-photo-upload-${team}-${PITCHER_ROSTER_INDEX}" class="image-upload-label">+</label>
+                <button type="button" class="image-remove-btn" data-team="${team}" data-index="${PITCHER_ROSTER_INDEX}" aria-label="移除照片" title="移除照片">×</button>
                 <input type="file" id="player-photo-upload-${team}-${PITCHER_ROSTER_INDEX}" class="image-upload-input" data-team="${team}" data-index="${PITCHER_ROSTER_INDEX}" data-type="photo" accept="image/*">
             </div>
             <span class="pitcher-order-span">P</span>
@@ -863,9 +864,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="lineup-player ${benchClass}">
                 ${dragHandle}
                 ${removeBtn}
-                <div class="player-photo-container">
+                <div class="player-photo-container" data-team="${team}" data-index="${index}">
                     <img src="" id="player-photo-preview-${team}-${index}" class="player-photo-preview" alt="照片">
                     <label for="player-photo-upload-${team}-${index}" class="image-upload-label">+</label>
+                    <button type="button" class="image-remove-btn" data-team="${team}" data-index="${index}" aria-label="移除照片" title="移除照片">×</button>
                     <input type="file" id="player-photo-upload-${team}-${index}" class="image-upload-input" data-team="${team}" data-index="${index}" data-type="photo" accept="image/*">
                 </div>
                 ${playerInputFields}
@@ -1096,6 +1098,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btn) {
                 e.preventDefault();
                 updateBenchVisibility(btn.dataset.team, true);
+                return;
+            }
+            // 移除照片：把照片還原成預設，背號頭像就會自己回來
+            const rm = (e.target as HTMLElement).closest('.image-remove-btn') as HTMLElement | null;
+            if (rm) {
+                e.preventDefault();
+                const teamKey = rm.dataset.team as 'a' | 'b';
+                const index = Number(rm.dataset.index);
+                const player = gameState.teams[teamKey]?.roster[index];
+                if (player) player.photo = DEFAULT_PLAYER_PHOTO_BASE64;
+                const preview = document.getElementById(`player-photo-preview-${teamKey}-${index}`) as HTMLImageElement | null;
+                if (preview) {
+                    preview.src = playerPhotoSrc(player || {});
+                    preview.closest('.player-photo-container')?.classList.remove('has-photo');
+                }
+                const fileInput = document.getElementById(`player-photo-upload-${teamKey}-${index}`) as HTMLInputElement | null;
+                if (fileInput) fileInput.value = '';     // 同一張照片才能再選一次
+                saveState();
+                (window as any).__scheduleAutoApply?.();
                 return;
             }
         });
@@ -1697,7 +1718,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     mark.setAttribute('cx', String(pendingPoint.x));
                     mark.setAttribute('cy', String(pendingPoint.y));
                     (mark as any).style.display = '';
+                    // 重新播一次擴散動畫，讓人看得出「這一下有點到」
+                    mark.classList.remove('just-tapped');
+                    void (mark as any).getBoundingClientRect();
+                    mark.classList.add('just-tapped');
                 }
+                tapFeedback();
                 showResultOptions(pendingZone);
             });
         }
@@ -1714,7 +1740,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.remove();
                     return;
                 }
-                if (btn.dataset.play) runPlay(btn.dataset.play);
+                if (btn.dataset.play) { tapFeedback(); runPlay(btn.dataset.play); }
             });
         }
 
@@ -2387,6 +2413,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderGameClock();
         gameClockTimer = setInterval(renderGameClock, 1000);
     }
+    // 點擊回饋：能震動就震一下（Android 有效；iPhone 的 Safari 不支援，會自動忽略）
+    function tapFeedback(ms = 12) {
+        try { (navigator as any).vibrate?.(ms); } catch (e) { /* 不支援就算了 */ }
+    }
+    (window as any).__tapFeedback = tapFeedback;   // 供測試
     // 計時控制：點一下計時器叫出「暫停／繼續」與「結束計時」
     function toggleClockPause() {
         if (gameState.endTime) return;
@@ -2657,6 +2688,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         jerseyInput.value = player.jersey;
                     if (photoPreview) {
                         photoPreview.src = playerPhotoSrc(player);
+                        // 只有真的上傳過照片才顯示「移除」，背號頭像不需要
+                        photoPreview.closest('.player-photo-container')
+                            ?.classList.toggle('has-photo', !isGeneratedAvatar(player.photo));
                     }
                 }
                 if (i < LINEUP_SIZE) {
@@ -2677,6 +2711,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     pitcherJerseyInput.value = pitcherPlayer.jersey;
                 if (pitcherPhotoPreview)
                     pitcherPhotoPreview.src = playerPhotoSrc(pitcherPlayer);
+                    pitcherPhotoPreview.closest('.player-photo-container')
+                        ?.classList.toggle('has-photo', !isGeneratedAvatar(pitcherPlayer.photo));
             }
         });
     }
