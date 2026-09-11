@@ -130,8 +130,10 @@ function jerseyAvatar(jersey) {
     const size = num.length >= 3 ? 34 : (num.length === 2 ? 44 : 52);
     const text = num.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 75 100">'
-        + '<rect width="75" height="100" fill="#3e3e3e" rx="4"/><desc data-avatar="jersey"></desc>'
-        + '<text x="37.5" y="50" fill="#d6dae0" font-family="-apple-system, Segoe UI, Roboto, sans-serif"'
+        + '<defs><linearGradient id="jn" x1="0" y1="0" x2="0" y2="1">'
+        + '<stop offset="0" stop-color="#24406f"/><stop offset="1" stop-color="#16294d"/></linearGradient></defs>'
+        + '<rect width="75" height="100" fill="url(#jn)" rx="6"/><desc data-avatar="jersey"></desc>'
+        + '<text x="37.5" y="50" fill="#cfe0ff" font-family="-apple-system, Segoe UI, Roboto, sans-serif"'
         + ' font-size="' + size + '" font-weight="700" text-anchor="middle" dominant-baseline="central">'
         + text + '</text></svg>';
     return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
