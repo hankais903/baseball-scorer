@@ -92,6 +92,10 @@ let html = read('index.html')
     .replace('<script src="./game-integration.js"></script>', inlineScript('game-integration.js'))
     // 球場圖轉成內嵌圖檔
     .replaceAll('href="./img/field.png"', lit(`href="data:image/png;base64,${b64('img/field.png')}"`))
+    // 夜景背景與卡通打者頭像也要內嵌（JS 裡的那一處是打者卡的預設頭像）
+    .replaceAll('src="./img/stadium-night.jpg"', lit(`src="data:image/jpeg;base64,${b64('img/stadium-night.jpg')}"`))
+    .replaceAll("'./img/batter-default.jpg'", lit(`"data:image/jpeg;base64,${b64('img/batter-default.jpg')}"`))
+    .replaceAll('"./img/batter-default.jpg"', lit(`"data:image/jpeg;base64,${b64('img/batter-default.jpg')}"`))
     // 單檔預覽沒有 service worker 可以註冊
     .replace(/if \('serviceWorker' in navigator\) \{[\s\S]*?\n        \}\n/, lit("// 預覽版不註冊 Service Worker\n"));
 

@@ -66,10 +66,17 @@ body {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4ff' stroke-width='2' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='3'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
 }
 
-/* 天氣本身的選項就有太陽／雲的圖案，不再另外加圖示 */
+/* 天氣本身的選項就有太陽／雲的圖案，不再另外加圖示；
+   下拉選單要自己畫箭頭，不然 iOS 會給它一塊灰底 */
 #weather-input {
+    -webkit-appearance: none;
+    appearance: none;
     padding-left: 12px;
-    padding-right: 6px;
+    padding-right: 26px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4ff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 7px center;
+    background-size: 14px 14px;
 }
 
 /* --- 計分板：玻璃卡片 --- */
@@ -356,4 +363,136 @@ body {
     background-color: var(--primary-color);
     border-color: #7aa7ff;
     box-shadow: 0 0 10px rgba(47, 111, 237, 0.5);
+}
+
+/* ==========================================================================
+   夜間球場（第二層）：標題列、球場夜景背景、快捷鍵圖示
+   ========================================================================== */
+
+/* --- 上方標題列：只有棒球圖示與名稱，沒有功能鍵 --- */
+.stadium-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+
+.brand-ball {
+    font-size: 27px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 7px rgba(247, 85, 76, 0.35));
+}
+
+.brand-text strong {
+    display: block;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+}
+
+.brand-text small {
+    display: block;
+    font-size: 10px;
+    line-height: 1.2;
+    color: #86afd5;
+    letter-spacing: 0.05em;
+}
+
+@media (max-width: 768px), (orientation: portrait) {
+    #main-content > .stadium-toolbar { order: -1; }
+}
+
+/* --- 球場的夜景背景 --- */
+#stadium-bg {
+    position: absolute;
+    left: -10px;
+    right: -10px;
+    bottom: -8px;
+    top: 34px;
+    width: calc(100% + 20px);
+    height: auto;
+    min-height: calc(100% - 26px);
+    object-fit: cover;
+    object-position: center 65%;
+    border-radius: 0 0 18px 18px;
+    opacity: 0.92;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* 球場圖與壘包要蓋在夜景上面 */
+#main-field,
+#bases-container,
+#field-result-panel {
+    position: relative;
+    z-index: 1;
+}
+
+#sbo-display,
+#inning-display,
+#game-clock,
+#clock-menu {
+    z-index: 5;
+}
+
+/* 全壘打區改成透明，讓夜景的看台透出來 */
+.mf-wall-area {
+    fill: transparent;
+}
+
+/* 草皮配色調亮一點，才不會被夜景吃掉 */
+#main-field image {
+    filter: saturate(1.45) brightness(1.04);
+}
+
+/* 有夜景之後球場框本身不再上底色 */
+#game-state-display {
+    background: transparent;
+    overflow: hidden;
+}
+
+/* --- 快捷結果按鈕：圖示在上、字在下 --- */
+#quick-plays button {
+    flex-direction: column;
+    gap: 3px;
+    min-height: 58px;
+}
+
+#quick-plays button::before {
+    content: '◇';
+    font-size: 21px;
+    line-height: 1;
+    font-weight: 700;
+}
+
+#quick-plays button[data-play="四壞"]::before { content: '✋'; }
+#quick-plays button[data-play="觸身球"]::before { content: '⚾'; }
+#quick-plays button[data-play="__more"]::before { content: '•••'; letter-spacing: 2px; }
+
+/* --- 多了標題列之後要省一點高度，主頁才不會被下緣切到 --- */
+@media (max-width: 768px), (orientation: portrait) {
+    .stadium-toolbar { gap: 7px; }
+    .brand-text strong { font-size: 16px; }
+    .brand-text small { font-size: 9px; }
+
+    #game-state-container { padding: 0.1rem 0; }
+    #game-state-display { aspect-ratio: 370 / 390; }
+    #quick-plays button { min-height: 48px; }
+    #quick-plays button::before { font-size: 19px; }
+}
+
+/* 再擠出一點高度，讓最下面那排按鈕不會碰到頁面指示點 */
+@media (max-width: 768px), (orientation: portrait) {
+    /* 上緣留白縮小，但仍要避開動態島（加到主畫面時 env() 才會有值） */
+    #main-content { padding-top: max(0.45rem, env(safe-area-inset-top)); row-gap: 6px; }
+    #game-info { margin-bottom: 0; }
+    #scoreboard { margin: 0; }
+    #game-state-display { aspect-ratio: 370 / 366; }
+
+    /* 指示點回到最底下（原本因為會擋到按鈕才往上抬） */
+    #mobile-nav:has(.nav-dot[data-index="1"].active) {
+        bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+    }
 }

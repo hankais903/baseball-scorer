@@ -7,7 +7,10 @@ const urlsToCache = [
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './img/field.png',
+  './img/stadium-night.jpg',
+  './img/batter-default.jpg'
 ];
 
 // 安裝：先把外殼存起來，並要求立刻接手（不用等所有分頁關掉）

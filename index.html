@@ -69,6 +69,14 @@
 
         <!-- Main Content: Scoreboard and Game State -->
         <main id="main-content">
+            <!-- 上方標題列：只有棒球圖示與標題，不放功能鍵 -->
+            <div class="stadium-toolbar">
+                <span class="brand-ball" aria-hidden="true">⚾</span>
+                <div class="brand-text">
+                    <strong>棒球比賽紀錄</strong>
+                    <small>Baseball Scoring Tool</small>
+                </div>
+            </div>
             <header id="game-info">
                 <div id="game-meta-row">
                     <input type="text" id="stadium-input" class="header-input" placeholder="比賽球場">
@@ -114,6 +122,8 @@
             </div>
             <div id="game-state-container">
                 <div id="game-state-display" role="button" aria-label="紀錄打席">
+                    <!-- 夜間球場背景照，只是裝飾，點擊不吃它 -->
+                    <img id="stadium-bg" src="./img/stadium-night.jpg" alt="" aria-hidden="true">
                     <div id="inning-display">1局上</div>
                     <button type="button" id="game-clock" class="hidden" aria-label="比賽經過時間，點一下可暫停或結束">00:00</button>
                     <div id="clock-menu" class="modal-hidden">

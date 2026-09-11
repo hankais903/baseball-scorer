@@ -16,6 +16,7 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 ## 檔案結構
 - `index.tsx`（主程式，單一 IIFE）、`index.css`、`mobile.css`（手機／直向覆寫）、`index.html`
 - `public/*.js`：不經 Vite 打包的全域腳本 — `game-manager.js`（多場比賽／自動儲存）、`game-list-ui.js`、`game-helpers.js`、`game-integration.js`、`official-sheet.js`（正式記錄表，另開視窗列印）、`service-worker.js`
+- `public/img/stadium-night.jpg`（820×1230）：主頁球場後面的夜景照；`public/img/batter-default.jpg`（330×440）：主頁打者卡沒照片時的卡通小打者（名單頁仍用背號頭像）。兩張都在 service worker 的離線清單裡，預覽檔也會內嵌。
 - `public/img/field.png`（412×402）：主頁球場圖，也給球員調度的守位圖用。本壘 (202,341)、一壘 (275,272)、二壘 (202,198)、三壘 (127,271)。主球場 SVG viewBox 為 `18 -35 370 425`（上方多 60 單位是全壘打區）。
 - `tests/harness.mjs`：jsdom 開機、`click`、`clickZone(w, 'infield'|'outfield'|'foul'|'deepcf')` 等工具。
 
@@ -49,6 +50,8 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 
 ## 介面規則
 - 手機優先（iPhone 393×852，動態島 59px 用 `env(safe-area-inset-*)`），三面板左右滑動：名單頁／主頁／事件頁。表格（打擊、投手、戰況表）可橫向捲動，手指在表格上時面板手勢要讓路。
+- 主頁最上面是標題列（`.stadium-toolbar`：⚾＋「棒球比賽紀錄」），只有標題沒有功能鍵。球場後面鋪夜景照（`#stadium-bg`，`pointer-events:none`），全壘打區 `.mf-wall-area` 設成透明讓看台透出來。
+- 主頁高度很緊：402×874 下最下面那排按鈕底部要留在 800 以內，指示點才不會擋到。改版面後用 playwright 量一次。
 - 主頁：計分板全顯示；球場滿版；開賽前球場壓暗、PLAY BALL 黃色膠囊；開賽後計時在右上、局數標籤置中。打者卡片只放打者資訊。
 - 名單頁：預設名稱「客隊球員01～10／主隊球員01～10」，板凳預設空白、「＋新增板凳球員」揭開一列、往右滑刪除；自動儲存（無套用鈕）；守位互換（A 改成 B 的守位，B 換成 A 的舊守位）；投手守位固定 P；比賽中鎖住拖曳。
 - 比賽中換人：球員調度視窗上方「代打」「換投」（標籤要寫出是哪一隊）、點壘上跑者人像「代跑」、守位圖（用主頁球場圖＋半身人像）點兩個守位互換或板凳籌碼→守位。守位圖的名字只取後 4 字，一、三壘與投手、DH 的名字放圖示下面（`DEF_LABEL_DY`），其餘放上面，靠邊的改變對齊方向，避免名字互相重疊或被切掉。

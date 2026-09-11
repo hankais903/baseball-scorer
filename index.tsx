@@ -156,6 +156,13 @@ function playerPhotoSrc(player) {
     if (photo && photo !== DEFAULT_PLAYER_PHOTO_BASE64) return photo;
     return jerseyAvatar(player && player.jersey);
 }
+// 主頁打者卡專用：沒上傳照片就放卡通小打者（名單頁仍用背號，十幾個人才分得出誰是誰）
+const BATTER_DEFAULT_PHOTO = './img/batter-default.jpg';
+function batterPhotoSrc(player) {
+    const photo = player && player.photo;
+    if (photo && photo !== DEFAULT_PLAYER_PHOTO_BASE64 && !isGeneratedAvatar(photo)) return photo;
+    return BATTER_DEFAULT_PHOTO;
+}
 
 let currentPanelIndex = 1; // 0: settings, 1: main, 2: log
 let panelDragStartX = 0;
@@ -2475,7 +2482,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const team = gameState.teams[teamKey];
             const batterIndex = gameState.currentBatterIndex[teamKey];
             const photoContainer = document.createElement('div');
-            photoContainer.innerHTML = `<img src="${playerPhotoSrc(batter)}" class="batter-photo-main" alt="${batter.name}">`;
+            photoContainer.innerHTML = `<img src="${batterPhotoSrc(batter)}" class="batter-photo-main" alt="${batter.name}">`;
             const infoTextEl = document.createElement('div');
             infoTextEl.id = 'batter-info-text';
             const mainInfoEl = document.createElement('div');
