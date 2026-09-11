@@ -170,6 +170,14 @@ export default async function (t) {
     t.assert(shown.includes('data-avatar="jersey"'), '畫面上沒有換回背號頭像');
   });
 
+  // 手機端有一條「按鈕至少 44 高」的規則，會把 22×22 的小圓鈕拉成橢圓
+  await t('移除照片的紅色 × 是正圓', async () => {
+    const css = await builtCss();
+    const rules = (css.match(/\.image-remove-btn\{[^}]*\}/g) || []).join(' ');
+    t.assert(/width:\s*22px/.test(rules) && /height:\s*22px/.test(rules), '寬高不相等：' + rules);
+    t.assert(/min-height:\s*0/.test(rules), '沒有蓋掉手機端的最小高度，會被拉成橢圓：' + rules);
+  });
+
   await t('移除鍵的可點範圍補到 44', async () => {
     const css = await builtCss();
     const rule = (css.match(/\.image-remove-btn::?before\{[^}]*\}/g) || []).join(' ');

@@ -185,12 +185,6 @@ function batterPhotoSrc(player) {
 }
 
 let currentPanelIndex = 1; // 0: settings, 1: main, 2: log
-let panelDragStartX = 0;
-let panelDragStartY = 0;
-let panelDragDeltaX = 0;
-let isPanelDragging = false;
-let isSwipeConfirmed = false;
-let dragIsMouseEvent = false;
 document.addEventListener('DOMContentLoaded', () => {
     const POSITIONS = {
         'P': '投手', 'C': '捕手', '1B': '一壘手', '2B': '二壘手', '3B': '三壘手',
@@ -1919,8 +1913,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 navigateToPanel(index);
             }
         });
-        appContainer.addEventListener('touchstart', handlePanelDragStart, { passive: false });
-        appContainer.addEventListener('mousedown', handlePanelDragStart);
+        // 換頁一律用底部那三個分頁。原本的左右滑動拿掉了：
+        // 它會跟球場上「按住拖曳標落點」搶手勢。
         // --- Centralized Modal Drag Handler ---
         document.addEventListener('mousedown', (e: MouseEvent) => {
             // Only allow dragging on desktop, and only for left clicks
@@ -2148,102 +2142,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (i === index) dot.setAttribute('aria-current', 'page');
             else dot.removeAttribute('aria-current');
         });
-    }
-    function handlePanelDragStart(e) {
-        // Only allow dragging in mobile layout
-        if (!window.matchMedia('(max-width: 768px), (orientation: portrait)').matches)
-            return;
-        const target = e.target as HTMLElement;
-        // Allow dragging unless on an interactive element
-        if (target.closest('button, input, select, a, .drag-handle, .lineup-player.bench-player'))
-            return;
-        // 成績表、戰況表可以橫向捲動：手指放在表格上時交給原生捲動，不切換面板
-        const hScroll = target.closest('#pane-team-a, #pane-team-b, #pane-situation, .table-scroll') as HTMLElement | null;
-        if (hScroll && hScroll.scrollWidth > hScroll.clientWidth + 2)
-            return;
-        dragIsMouseEvent = e.type === 'mousedown';
-        const isTouchEvent = e.type === 'touchstart';
-        panelDragStartX = isTouchEvent ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX;
-        panelDragStartY = isTouchEvent ? (e as TouchEvent).touches[0].clientY : (e as MouseEvent).clientY;
-        isPanelDragging = true;
-        isSwipeConfirmed = false; // Reset on new drag
-        panelDragDeltaX = 0;
-        appContainer.style.transition = 'none'; // Disable animation during drag
-        if (isTouchEvent) {
-            document.addEventListener('touchmove', handlePanelDragMove, { passive: false });
-            document.addEventListener('touchend', handlePanelDragEnd);
-        }
-        else { // mousedown
-            e.preventDefault(); // Prevent text selection
-            document.addEventListener('mousemove', handlePanelDragMove);
-            document.addEventListener('mouseup', handlePanelDragEnd);
-        }
-    }
-    function handlePanelDragMove(e) {
-        if (!isPanelDragging)
-            return;
-        const isTouchEvent = e.type === 'touchmove';
-        const currentX = isTouchEvent ? (e as TouchEvent).touches[0].clientX : (e as MouseEvent).clientX;
-        panelDragDeltaX = currentX - panelDragStartX;
-        // For touch events, determine if it's a scroll or a swipe
-        if (isTouchEvent && !isSwipeConfirmed) {
-            const currentY = (e as TouchEvent).touches[0].clientY;
-            const panelDragDeltaY = currentY - panelDragStartY;
-            // Use a small threshold to decide
-            if (Math.abs(panelDragDeltaX) > 5 || Math.abs(panelDragDeltaY) > 5) {
-                if (Math.abs(panelDragDeltaY) > Math.abs(panelDragDeltaX)) {
-                    // Vertical movement is dominant, so it's a scroll. Abort swipe.
-                    handlePanelDragEnd();
-                    return;
-                }
-                else {
-                    // Horizontal movement is dominant. Confirm it's a swipe.
-                    isSwipeConfirmed = true;
-                }
-            }
-            else {
-                // Not enough movement to decide, wait for the next move event.
-                return;
-            }
-        }
-        // For confirmed swipes or mouse drags, prevent default browser actions
-        if (e.cancelable) {
-            e.preventDefault();
-        }
-        // Provide visual feedback during drag
-        const baseOffset = -currentPanelIndex * window.innerWidth;
-        appContainer.style.transform = `translateX(${baseOffset + panelDragDeltaX}px)`;
-    }
-    function handlePanelDragEnd() {
-        if (!isPanelDragging)
-            return;
-        const wasDragging = isPanelDragging;
-        isPanelDragging = false;
-        // Clean up listeners
-        document.removeEventListener('mousemove', handlePanelDragMove);
-        document.removeEventListener('mouseup', handlePanelDragEnd);
-        document.removeEventListener('touchmove', handlePanelDragMove);
-        document.removeEventListener('touchend', handlePanelDragEnd);
-        // Only apply swipe logic if it was a confirmed swipe or a mouse drag
-        if (wasDragging && (isSwipeConfirmed || dragIsMouseEvent)) {
-            const swipeThreshold = 50;
-            if (Math.abs(panelDragDeltaX) > swipeThreshold) {
-                if (panelDragDeltaX > 0) { // Swipe right
-                    navigateToPanel(Math.max(0, currentPanelIndex - 1));
-                }
-                else { // Swipe left
-                    navigateToPanel(Math.min(2, currentPanelIndex + 1));
-                }
-            }
-            else {
-                // Not a strong enough swipe, snap back
-                navigateToPanel(currentPanelIndex);
-            }
-        }
-        else if (wasDragging) {
-            // If drag started but wasn't a swipe (e.g., vertical scroll attempt), just snap back.
-            navigateToPanel(currentPanelIndex);
-        }
     }
     function saveState() {
         localStorage.setItem('baseballGameState', JSON.stringify(gameState));
