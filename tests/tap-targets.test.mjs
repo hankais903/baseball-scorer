@@ -39,9 +39,10 @@ export default async function (t) {
     t.assert(rules.some(r => /min-height:\s*44px/.test(r)), '分頁標籤沒有 44 的高度：' + rules.join(' '));
   });
 
-  await t('球場、日期、天氣欄位至少 44 高', async () => {
+  // 依使用者要求把上方那一列壓矮（36），其餘可點的東西仍維持 44
+  await t('球場、日期、天氣欄位至少 36 高', async () => {
     const css = await builtCss();
-    t.assert(/min-height:\s*44px/.test(ruleFor(css, '.header-input')), '標題列的欄位太矮');
+    t.assert(/min-height:\s*36px/.test(ruleFor(css, '.meta-pill')), '標題列的欄位太矮');
   });
 
   await t('隊伍顏色的可點範圍有 44', async () => {

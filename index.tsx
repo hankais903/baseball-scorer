@@ -2482,8 +2482,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderGameClock() {
         const el = document.getElementById('game-clock');
         if (!el) return;
-        if (!gameState.started || !gameState.startTime) { el.classList.add('hidden'); return; }
         el.classList.remove('hidden');
+        // 還沒開賽也要看得到計時器，停在 00:00，按了 PLAY BALL 才開始跑
+        if (!gameState.started || !gameState.startTime) {
+            el.textContent = '00:00';
+            el.classList.remove('stopped', 'paused');
+            return;
+        }
         const end = gameState.endTime || gameState.pausedAt || Date.now();
         el.textContent = formatElapsed(end - gameState.startTime - (gameState.pausedMs || 0));
         el.classList.toggle('stopped', !!gameState.endTime);
@@ -2531,6 +2536,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             e.stopPropagation();
             if (gameState.endTime) return;              // 已結束就沒得調整
+            if (!gameState.started) return;             // 還沒開賽，沒有東西可以暫停
             pauseBtn.textContent = gameState.pausedAt ? '繼續計時' : '暫停計時';
             menu.classList.toggle('modal-hidden');
         });

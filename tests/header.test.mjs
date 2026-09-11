@@ -162,7 +162,8 @@ export default async function (t) {
   await t('PLAY BALL 單行、副標含「並開始計時」；開賽後計時出現在右上，局數標籤置中', async () => {
     const { window: w, q } = await boot();
     t.assert(q('#play-ball-btn .pb-sub').textContent === '點此開始比賽並開始計時', '副標不對');
-    t.assert(q('#game-clock').classList.contains('hidden'), '開賽前不該顯示計時');
+    t.assert(!q('#game-clock').classList.contains('hidden'), '開賽前計時器就要看得到');
+    t.assert(q('#game-clock').textContent === '00:00', '開賽前應停在 00:00：' + q('#game-clock').textContent);
     click(w, q('#play-ball-btn'));
     t.assert(!q('#game-clock').classList.contains('hidden'), '開賽後計時沒出現');
     t.assert(/^\d\d:\d\d$/.test(q('#game-clock').textContent), '計時格式不對：' + q('#game-clock').textContent);
