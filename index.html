@@ -33,6 +33,10 @@
     <script src="./official-sheet.js"></script>
 </head>
 <body>
+    <!-- 夜間球場底圖：固定在螢幕上，左右滑動頁面時不會跟著移動 -->
+    <div id="stadium-bg-layer" aria-hidden="true">
+        <img id="stadium-bg" src="./img/stadium-night.jpg" alt="">
+    </div>
     <div id="app-container">
         <!-- Left Panel: Controls -->
         <aside id="control-panel">
@@ -122,8 +126,6 @@
             </div>
             <div id="game-state-container">
                 <div id="game-state-display" role="button" aria-label="紀錄打席">
-                    <!-- 夜間球場背景照，只是裝飾，點擊不吃它 -->
-                    <img id="stadium-bg" src="./img/stadium-night.jpg" alt="" aria-hidden="true">
                     <div id="inning-display">1局上</div>
                     <button type="button" id="game-clock" class="hidden" aria-label="比賽經過時間，點一下可暫停或結束">00:00</button>
                     <div id="clock-menu" class="modal-hidden">

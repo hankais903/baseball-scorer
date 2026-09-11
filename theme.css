@@ -22,21 +22,55 @@
     --th-slate: #5b7096;
 }
 
-/* 底色：深夜藍（比原本的亮藍暗很多，球場燈光才會跳出來） */
+/* 底色：深夜藍（照片還沒載入前先墊著） */
 body {
     background: #05101c;
 }
 
-/* 每一頁各自有自己的底色，左右滑動時背景會跟著頁面一起移動 */
-#main-content {
-    background:
-        radial-gradient(ellipse 120% 55% at 50% 62%, rgba(26, 62, 92, 0.55), rgba(8, 19, 33, 0) 60%),
-        linear-gradient(180deg, #0b1a2b 0%, #081321 55%, #050d17 100%);
+/* 夜間球場底圖鋪滿整個畫面，固定在螢幕上；左右滑動頁面時它不會動 */
+#stadium-bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* 照整張寬度放，兩側的燈塔才看得到；下半部用漸層融進底色 */
+#stadium-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    min-height: 62%;
+    object-fit: cover;
+    object-position: center top;
+    display: block;
+}
+
+/* 蓋一層深色紗，字才看得清楚 */
+#stadium-bg-layer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+        rgba(4, 13, 24, 0.72) 0%,
+        rgba(4, 13, 24, 0.70) 30%,
+        rgba(4, 13, 24, 0.86) 58%,
+        #040d18 78%);
+}
+
+/* 頁面本身要透明，底圖才透得出來 */
+#app-container {
+    position: relative;
+    z-index: 1;
 }
 
 #control-panel,
+#main-content,
 #event-log-container {
-    background: linear-gradient(160deg, #102339 0%, #0a1626 60%, #070f1b 100%);
+    background: transparent;
 }
 
 /* --- 上方比賽資訊：藥丸型欄位，各自帶一個小圖示 --- */
@@ -409,25 +443,7 @@ body {
     #main-content > .stadium-toolbar { order: -1; }
 }
 
-/* --- 球場的夜景背景 --- */
-#stadium-bg {
-    position: absolute;
-    left: -10px;
-    right: -10px;
-    bottom: -8px;
-    top: 34px;
-    width: calc(100% + 20px);
-    height: auto;
-    min-height: calc(100% - 26px);
-    object-fit: cover;
-    object-position: center 65%;
-    border-radius: 0 0 18px 18px;
-    opacity: 0.92;
-    pointer-events: none;
-    z-index: 0;
-}
-
-/* 球場圖與壘包要蓋在夜景上面 */
+/* 球場圖與壘包要蓋在底圖上面 */
 #main-field,
 #bases-container,
 #field-result-panel {
