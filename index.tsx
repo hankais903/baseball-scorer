@@ -205,12 +205,12 @@ document.addEventListener('DOMContentLoaded', () => {
         'on-base': ['一安', '四壞', '二安', '內安', '三安', '本打', '失誤', '觸身球', '野手選擇', '不死三振', '妨礙打擊']
     };
     const PLAY_DESCRIPTIONS = {
-        '三振': '三振出局', '滾地': '滾地球出局', '飛球': '飛球出局', '野手選擇': '擊出野手選擇',
-        '界飛': '擊出界外飛球，被接殺出局', '雙殺': '造成雙殺', '三殺': '造成三殺',
-        '四壞': '獲得四壞保送', '觸身球': '獲得觸身球保送', '不死三振': '揮空三振但捕手未能接妥', '內安': '擊出內野安打',
-        '一安': '擊出一壘安打', '二安': '擊出二壘安打',
-        '三安': '擊出三壘安打', '本打': '擊出全壘打', '失誤': '因失誤上壘',
-        '犧短': '犧牲短打', '犧飛': '擊出高飛犧牲打',
+        '三振': '三振出局', '滾地': '滾地球出局', '飛球': '飛球出局', '野手選擇': '野手選擇',
+        '界飛': '界外飛球，被接殺出局', '雙殺': '造成雙殺', '三殺': '造成三殺',
+        '四壞': '四壞保送', '觸身球': '觸身球保送', '不死三振': '揮空三振但捕手未能接妥', '內安': '內野安打',
+        '一安': '一壘安打', '二安': '二壘安打',
+        '三安': '三壘安打', '本打': '全壘打', '失誤': '因失誤上壘',
+        '犧短': '犧牲短打', '犧飛': '高飛犧牲打',
         '妨礙守備': '因妨礙守備出局', '妨礙打擊': '因捕手妨礙打擊上壘'
     };
     const HIT_BASES = { '內安': 1, '一安': 1, '二安': 2, '三安': 3, '本打': 4 };
@@ -316,13 +316,13 @@ document.addEventListener('DOMContentLoaded', () => {
             case '滾地':
                 if (c.length === 1) {
                     return dir === '一'
-                        ? `擊出${area}滾地球，一壘手接球踩壘封殺出局${tail}`
-                        : `擊出${area}滾地球出局，由${who}處理${tail}`;
+                        ? `${area}滾地球，一壘手接球踩壘封殺出局${tail}`
+                        : `${area}滾地球出局，由${who}處理${tail}`;
                 }
-                return `擊出${area}滾地球，${chainText(c)}封殺出局${tail}`;
-            case '飛球': return `擊出${area}高飛球，被${who}接殺出局${tail}`;
-            case '界飛': return `擊出界外高飛球，被${who}接殺出局${tail}`;
-            case '犧飛': return `擊出${area}高飛犧牲打${tail}`;
+                return `${area}滾地球，${chainText(c)}封殺出局${tail}`;
+            case '飛球': return `${area}高飛球，被${who}接殺出局${tail}`;
+            case '界飛': return `界外高飛球，被${who}接殺出局${tail}`;
+            case '犧飛': return `${area}高飛犧牲打${tail}`;
             case '犧短':
                 return c.length > 1
                     ? `犧牲觸擊，${chainText(c)}封殺出局${tail}`
@@ -333,15 +333,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const bt = advancedPlayState.ballType || 'G';
                 if (bt === 'G') {
                     return c.length > 1
-                        ? `擊出${area}滾地球，${chainText(c)}，形成${kind}${tail}`
-                        : `擊出${area}滾地球，${who}接球轉傳形成${kind}${tail}`;
+                        ? `${area}滾地球，${chainText(c)}，形成${kind}${tail}`
+                        : `${area}滾地球，${who}接球轉傳形成${kind}${tail}`;
                 }
                 // 平飛／高飛：打者先被接殺，再傳殺離壘的跑者
                 const ball = bt === 'L' ? '平飛球' : '高飛球';
                 const names = c.map(f => FIELDER_FULL[f]);
-                if (c.length === 1) return `擊出${area}${ball}，${who}接殺後獨力完成${kind}${tail}`;
+                if (c.length === 1) return `${area}${ball}，${who}接殺後獨力完成${kind}${tail}`;
                 const throws = `傳給${names[1]}` + names.slice(2).map(n => `再傳給${n}`).join('');
-                return `擊出${area}${ball}，${who}接殺後${throws}，形成${kind}${tail}`;
+                return `${area}${ball}，${who}接殺後${throws}，形成${kind}${tail}`;
             }
             case '野手選擇': {
                 const last = c[c.length - 1];
@@ -351,14 +351,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     target = ['二壘', '三壘', '本壘'][advancedPlayState.outRunnerBase] || '';
                 }
                 return target
-                    ? `擊出${area}滾地球，${who}選擇傳向${target}處理跑者${tail}`
-                    : `擊出${area}滾地球，守方選擇處理其他跑者${tail}`;
+                    ? `${area}滾地球，${who}選擇傳${target}處理跑者${tail}`
+                    : `${area}滾地球，守方選擇處理其他跑者${tail}`;
             }
-            case '內安': return `擊出${area}內野安打`;
-            case '一安': return `擊出${area}一壘安打`;
-            case '二安': return `擊出${area}二壘安打`;
-            case '三安': return `擊出${area}三壘安打`;
-            case '本打': return `擊出${area}全壘打`;
+            case '內安': return `${area}內野安打`;
+            case '一安': return `${area}一壘安打`;
+            case '二安': return `${area}二壘安打`;
+            case '三安': return `${area}三壘安打`;
+            case '本打': return `${area}全壘打`;
             case '失誤': return `擊向${who}`;
             case '不死三振': return `揮空三振但${who}未能接妥`;
             default: return `${PLAY_DESCRIPTIONS[play]}，由${who}處理`;
@@ -1124,7 +1124,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // 自動套用：改完任何欄位就直接生效，不必再按按鈕
         let autoApplyTimer: any = null;
+        // 中文輸入法在選字過程中就會丟出事件，這時重建欄位會把正在打的字洗掉、
+        // 焦點也會跑掉，所以選字期間先不套用，等選完字再一次處理
+        let imeComposing = false;
+        lineupForm.addEventListener('compositionstart', () => { imeComposing = true; });
+        lineupForm.addEventListener('compositionend', () => { imeComposing = false; scheduleAutoApply(); });
         function scheduleAutoApply() {
+            if (imeComposing) return;
             clearTimeout(autoApplyTimer);
             autoApplyTimer = setTimeout(() => {
                 const before = lineupFingerprint();
@@ -1463,20 +1469,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const t = e.target as HTMLElement;
             if (t.closest('#pinch-hit-btn')) { e.stopPropagation(); closeModal(managementModal); pinchHit(); }
             else if (t.closest('#change-pitcher-btn')) { e.stopPropagation(); closeModal(managementModal); changePitcher(); }
+            else if (t.closest('#pinch-run-btn')) { e.stopPropagation(); closeModal(managementModal); pinchRunPick(); }
         }, true);
 
         document.getElementById('picker-close')?.addEventListener('click', () => closeModal(document.getElementById('picker-modal')));
-        // 壘上跑者人像：點了就代跑
-        ['mf-first', 'mf-second', 'mf-third'].forEach((id, i) => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.style.pointerEvents = 'auto';
-            el.addEventListener('click', (e) => {
-                if (!gameState.bases[i] || !gameState.started || gameState.isGameOver) return;
-                e.stopPropagation();
-                pinchRun(i);
-            });
-        });
+        // 主頁的跑者人像不再吃點擊：標落點時很容易誤觸。代跑改到「球員調度」裡。
         closeManagementModalBtn.addEventListener('click', () => closeModal(managementModal));
         managementModal.addEventListener('click', (e) => { if (e.target === managementModal)
             closeModal(managementModal); });
@@ -1613,6 +1610,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     advancedPlayState.error = list[0] || null;
                     renderAdvancedPlayOptions();
                 }
+                else if (step === 'select-interferer') {
+                    const who = button.dataset.interferer;
+                    (advancedPlayState as any).interferer = who;
+                    if (who === 'batter') {
+                        advancedPlayState.batterIsOut = true;
+                        advancedPlayState.batterDestination = { dest: 0, isUnearned: false };
+                    }
+                    else {
+                        // 跑者被界內球打到：跑者出局，打者上一壘（記一壘安打）
+                        advancedPlayState.batterIsOut = false;
+                        advancedPlayState.batterDestination = { dest: 1, isUnearned: false };
+                        advancedPlayState.runnerDestinations[`base-${who}`] = { dest: 0, isUnearned: false };
+                    }
+                    advancedPlayState.step = 'set-runners';
+                    renderAdvancedPlayOptions();
+                }
                 else if (step === 'select-fc-out') {
                     if (outRunnerBase === 'none') {
                         advancedPlayState.outRunnerBase = null;
@@ -1641,8 +1654,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     renderAdvancedPlayOptions(); // Re-render to show selection
                 }
+                else if (step === 'set-obstruction-by') {
+                    (advancedPlayState as any).obstructionBy = button.dataset.errorPos;
+                    renderAdvancedPlayOptions();
+                }
                 else if (step === 'toggle-obstruction') {
                     advancedPlayState.obstruction = !advancedPlayState.obstruction;
+                    if (!advancedPlayState.obstruction) (advancedPlayState as any).obstructionBy = null;
                     renderAdvancedPlayOptions();
                 }
             }
@@ -1708,6 +1726,20 @@ document.addEventListener('DOMContentLoaded', () => {
             deleteLogEntry(editTargetIndex);
         });
         document.getElementById('edit-mode-cancel')?.addEventListener('click', () => cancelEntryEdit());
+        // 手機打字（尤其是中文輸入法的選字列）會把整頁往上推，有些機型關掉鍵盤後
+        // 不會自己捲回來，畫面就卡在奇怪的位置回不去。輸入結束後主動歸位。
+        let restoreViewTimer: any = null;
+        document.addEventListener('focusout', () => {
+            clearTimeout(restoreViewTimer);
+            restoreViewTimer = setTimeout(() => {
+                const el = document.activeElement as HTMLElement | null;
+                if (el && ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) return;   // 只是換到下一格
+                window.scrollTo(0, 0);
+                document.documentElement.scrollTop = 0;
+                if (document.body) document.body.scrollTop = 0;
+                navigateToPanel(currentPanelIndex);      // 面板的左右位移也歸位
+            }, 80);
+        });
         // --- Mobile Navigation & Layout Listeners ---
         // 正式記錄表：暫時只呈現與「匯出紀錄」相同的內容，並且留在 APP 裡。
         // （原本開新視窗寫入 WBSC 格式的做法在手機上會回不來，先停用）
@@ -1852,7 +1884,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // 點一下就標好，也可以按著拖到想要的位置再放開；放開才跳出結果選單
         function canMarkField(e) {
-            if ((e.target as HTMLElement).closest('.mf-base.occupied')) return false;   // 點跑者＝代跑
             if (gameState.isGameOver || !gameState.started) return false;               // 未開賽先按 PLAY BALL
             // 球場圖上任何一點都可以標（連壘包上也行），區域一律由座標判斷
             return true;
@@ -2180,7 +2211,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function saveState() {
         if (isReplaying) return;      // 重播只是算給自己看，不要覆蓋真正的存檔
-        localStorage.setItem('baseballGameState', JSON.stringify(gameState));
+        // 紙條（重播用）跟著比賽一起存，關掉 APP 再打開也還能改前面的打席。
+        // 平常兩者分開放，是為了讓「上一動」的備份不用一直複製整疊紙條。
+        const payload: any = { ...gameState };
+        if (startSnapshot) payload.replay = { start: startSnapshot, log: playLog };
+        try {
+            localStorage.setItem('baseballGameState', JSON.stringify(payload));
+        }
+        catch (e) {
+            // 空間不夠時先保比賽本身，紙條可以犧牲（頂多不能改前面的打席）
+            try {
+                delete payload.replay;
+                localStorage.setItem('baseballGameState', JSON.stringify(payload));
+                console.warn('存檔空間不足，這場比賽的修改紀錄沒有存進去');
+            }
+            catch (e2) { console.warn('存檔失敗', e2); }
+        }
     }
     function loadState() {
         const savedState = localStorage.getItem('baseballGameState');
@@ -2194,6 +2240,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 gameState = getInitialGameState();
                 return;
             }
+            // 把紙條拆出來（舊存檔沒有這一段就是不能改前面的打席）
+            if (loaded.replay && loaded.replay.start && Array.isArray(loaded.replay.log)) {
+                startSnapshot = loaded.replay.start;
+                playLog = loaded.replay.log;
+            }
+            delete loaded.replay;
             gameState = loaded;
             // Migration for older states that don't have the new structure
             if (gameState.bases.length > 0 && (typeof gameState.bases[0] === 'string' || gameState.bases[0] === null)) {
@@ -2467,7 +2519,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const teamLogoHTML = `<img src="${team.logo || DEFAULT_TEAM_LOGO_BASE64}" alt="${team.name}" class="scoreboard-team-logo">`;
             const shortName = (team.name || '').slice(0, TEAM_NAME_MAX);
             const teamCellContent = `<div class="scoreboard-team-cell">${teamLogoHTML}<span>${shortName}</span></div>`;
-            return `<tr><td class="team-col">${teamCellContent}</td>${scoreCells}<td class="rhe rhe-first total-col">${totalRuns}</td><td class="rhe">${team.hits}</td><td class="rhe">${team.errors}</td></tr>`;
+            // 進攻中的那一隊，隊名欄反白（比整欄高亮好認，也不會跟局數欄打架）
+            const batting = gameState.started && !gameState.isGameOver
+                && ((gameState.isTop && teamKey === 'a') || (!gameState.isTop && teamKey === 'b'));
+            return `<tr><td class="team-col${batting ? ' team-batting' : ''}">${teamCellContent}</td>${scoreCells}<td class="rhe rhe-first total-col">${totalRuns}</td><td class="rhe">${team.hits}</td><td class="rhe">${team.errors}</td></tr>`;
         }).join('');
         // 比分不再另闢一列，直接由計分板的 R 欄呈現；領先方加重
         const runsA = gameState.teams.a.score.reduce((a, b) => a + (b || 0), 0);
@@ -2530,6 +2585,18 @@ document.addEventListener('DOMContentLoaded', () => {
         renderGameClock();
         saveState();
     }
+    // 結束計時＝這場比賽打完了，所以順便把比賽結束掉；按下去先問一次
+    function stopClockAndEndGame() {
+        if (gameState.endTime && gameState.isGameOver) return;
+        if (!confirm('結束計時會同時結束這場比賽，確定嗎？')) return;
+        stopClock();
+        if (!gameState.isGameOver) {
+            saveStateForUndo();
+            endGame();
+            saveState();
+        }
+        render();
+    }
     function setupClockControls() {
         const clock = document.getElementById('game-clock');
         const menu = document.getElementById('clock-menu');
@@ -2546,11 +2613,12 @@ document.addEventListener('DOMContentLoaded', () => {
             menu.classList.toggle('modal-hidden');
         });
         pauseBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleClockPause(); closeMenu(); });
-        stopBtn.addEventListener('click', (e) => { e.stopPropagation(); stopClock(); closeMenu(); });
+        stopBtn.addEventListener('click', (e) => { e.stopPropagation(); closeMenu(); stopClockAndEndGame(); });
         document.addEventListener('click', closeMenu);
     }
     (window as any).__toggleClockPause = toggleClockPause;   // 供測試
     (window as any).__stopClock = stopClock;                 // 供測試
+    (window as any).__stopClockAndEndGame = stopClockAndEndGame;   // 供測試
     (window as any).__formatElapsed = formatElapsed;   // 供測試
     function renderGameStateDisplay() {
         const { inning, isTop, outs } = gameState;
@@ -2748,9 +2816,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!gameEvent.teamKey) return `<li class="ev-inning">${gameEvent.text}</li>`;
             const [title, ...rest] = String(gameEvent.text).split('\n');
             const body = rest.join(' ');
-            const text = body
+            const scoreChip = (gameEvent as any).scored && (gameEvent as any).score
+                ? `<span class="ev-score">`
+                    + `<b style="color:${gameState.teams.a.color}">${gameState.teams.a.name}</b>`
+                    + `<i>${(gameEvent as any).score.a} : ${(gameEvent as any).score.b}</i>`
+                    + `<b style="color:${gameState.teams.b.color}">${gameState.teams.b.name}</b></span>`
+                : '';
+            // 比分小標放在敘述外面（自己一行），敘述本身維持乾淨
+            const text = (body
                 ? `<div class="ev-title">${title}</div><div class="ev-body">${body}</div>`
-                : `<div class="ev-body">${title}</div>`;
+                : `<div class="ev-body">${title}</div>`) + scoreChip;
             // 有對應紙條的行才改得動；記號做得很淡，不干擾閱讀
             const owner = eventOwner[i];
             const editBtn = (owner === undefined || !gameState.started)
@@ -3004,7 +3079,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // 即時事件左側的小圖示：記「這名打者上場打擊時」（事件發生前）的壘況與出局數
         const snap = pendingSituation || { bases: gameState.bases.map(b => !!b), outs: Math.min(3, gameState.outs) };
         pendingSituation = null;
-        gameState.events.push({ text, teamKey, bases: snap.bases, outs: snap.outs });
+        // 這一筆之後的總比分；跟上一筆不同就代表有人得分，事件列表會在句尾附上比分
+        const totals = {
+            a: gameState.teams.a.score.reduce((x, y) => x + (y || 0), 0),
+            b: gameState.teams.b.score.reduce((x, y) => x + (y || 0), 0),
+        };
+        const prev = [...gameState.events].reverse().find(e => (e as any).score);
+        const scored = !prev || (prev as any).score.a !== totals.a || (prev as any).score.b !== totals.b;
+        gameState.events.push({ text, teamKey, bases: snap.bases, outs: snap.outs, score: totals, scored } as any);
     }
     // 在打席／壘間事件開始處理前先拍下當時的壘況，logEvent 會用掉它
     let pendingSituation: { bases: boolean[]; outs: number } | null = null;
@@ -3443,6 +3525,12 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (play === '野手選擇') {
             advancedPlayState.step = 'select-fc-out';
         }
+        else if (play === '妨礙守備') {
+            // 誰妨礙的結果完全不同：打者妨礙＝打者出局；跑者被球打到＝跑者出局、
+            // 打者上一壘並記一壘安打（官方規則 5.09(b)(7) 與記錄規則 9.05(a)(5)）
+            advancedPlayState.step = 'select-interferer';
+            (advancedPlayState as any).interferer = null;
+        }
         else if (options.batterIsOut) { // Sacrifices and other outs
             advancedPlayState.step = 'set-runners';
         }
@@ -3474,6 +3562,31 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (advancedPlayState.step === 'select-error') {
             modalAdvancedTitle.textContent = '選擇失誤位置';
             modalAdvancedOptions.innerHTML = `<div class="modal-options play-options">${Object.entries(ERROR_ABBREVIATIONS).map(([pos, abbr]) => `<button data-step="select-error" data-error-pos="${pos}">${abbr}</button>`).join('')}</div>`;
+        }
+        else if (advancedPlayState.step === 'select-interferer') {
+            modalAdvancedTitle.textContent = '妨礙守備 - 是誰妨礙？';
+            const teamKey = gameState.isTop ? 'a' : 'b';
+            const batter = getCurrentBatter();
+            let optionsHTML = `
+                    <div class="runner-placement-row">
+                        <div class="runner-name">打者: ${batter ? batter.name : ''}</div>
+                        <div class="runner-options">
+                           <button data-step="select-interferer" data-interferer="batter" class="out-option">打者妨礙（打者出局）</button>
+                        </div>
+                    </div>`;
+            advancedPlayState.originalBases.forEach((runner, i) => {
+                if (!runner) return;
+                const runnerPlayer = getPlayerById(teamKey, runner.runnerId);
+                optionsHTML += `
+                    <div class="runner-placement-row">
+                        <div class="runner-name">${['一', '二', '三'][i]}壘跑者: ${runnerPlayer ? runnerPlayer.name : ''}</div>
+                        <div class="runner-options">
+                           <button data-step="select-interferer" data-interferer="${i}" class="out-option">被球打到／妨礙（跑者出局）</button>
+                        </div>
+                    </div>`;
+            });
+            optionsHTML += `<div class="frp-title">跑者被界內球打到：跑者出局、打者上一壘並記一壘安打（規則 5.09(b)(7)、9.05(a)(5)）。</div>`;
+            modalAdvancedOptions.innerHTML = optionsHTML;
         }
         else if (advancedPlayState.step === 'select-fc-out') {
             modalAdvancedTitle.textContent = '野手選擇 - 請選擇出局的跑者';
@@ -3529,7 +3642,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button data-step="set-runners" data-dest="2" class="${batterDest === 2 ? 'selected' : ''}">二壘</button>
                         <button data-step="set-runners" data-dest="3" class="${batterDest === 3 ? 'selected' : ''}">三壘</button>
                         <button data-step="set-runners" data-dest="4" class="${batterDest === 4 ? 'selected' : ''}">得分</button>
-                        ${HIT_BASES[advancedPlayState.play] && advancedPlayState.play !== '本打'
+                        ${(HIT_BASES[advancedPlayState.play] || ['野手選擇', '失誤'].includes(advancedPlayState.play)) && advancedPlayState.play !== '本打'
                             ? `<button data-step="set-runners" data-dest="0" data-out-advancing="1" class="out-option ${(advancedPlayState.batterDestination as any).outAdvancing ? 'selected' : ''}">趁傳進壘被觸殺</button>`
                             : ''}
                     </div>
@@ -3655,6 +3768,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             data-step="toggle-obstruction"
                             class="${advancedPlayState.obstruction ? 'selected' : ''}"
                         >加上妨礙跑壘</button>` : ''}
+                        ${canHaveObstruction && advancedPlayState.obstruction ? `
+                        <div class="obstruction-who">
+                            <span class="frp-group-label">妨礙跑壘的野手</span>
+                            <div class="modal-options play-options">${Object.entries(ERROR_ABBREVIATIONS).map(([pos, abbr]) =>
+                                `<button data-step="set-obstruction-by" data-error-pos="${pos}" class="${(advancedPlayState as any).obstructionBy === pos ? 'selected' : ''}">${abbr}</button>`).join('')}</div>
+                        </div>` : ''}
                     </div>
                 `;
             }
@@ -3749,7 +3868,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = (batter && batter.name) || '打者';
             if (d > 0) parts.push(`${name} 上${baseName(d)}`);
         }
-        if (advancedPlayState.obstruction) parts.push('含妨礙跑壘');
+        if (advancedPlayState.obstruction) {
+            const w = ERROR_POSITIONS[(advancedPlayState as any).obstructionBy] || '';
+            parts.push(w ? `含${w}妨礙跑壘` : '含妨礙跑壘');
+        }
         return parts.join('，');
     }
     function processAdvancedPlay() {
@@ -3798,6 +3920,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         const hitBases = { '內安': 1, '一安': 1, '二安': 2, '三安': 3, '本打': 4 };
+        // 跑者被界內球打到：跑者出局，打者上一壘並記一壘安打（記錄規則 9.05(a)(5)）
+        const runnerInterfered = play === '妨礙守備'
+            && (advancedPlayState as any).interferer && (advancedPlayState as any).interferer !== 'batter';
+        const hitCredit = hitBases[play] || (runnerInterfered ? 1 : 0);
         if (play === '不死三振') {
             batter.so++;
             activePitcher.k++;
@@ -3805,7 +3931,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (play === '雙殺' && (advancedPlayState.ballType || 'G') === 'G') {
             batter.gidp++;   // 只有滾地雙殺才算 GIDP
         }
-        if (hitBases[play]) {
+        if (hitCredit) {
             batter.h++;
             activePitcher.h++;
             team.hits++;
@@ -3813,14 +3939,14 @@ document.addEventListener('DOMContentLoaded', () => {
             batter['3b'] += (play === '三安' ? 1 : 0);
             batter.hr += (play === '本打' ? 1 : 0);
             activePitcher.hr += (play === '本打' ? 1 : 0);
-            batter.tb += hitBases[play];
+            batter.tb += hitCredit;
         }
         const errorList: string[] = (advancedPlayState.errors && advancedPlayState.errors.length)
             ? advancedPlayState.errors : (error ? [error] : []);
         if (errorList.length) {
             gameState.teams[teamKey === 'a' ? 'b' : 'a'].errors += errorList.length;
         }
-        const hitPowerForRules = hitBases[play] || (play === '失誤' || play === '野手選擇' || play === '不死三振' ? 1 : 0);
+        const hitPowerForRules = hitCredit || (play === '失誤' || play === '野手選擇' || play === '不死三振' ? 1 : 0);
         let runnersScored: BaseRunner[] = [];
         let rbis = 0;
         let outsOnPlay = 0;
@@ -3891,7 +4017,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let eventDesc = `${batterTitle(batter, gameState.currentBatterIndex[teamKey])}\n`;
         const dirUsed = advancedPlayState.direction;
         const chainUsed = advancedPlayState.fielders || [];
-        if (play !== '失誤') {
+        if (runnerInterfered) {
+            const iBase = Number((advancedPlayState as any).interferer);
+            const hitRunner = getPlayerById(teamKey, advancedPlayState.originalBases[iBase]?.runnerId);
+            const area = dirUsed ? FIELDER_AREA[dirUsed] : '';
+            eventDesc += ` ${area}滾地球打中${['一', '二', '三'][iBase]}壘跑者${hitRunner ? hitRunner.name : ''}，跑者出局`;
+        }
+        else if (play !== '失誤') {
             eventDesc += ` ${describePlayWithFielder(play, dirUsed, chainUsed)}`;
         }
         else if (dirUsed) {
@@ -3920,7 +4052,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Part 2: Add batter's destination and RBI information
         if (!batterIsOut) {
             let batterDestText = '';
-            const hitPower = hitBases[play] || 0;
+            // 野手選擇與失誤上壘也會有跑過頭被觸殺的情況（先站上一壘再被追觸殺）
+            const hitPower = hitBases[play] || (['野手選擇', '失誤'].includes(play) ? 1 : 0);
             if ((batterDestination as any).outAdvancing && hitPower > 0) {
                 const c = chainUsed;
                 const nextBase = basesText[hitPower] || '本';
@@ -4033,7 +4166,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         eventDesc += rbiSentence;
         if (obstruction) {
-            eventDesc += ' 過程中發生妨礙跑壘。';
+            const obsWho = ERROR_POSITIONS[(advancedPlayState as any).obstructionBy] || '';
+            eventDesc += obsWho ? ` 過程中${obsWho}妨礙跑壘。` : ' 過程中發生妨礙跑壘。';
         }
         if (outsOnPlay > 0) eventDesc += ` ${Math.min(3, gameState.outs)}人出局。`;
 
@@ -4211,7 +4345,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inning: st.inning, isTop: st.isTop, outs: st.outs, isGameOver: st.isGameOver,
             bases: (st.bases || []).map(b => b ? [b.runnerId, b.isUnearned] : null),
             batterIndex: st.currentBatterIndex,
-            events: (st.events || []).map(e => [e.text, e.teamKey, e.outs, JSON.stringify(e.bases || [])]),
+            events: (st.events || []).map(e => [e.text, e.teamKey, e.outs, JSON.stringify(e.bases || []), JSON.stringify((e as any).score || null), !!(e as any).scored]),
             a: teamPart(st.teams.a), b: teamPart(st.teams.b),
         });
     }
@@ -4343,6 +4477,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button data-step="ask-steal-error" data-choice="no">否，繼續</button>
                 </div>
             `;
+            return;
+        }
+        if (step === 'select-obstruction-position') {
+            runnerActionTitleStep2.textContent = '妨礙跑壘 - 是哪一位野手？';
+            runnerActionDetails.innerHTML = `<div class="modal-options play-options">${Object.entries(ERROR_ABBREVIATIONS).map(([pos, abbr]) => `<button data-step="select-obstruction-position" data-error-pos="${pos}">${abbr}</button>`).join('')}</div>`;
             return;
         }
         if (step === 'select-steal-error-position') {
@@ -4500,8 +4639,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 showRunnerActionStep('ask-pickoff-outcome');
             }
             else {
+                // 妨礙跑壘要先問是哪一位野手妨礙的
+                const firstStep = actionType === 'obstruction' ? 'select-obstruction-position' : 'set-dest';
                 runnerActionState = {
-                    step: 'set-dest',
+                    step: firstStep,
                     type: actionType,
                     destinations: {},
                     originalBases: JSON.parse(JSON.stringify(gameState.bases)),
@@ -4511,7 +4652,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     fieldersAuto: true,
                     rundown: null,
                 };
-                showRunnerActionStep('set-dest');
+                showRunnerActionStep(firstStep);
             }
         }
         else if (step === 'ask-steal-error') {
@@ -4523,6 +4664,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 runnerActionState.error = false;
                 runnerActionState.step = 'set-dest';
             }
+            renderRunnerActionOptions();
+        }
+        else if (step === 'select-obstruction-position') {
+            (runnerActionState as any).obstructionBy = errorPos;
+            runnerActionState.step = 'set-dest';
             renderRunnerActionOptions();
         }
         else if (step === 'select-steal-error-position') {
@@ -4631,8 +4777,10 @@ document.addEventListener('DOMContentLoaded', () => {
             prefix = '捕逸，';
         if (type === 'balk')
             prefix = '投手犯規，';
-        if (type === 'obstruction')
-            prefix = '妨礙跑壘，';
+        if (type === 'obstruction') {
+            const who = ERROR_POSITIONS[(runnerActionState as any).obstructionBy] || '';
+            prefix = who ? `${who}妨礙跑壘，` : '妨礙跑壘，';
+        }
         if (type === 'steal' && error) {
             const errorPosText = errorPosition ? ERROR_POSITIONS[errorPosition] + '失誤' : '失誤';
             prefix = `盜壘時發生${errorPosText}，`;
@@ -4694,6 +4842,24 @@ document.addEventListener('DOMContentLoaded', () => {
             teamKey,
             candidates: benchOf(teamKey),
             onPick: (id) => { managementState.activeTeamKey = teamKey; processSubstitution(id, batter._id, 'PH'); }
+        });
+    }
+    // 代跑：壘上超過一位就先選要換誰
+    function pinchRunPick() {
+        const teamKey = gameState.isTop ? 'a' : 'b';
+        const onBase = gameState.bases
+            .map((b, i) => (b ? { base: i, runner: b } : null))
+            .filter(Boolean) as any[];
+        if (!onBase.length) return;
+        if (onBase.length === 1) { pinchRun(onBase[0].base); return; }
+        openPicker({
+            title: '代跑：先選要換掉哪一位跑者',
+            teamKey,
+            candidates: onBase.map(o => {
+                const p = getPlayerById(teamKey, o.runner.runnerId);
+                return { ...(p || {}), _id: 'base-' + o.base, name: `${['一', '二', '三'][o.base]}壘　${p ? p.name : ''}` };
+            }),
+            onPick: (id) => pinchRun(Number(String(id).replace('base-', '')))
         });
     }
     function pinchRun(baseIndex: number) {
@@ -4823,10 +4989,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const defKey = gameState.isTop ? 'b' : 'a';
         const pitcherNow = getPlayerById(defKey, gameState.teams[defKey].activePitcherId);
         const canSub = gameState.started && !gameState.isGameOver;
+        // 壘上有人才點得下代跑
+        const runnersOnBase = gameState.bases
+            .map((b, i) => (b ? { base: i, runner: b } : null))
+            .filter(Boolean) as any[];
         const quickSubs = canSub ? `
             <div class="def-quick">
                 <button type="button" id="pinch-hit-btn" class="def-quick-btn">代打<small>換掉 ${gameState.teams[gameState.isTop ? 'a' : 'b'].name} ${batterNow ? batterNow.name : '—'}</small></button>
                 <button type="button" id="change-pitcher-btn" class="def-quick-btn">換投<small>換掉 ${gameState.teams[defKey].name} ${pitcherNow ? pitcherNow.name : '—'}</small></button>
+                <button type="button" id="pinch-run-btn" class="def-quick-btn"${runnersOnBase.length ? '' : ' disabled'}>代跑<small>${runnersOnBase.length ? `壘上 ${runnersOnBase.length} 人` : '壘上無人'}</small></button>
             </div>` : '';
         managementContainer.innerHTML = `
             ${quickSubs}

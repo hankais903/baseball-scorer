@@ -5,6 +5,27 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const state = w => JSON.parse(w.localStorage.getItem('baseballGameState'));
 
 export default async function (t) {
+  // 結束計時＝比賽結束，按下去要先問過
+  await t('結束計時會先問，確定後比賽也跟著結束', async () => {
+    const { window: w, q } = await boot();
+    click(w, q('#play-ball-btn'));
+    let asked = '';
+    w.confirm = (msg) => { asked = msg; return false; };
+    click(w, q('#game-clock'));
+    click(w, q('#clock-stop-btn'));
+    t.assert(/結束/.test(asked), '沒有先問過：' + asked);
+    let gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(!gs.isGameOver && !gs.endTime, '按了取消卻還是結束了');
+    w.confirm = () => true;
+    click(w, q('#game-clock'));
+    click(w, q('#clock-stop-btn'));
+    gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.isGameOver === true, '確定後比賽沒有結束');
+    t.assert(typeof gs.endTime === 'number', '計時沒有停');
+    t.assert(q('#game-clock').classList.contains('stopped'), '計時器沒有標成已停止');
+    t.assert(/比賽結束/.test(q('#event-log').textContent), '事件沒有記比賽結束');
+  });
+
   await t('開賽前計時器就在畫面上，停在 00:00', async () => {
     const { window: w, q } = await boot();
     const clock = q('#game-clock');

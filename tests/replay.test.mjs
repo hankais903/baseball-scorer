@@ -219,4 +219,41 @@ export default async function (t) {
     t.assert(w.__replay.log().length === 2, '復原後紙條沒回來：' + w.__replay.log().length);
     t.assert(w.__replay.digest() === before, '復原後狀態跟刪除前不一樣');
   });
+
+  // === 第三步：紙條存進檔案，關掉再打開也能改 ===
+  await t('關掉再打開，前面的打席還是改得動', async () => {
+    const first = await boot();
+    const c1 = makeCtx(first.window, first.q);
+    startGame(first.window);
+    c1.quick('三振');
+    c1.quick('四壞');
+    c1.quick('三振');
+    const saved = first.window.localStorage.getItem('baseballGameState');
+    t.assert(JSON.parse(saved).replay?.log?.length === 3, '紙條沒有跟著存進檔案');
+    // 重新開一次（等於關掉 APP 再打開）
+    const { window: w, q } = await boot({ storage: { baseballGameState: saved } });
+    const c = makeCtx(w, q);
+    t.assert(w.__replay.hasStart() === true, '重開之後沒有重算起點');
+    t.assert(w.__replay.log().length === 3, '重開之後紙條不見了：' + w.__replay.log().length);
+    t.assert(c.sameAsLive() === '', c.sameAsLive());
+    const marks = w.document.querySelectorAll('#event-log .ev-edit');
+    t.assert(marks.length === 3, '重開之後事件列表沒有修改記號：' + marks.length);
+    w.__editEntry.del(1);
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.teams.a.roster[1].bb === 0, '重開之後刪不掉那一筆');
+    t.assert(gs.replay.log.length === 2, '刪完之後存檔裡的紙條沒更新');
+  });
+
+  await t('舊存檔沒有紙條也能正常開，只是不能改前面', async () => {
+    const first = await boot();
+    startGame(first.window);
+    click(first.window, first.q('#quick-plays button[data-play="三振"]'));
+    const saved = JSON.parse(first.window.localStorage.getItem('baseballGameState'));
+    delete saved.replay;                      // 模擬舊版存檔
+    const { window: w, errors, q } = await boot({ storage: { baseballGameState: JSON.stringify(saved) } });
+    t.assert(errors.length === 0, errors.join(' | '));
+    t.assert(w.__replay.hasStart() === false, '舊存檔不該有重算起點');
+    t.assert(w.document.querySelectorAll('#event-log .ev-edit').length === 0, '舊存檔不該出現修改記號');
+    t.assert(q('#event-log').textContent.includes('三振'), '舊存檔的事件沒讀回來');
+  });
 }

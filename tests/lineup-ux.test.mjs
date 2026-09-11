@@ -5,6 +5,38 @@ const visibleBench = (w, team) =>
   [...w.document.querySelectorAll(`#team-${team}-bench .lineup-player`)].filter(r => !r.classList.contains('bench-hidden'));
 
 export default async function (t) {
+  // 中文輸入法：選字途中不能重建欄位，不然正在打的字會不見、焦點也會跑掉
+  await t('打中文選字途中不會套用名單，選完字才套用', async () => {
+    const { window: w, q } = await boot();
+    const input = w.document.querySelector('input[data-team="a"][data-index="0"][data-type="name"]');
+    input.focus();
+    input.dispatchEvent(new w.CompositionEvent('compositionstart', { bubbles: true }));
+    input.value = 'ㄨㄤ';
+    input.dispatchEvent(new w.Event('input', { bubbles: true }));
+    input.dispatchEvent(new w.Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 200));
+    t.assert(w.document.activeElement === input, '選字途中焦點被搶走了');
+    t.assert(input.value === 'ㄨㄤ', '選字途中的字被洗掉了：' + input.value);
+    input.value = '王小明';
+    input.dispatchEvent(new w.CompositionEvent('compositionend', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 250));
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.teams.a.roster[0].name === '王小明', '選完字沒有存進去：' + gs.teams.a.roster[0].name);
+  });
+
+  // 鍵盤收起來之後畫面要自己歸位（否則手機上會卡在被推上去的位置）
+  await t('輸入結束後畫面會歸位', async () => {
+    const { window: w, q } = await boot();
+    const input = w.document.querySelector('input[data-team="a"][data-index="0"][data-type="name"]');
+    input.focus();
+    w.scrollTo(0, 220);
+    input.blur();
+    input.dispatchEvent(new w.FocusEvent('focusout', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 200));
+    t.assert(w.document.documentElement.scrollTop === 0, '畫面沒有捲回頂端');
+    t.assert(/translateX/.test(q('#app-container').style.transform), '面板位移沒有重設');
+  });
+
   await positionSwap(t);
   await t('板凳預設沒有假名字，全部隱藏', async () => {
     const { window: w, q } = await boot();

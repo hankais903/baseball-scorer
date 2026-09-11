@@ -51,12 +51,15 @@ export default async function (t) {
     t.assert(q('#event-log li').textContent.includes('代打'), '事件沒記代打');
   });
 
-  await t('代跑：點壘上跑者人像即可換，離場球員不再列入候選', async () => {
+  // 代跑改到「球員調度」裡：主頁的人像不再吃點擊（標落點時很容易誤觸）
+  await t('代跑：從球員調度進入，離場球員不再列入候選', async () => {
     const { w, q, state, pick } = await setup();
     startGame(w);
     click(w, q('#management-btn')); click(w, q('#pinch-hit-btn')); pick('客板一');
     click(w, q('#quick-plays button[data-play="四壞"]'));
-    q('#mf-first').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+    click(w, q('#management-btn'));
+    t.assert(!!q('#pinch-run-btn') && !q('#pinch-run-btn').disabled, '壘上有人卻按不到代跑');
+    click(w, q('#pinch-run-btn'));
     t.assert(q('#picker-title').textContent.includes('代跑'), '沒有開啟代跑視窗');
     const names = [...q('#picker-list').querySelectorAll('.picker-name')].map(x => x.textContent);
     t.assert(!names.includes('客隊球員01'), '被換下的球員不該再上場：' + names.join());
@@ -66,12 +69,20 @@ export default async function (t) {
     t.assert(Object.values(gs.teams.a.lineupSpots[0].subInfo).includes('PR'), '沒有標 PR');
   });
 
-  await t('點跑者人像不會被當成擊球落點', async () => {
+  await t('壘上無人時代跑按不下去', async () => {
+    const { w, q } = await setup();
+    startGame(w);
+    click(w, q('#management-btn'));
+    t.assert(q('#pinch-run-btn').disabled, '壘上無人卻按得下代跑');
+  });
+
+  await t('點跑者人像會被當成擊球落點（人像不再吃點擊）', async () => {
     const { w, q } = await setup();
     startGame(w);
     click(w, q('#quick-plays button[data-play="四壞"]'));
     q('#mf-first').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
-    t.assert(q('#field-result-panel').classList.contains('hidden'), '跳出了打席結果選單');
+    t.assert(!q('#field-result-panel').classList.contains('hidden'), '點在跑者身上沒有標落點');
+    t.assert(q('#picker-title') === null || !q('#picker-modal') || q('#picker-modal').classList.contains('modal-hidden'), '還是跳出了代跑視窗');
   });
 
   await t('換投：從主頁換上板凳投手，投手統計另起一列', async () => {

@@ -2,7 +2,8 @@
 import { boot, click, startGame, clickZone } from './harness.mjs';
 
 async function fresh() { const c = await boot(); c.window.alert = () => {}; c.window.confirm = () => true; startGame(c.window); return c; }
-const last = q => q('#event-log li .ev-body, #event-log li').textContent.replace(/\s+/g, ' ').trim();
+// 只取敘述本身；比分小標是另一個元素，不算在敘述裡
+const last = q => (q('#event-log li .ev-body') || q('#event-log li')).textContent.replace(/\s+/g, ' ').trim();
 function field(w, q, zone, play, opts = {}) {
   clickZone(w, zone); click(w, q(`#field-result-panel button[data-play="${play}"]`));
   if (opts.fc) click(w, q(`#modal-advanced-options button[data-step="select-fc-out"][data-out-runner-base="${opts.fc}"]`));
@@ -24,10 +25,71 @@ function runner(w, q, type, mid, choice) {
 
 export default async function (t) {
   await errorRules(t);
+
+  // 跑者被界內球打到：跑者出局，打者上一壘並記一壘安打（規則 5.09(b)(7)、9.05(a)(5)）
+  await t('妨礙守備：跑者被球打到，跑者出局、打者記一壘安打', async () => {
+    const { window: w, q } = await fresh();
+    click(w, q('#quick-plays button[data-play="四壞"]'));          // 先讓一壘有人
+    clickZone(w, 'infield');
+    click(w, q('#field-result-panel button[data-play="妨礙守備"]'));
+    t.assert(/是誰妨礙/.test(q('#modal-advanced-title').textContent), '沒有先問是誰妨礙');
+    click(w, q('#modal-advanced-options button[data-interferer="0"]'));
+    click(w, q('#modal-advanced-done'));
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.outs === 1, '跑者沒有出局：' + gs.outs);
+    t.assert(gs.teams.a.roster[1].h === 1, '打者沒有記到安打');
+    t.assert(gs.teams.a.hits === 1, '隊伍安打數沒加');
+    t.assert(!!gs.bases[0] && gs.bases[0].runnerId === gs.teams.a.roster[1]._id, '打者沒有站上一壘');
+    t.assert(/打中一壘跑者/.test(last(q)) && /跑者出局/.test(last(q)), last(q));
+  });
+
+  await t('妨礙守備：打者妨礙，打者出局', async () => {
+    const { window: w, q } = await fresh();
+    clickZone(w, 'infield');
+    click(w, q('#field-result-panel button[data-play="妨礙守備"]'));
+    click(w, q('#modal-advanced-options button[data-interferer="batter"]'));
+    click(w, q('#modal-advanced-done'));
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.outs === 1, '打者沒有出局');
+    t.assert(gs.teams.a.roster[0].h === 0 && gs.teams.a.hits === 0, '打者不該記安打');
+  });
+
+  // 野手選擇上壘之後也可能跑過頭被觸殺
+  await t('野手選擇：打者上一壘後趁傳被觸殺', async () => {
+    const { window: w, q } = await fresh();
+    click(w, q('#quick-plays button[data-play="四壞"]'));
+    clickZone(w, 'infield');
+    click(w, q('#field-result-panel button[data-play="野手選擇"]'));
+    click(w, q('#modal-advanced-options button[data-step="select-fc-out"][data-out-runner-base="0"]'));
+    const outAdv = q('#modal-advanced-options button[data-out-advancing="1"]');
+    t.assert(!!outAdv, '野手選擇沒有「趁傳進壘被觸殺」的選項');
+    click(w, outAdv);
+    click(w, q('#modal-advanced-done'));
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.outs === 2, '應該兩人出局（跑者＋打者）：' + gs.outs);
+    t.assert(/趁傳想上二壘時/.test(last(q)), last(q));
+  });
+
+  // 妨礙跑壘要寫出是哪一位野手
+  await t('妨礙跑壘：敘述寫出是哪一位野手', async () => {
+    const { window: w, q } = await fresh();
+    click(w, q('#quick-plays button[data-play="四壞"]'));
+    click(w, q('#runner-action-btn'));
+    const byText = txt => [...w.document.querySelectorAll('#runner-action-modal button')].find(x => x.textContent.trim() === txt);
+    click(w, byText('妨礙跑壘'));
+    t.assert(/哪一位野手/.test(q('#runner-action-title-step-2').textContent), '沒有問是哪一位野手：' + q('#runner-action-title-step-2').textContent);
+    click(w, q('#runner-action-modal button[data-step="select-obstruction-position"][data-error-pos="SS"]'));
+    click(w, q('#runner-action-modal button[data-runner-id="0"][data-dest="2"]'));
+    click(w, [...w.document.querySelectorAll('#runner-action-modal button')].find(b => /完成|確定/.test(b.textContent)));
+    t.assert(/游擊手妨礙跑壘/.test(last(q)), last(q));
+  });
+
   await t('全壘打：不寫回到本壘，打點寫在最後', async () => {
     const { window: w, q } = await fresh();
     const s = field(w, q, 'outfield', '本打');
-    t.assert(/^擊出.*全壘打。 一分打點。$/.test(s), s);
+    // 敘述開頭不再寫「擊出」，直接說打到哪裡
+    t.assert(/^[^擊].*全壘打。 一分打點。$/.test(s), s);
+    t.assert(!/擊出/.test(s), '敘述開頭還留著「擊出」：' + s);
   });
 
   await t('滿壘二安：跑者句在前、打點在後', async () => {
@@ -58,11 +120,11 @@ export default async function (t) {
     t.assert(/一壘安打，上到一壘，.+發生失誤。/.test(s), s);
   });
 
-  await t('野手選擇：寫傳向哪個壘，跑者於該壘被封殺', async () => {
+  await t('野手選擇：寫傳到哪個壘，跑者於該壘被封殺', async () => {
     const { window: w, q } = await fresh();
     click(w, q('#quick-plays button[data-play="四壞"]'));
     const s = field(w, q, 'infield', '野手選擇', { fc: '0', batter: 1 });
-    t.assert(/選擇傳向二壘處理跑者/.test(s) && /在一壘的.* 於二壘被封殺出局/.test(s), s);
+    t.assert(/選擇傳二壘處理跑者/.test(s) && /在一壘的.* 於二壘被封殺出局/.test(s), s);
   });
 
   await t('滾地雙殺：跑者於二壘被封殺', async () => {

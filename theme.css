@@ -1286,3 +1286,27 @@ body {
     border-color: rgba(248, 113, 113, 0.55) !important;
     color: #fca5a5;
 }
+
+/* 有得分的事件：句尾附上當下比分（隊名用各自的隊色） */
+.ev-score {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+    padding: 1px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--th-line);
+    background: rgba(255, 255, 255, 0.07);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.ev-score b { font-weight: 800; }
+.ev-score i { font-style: normal; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+
+/* 進攻中的隊名欄反白 */
+#scoreboard td.team-col.team-batting {
+    background: rgba(59, 130, 246, 0.28);
+    box-shadow: inset 3px 0 0 #60a5fa;
+}
