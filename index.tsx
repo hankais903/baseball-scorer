@@ -2009,6 +2009,8 @@ document.addEventListener('DOMContentLoaded', () => {
         appContainer.style.transform = `translateX(${offset}vw)`;
         mobileNav.querySelectorAll('.nav-dot').forEach((dot, i) => {
             dot.classList.toggle('active', i === index);
+            if (i === index) dot.setAttribute('aria-current', 'page');
+            else dot.removeAttribute('aria-current');
         });
     }
     function handlePanelDragStart(e) {

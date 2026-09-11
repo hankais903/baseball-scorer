@@ -6,8 +6,8 @@
 
 :root {
     /* 深藍夜空色系 */
-    --bg-color: #0b1a38;
-    --panel-bg-color: #13264d;
+    --bg-color: #07111f;
+    --panel-bg-color: #0e2036;
     --border-color: rgba(255, 255, 255, 0.16);
     --text-color: #eaf1ff;
     --primary-color: #2f6fed;
@@ -22,20 +22,21 @@
     --th-slate: #5b7096;
 }
 
-/* 整個畫面的夜空漸層：固定在螢幕上，左右滑動面板時背景不會跟著跑 */
+/* 底色：深夜藍（比原本的亮藍暗很多，球場燈光才會跳出來） */
 body {
-    background:
-        radial-gradient(120% 80% at 50% -10%, rgba(58, 122, 255, 0.35) 0%, rgba(11, 26, 56, 0) 60%),
-        linear-gradient(168deg, #12336c 0%, #0d224b 45%, #081733 100%);
-    background-attachment: fixed;
-    background-color: #0b1a38;
+    background: #05101c;
 }
 
-/* 三個面板本身不再上底色，直接透出夜空 */
+/* 每一頁各自有自己的底色，左右滑動時背景會跟著頁面一起移動 */
+#main-content {
+    background:
+        radial-gradient(ellipse 120% 55% at 50% 62%, rgba(26, 62, 92, 0.55), rgba(8, 19, 33, 0) 60%),
+        linear-gradient(180deg, #0b1a2b 0%, #081321 55%, #050d17 100%);
+}
+
 #control-panel,
-#main-content,
 #event-log-container {
-    background-color: transparent;
+    background: linear-gradient(160deg, #102339 0%, #0a1626 60%, #070f1b 100%);
 }
 
 /* --- 上方比賽資訊：藥丸型欄位，各自帶一個小圖示 --- */
@@ -71,6 +72,10 @@ body {
 #weather-input {
     -webkit-appearance: none;
     appearance: none;
+    /* index.css 的 #weather-input 也有設底色與圓角，這裡要一起蓋掉才會變成藥丸型 */
+    background-color: var(--th-card);
+    border: 1px solid var(--th-line);
+    border-radius: 999px;
     padding-left: 12px;
     padding-right: 26px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238ab4ff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
@@ -191,7 +196,7 @@ body {
 
 /* 球場上方的全壘打區：跟著換成夜空色 */
 .mf-wall-area {
-    fill: #0a1a38;
+    fill: #081321;
 }
 
 /* 局數膠囊：藍色發光 */
@@ -319,7 +324,7 @@ body {
 #modal-content,
 .draggable-modal-content,
 .substitution-popover {
-    background: linear-gradient(180deg, #172f5c, #0e2148);
+    background: linear-gradient(180deg, #12283f, #0a1729);
     border: 1px solid var(--th-line);
     border-radius: 18px;
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
@@ -489,10 +494,56 @@ body {
     #main-content { padding-top: max(0.45rem, env(safe-area-inset-top)); row-gap: 6px; }
     #game-info { margin-bottom: 0; }
     #scoreboard { margin: 0; }
-    #game-state-display { aspect-ratio: 370 / 366; }
+    #game-state-display { aspect-ratio: 370 / 358; }
+
+    /* 各區之間不要再另外留白，統一用 row-gap，才擠得出高度 */
+    #game-meta-row,
+    #batter-row,
+    #quick-plays,
+    .main-actions-container { margin: 0; }
 
     /* 指示點回到最底下（原本因為會擋到按鈕才往上抬） */
     #mobile-nav:has(.nav-dot[data-index="1"].active) {
         bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
     }
+}
+
+/* --- 底部換頁改成文字（名單／比賽／紀錄），跟參考圖一樣 --- */
+#mobile-nav {
+    gap: 4px;
+    padding: 3px;
+    border-radius: 22px;
+    background: rgba(9, 22, 38, 0.92);
+    border: 1px solid #2d4a68;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+}
+
+.nav-dot {
+    width: auto;
+    height: auto;
+    min-width: 74px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0 14px;
+    border: none;
+    border-radius: 17px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: #a9c6e6;
+    background: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 原本畫小圓點的那一層拿掉 */
+.nav-dot::after {
+    content: none;
+}
+
+.nav-dot.active {
+    background: linear-gradient(180deg, #36b1ff, #1475d0);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(20, 117, 208, 0.5);
 }
