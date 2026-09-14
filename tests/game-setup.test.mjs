@@ -169,7 +169,11 @@ export default async function (t) {
     click(w, q('#play-ball-btn'));
     await sleep(400);
     const gm = w.baseballGameManager;
-    gm.saveCurrentGame(JSON.parse(w.localStorage.getItem('baseballGameState')));
+    // 比賽紀錄只收已經結束的比賽，所以先讓這一場結束
+    const st = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    st.isGameOver = true;
+    w.localStorage.setItem('baseballGameState', JSON.stringify(st));
+    gm.saveCurrentGame(st);
     const id = gm.currentGameId;
     // 回主畫面，再從比賽紀錄點回這一場
     click(w, q('#home-btn'));
@@ -180,7 +184,7 @@ export default async function (t) {
     click(w, item);
     t.assert(!reloaded, '讀取比賽時重新整理了整頁（預覽檔會變成空白）');
     t.assert(w.document.body.classList.contains('playing'), '沒有進到比賽畫面');
-    t.assert(!q('#main-shell').classList.contains('hidden') === false, '主畫面沒有收起來');
+    t.assert(q('#main-shell').classList.contains('hidden'), '主畫面沒有收起來');
     const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
     t.assert(gs.teams.a.name === '新莊' && gs.started === true, '讀進來的比賽不對：' + gs.teams.a.name);
   });
@@ -208,15 +212,47 @@ export default async function (t) {
     t.assert(shown.length === 1 && shown[0].id === 'page-home', '回主畫面應該停在首頁：' + shown.map(s => s.id).join());
   });
 
-  await t('建立比賽後立刻出現在比賽紀錄，不用等自動儲存', async () => {
+  await t('建立比賽後立刻寫進存檔，不用等自動儲存那 10 秒', async () => {
     const { window: w, q } = await withTeam();
     for (let i = 0; i < 40 && !w.baseballGameManager; i++) await sleep(50);   // 等多場比賽的模組起來
     t.assert(!!w.baseballGameManager, '比賽管理模組沒有啟動');
     await createGame(w, q, { opp: '海盜' });
+    const saved = w.baseballGameManager.getGamesList();
+    t.assert(saved.length === 1, '建立的比賽沒有立刻存起來：' + saved.length);
+    t.assert(saved[0].teams.a.name === '新莊' && saved[0].teams.b.name === '海盜', '存起來的兩隊不對');
+  });
+
+  // === 比賽進行中的保護（同時只能有一場）===
+  await t('比賽進行中時，比賽分頁整個鎖住並說明原因', async () => {
+    const { window: w, q } = await withTeam();
+    await createGame(w, q, { opp: '海盜' });
+    click(w, q('#play-ball-btn'));
+    await sleep(300);
     click(w, q('#home-btn'));
-    const items = w.document.querySelectorAll('#home-game-list .gl-item');
-    t.assert(items.length === 1, '比賽紀錄裡沒有剛建立的那一場：' + items.length);
-    t.assert(items[0].textContent.includes('新莊') && items[0].textContent.includes('海盜'),
-      '紀錄上沒有寫出兩隊：' + items[0].textContent.replace(/\s+/g, ' '));
+    click(w, q('#shell-nav .shell-tab[data-page="game"]'));
+    t.assert(!q('#gs-busy').classList.contains('hidden'), '沒有顯示比賽進行中的提醒');
+    t.assert(q('#page-game').classList.contains('is-busy'), '建立流程沒有被鎖住');
+    t.assert(q('#gs-busy').textContent.includes('比賽進行中'), '沒有寫出比賽進行中');
+    t.assert(/結束計時/.test(q('#gs-busy').textContent), '沒有說明要怎麼結束目前的比賽');
+    t.assert(q('#gs-busy-text').textContent.includes('新莊'), '沒有寫出目前是哪一場：' + q('#gs-busy-text').textContent);
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    t.assert(/#page-game\.is-busy[^{]*\{[^}]*pointer-events:\s*none/.test(css), '鎖住的部分還按得動');
+    click(w, q('#gs-busy-back'));
+    t.assert(w.document.body.classList.contains('playing'), '「回到目前的比賽」沒有作用');
+  });
+
+  await t('比賽結束後，比賽分頁就解開了', async () => {
+    const { window: w, q } = await withTeam();
+    await createGame(w, q, { opp: '海盜' });
+    click(w, q('#play-ball-btn'));
+    await sleep(300);
+    const st = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    st.isGameOver = true;
+    const { window: w2, q: q2 } = await withTeam({ baseballGameState: JSON.stringify(st) });
+    click(w2, q2('#shell-nav .shell-tab[data-page="game"]'));
+    t.assert(q2('#gs-busy').classList.contains('hidden'), '比賽已結束卻還鎖著');
+    t.assert(!q2('#page-game').classList.contains('is-busy'), '比賽已結束卻還壓暗');
   });
 }

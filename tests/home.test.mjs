@@ -144,6 +144,66 @@ export default async function (t) {
     t.assert(q('#home-game-list').textContent.includes('還沒有比賽紀錄'), '沒有說明還沒有紀錄');
   });
 
+  await t('首頁：繼續比賽要看得出來是「進行中」', async () => {
+    const first = await withTeam();
+    startGame(first.window);
+    quickPlay(first.window, '四壞');
+    await sleep(300);
+    const saved = first.window.localStorage.getItem('baseballGameState');
+    const { window: w, q } = await withTeam({ baseballGameState: saved });
+    click(w, q('#home-btn'));
+    const card = q('#home-continue');
+    t.assert(card.classList.contains('home-live'), '繼續比賽沒有用進行中的樣式');
+    t.assert(card.textContent.includes('比賽進行中'), '沒有寫出比賽進行中：' + card.textContent.replace(/\s+/g, ' '));
+    t.assert(!!card.querySelector('.live-badge i'), '沒有進行中的指示燈');
+  });
+
+  await t('首頁：比賽紀錄只列已結束的，而且可以刪除', async () => {
+    const { window: w, q } = await withTeam();
+    for (let i = 0; i < 40 && !w.baseballGameManager; i++) await sleep(50);
+    const gm = w.baseballGameManager;
+    const mk = (id, over) => gm.saveGame(id, {
+      isGameOver: over, inning: 3, isTop: true, stadium: '新莊',
+      teams: { a: { name: '新莊', score: [1] }, b: { name: '海盜', score: [0] } },
+    });
+    mk('g_done', true);
+    mk('g_open', false);
+    click(w, q('#shell-nav .shell-tab[data-page="home"]'));
+    const items = [...w.document.querySelectorAll('#home-game-list .gl-item')];
+    t.assert(items.length === 1 && items[0].dataset.game === 'g_done',
+      '只該列出已結束的比賽：' + items.map(b => b.dataset.game).join());
+    t.assert(!!q('#home-game-list .gl-del'), '沒有刪除鍵');
+    w.confirm = () => true;
+    click(w, q('#home-game-list .gl-del'));
+    t.assert(!w.document.querySelector('#home-game-list .gl-item'), '刪除後列表沒有更新');
+    t.assert(!gm.loadGame('g_done'), '比賽沒有真的被刪掉');
+  });
+
+  await t('常用陣容：關掉 DH 會收起先發投手欄位', async () => {
+    const { window: w, q } = await withTeam();
+    click(w, q('#shell-nav .shell-tab[data-page="team"]'));
+    click(w, q('#page-team .team-row-link[data-sub="lineups"]'));
+    click(w, q('#lu-add'));
+    t.assert(!q('#lu-pitcher-row').classList.contains('hidden'), '預設 DH 開著時應該有投手欄位');
+    const dh = q('#lu-dh');
+    dh.checked = false;
+    dh.dispatchEvent(new w.Event('change', { bubbles: true }));
+    t.assert(q('#lu-pitcher-row').classList.contains('hidden'), '關掉 DH 沒有收起投手欄位（看起來像沒反應）');
+    t.assert(q('#lu-dh-hint').textContent.includes('投手自己打擊'), '沒有說明關掉 DH 的意思');
+    t.assert(JSON.parse(w.localStorage.getItem('baseball_my_team')).lineups[0].useDH === false, 'DH 設定沒有存起來');
+  });
+
+  await t('新增球員後回球隊分頁，人數馬上更新', async () => {
+    const { window: w, q } = await withTeam();
+    click(w, q('#shell-nav .shell-tab[data-page="team"]'));
+    t.assert(q('#team-players-count').textContent === '9 人', '一開始人數不對');
+    click(w, q('#page-team .team-row-link[data-sub="players"]'));
+    click(w, q('#mp-add'));
+    click(w, q('#sub-back'));
+    t.assert(q('#team-players-count').textContent === '10 人',
+      '返回後人數沒有更新：' + q('#team-players-count').textContent);
+  });
+
   await t('首頁：有比賽在進行時，一開機直接進比賽', async () => {
     const first = await withTeam();
     startGame(first.window);

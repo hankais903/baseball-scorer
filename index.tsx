@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.2';
+const APP_VERSION = 'v2.3';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -841,6 +841,9 @@ document.addEventListener('DOMContentLoaded', () => {
         renderShell();
     }
     const gameInProgress = () => !!gameState.started && !gameState.isGameOver;
+    // 建立了但還沒按 PLAY BALL 的也算「還沒打完」，一樣要能接回去。
+    // 用 createdAt 判斷，不能看名單有沒有名字——預設狀態本來就有假名字
+    const canContinue = () => !gameState.isGameOver && (!!gameState.started || !!(gameState as any).createdAt);
 
     function renderShell() {
         setShellPageClasses();
@@ -864,7 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const label = main?.querySelector('.home-card-label');
         const sub = document.getElementById('home-continue-sub');
         if (main) {
-            if (gameInProgress()) {
+            if (canContinue()) {
                 const a = gameState.teams.a, b = gameState.teams.b;
                 const sa = a.score.reduce((x, y) => x + (y || 0), 0);
                 const sb = b.score.reduce((x, y) => x + (y || 0), 0);
@@ -887,17 +890,25 @@ document.addEventListener('DOMContentLoaded', () => {
             box.innerHTML = '<div class="shell-empty"><p>還沒有比賽紀錄</p><p class="shell-empty-sub">記完一場就會出現在這裡</p></div>';
             return;
         }
+        // 只列已經結束的比賽：還沒打完的那一場由上面的「繼續比賽」負責，
+        // 兩個地方都出現會讓人以為有兩場
+        const done = games.filter(g => g.isGameOver);
+        if (!done.length) {
+            box.innerHTML = '<div class="shell-empty"><p>還沒有打完的比賽</p><p class="shell-empty-sub">比賽結束後就會收在這裡</p></div>';
+            return;
+        }
         const total = s => (s || []).reduce((a, b) => a + (b || 0), 0);
-        box.innerHTML = games.map(g => {
+        box.innerHTML = done.map(g => {
             const a = g.teams?.a?.name || '客隊', b = g.teams?.b?.name || '主隊';
             const d = new Date(g.lastModified || Date.now());
             const date = `${d.getMonth() + 1}/${d.getDate()}`;
-            const state = g.isGameOver ? '終場' : `${g.inning || 1}局${g.isTop === false ? '下' : '上'}`;
-            const now = g.id === cur ? '<span class="gl-now">記錄中</span>' : '';
-            return `<button type="button" class="gl-item" data-game="${g.id}">
-                <span class="gl-main"><b>${a}</b> <i>${total(g.teams?.a?.score)} : ${total(g.teams?.b?.score)}</i> <b>${b}</b>${now}</span>
-                <span class="gl-sub">${date}　${state}${g.stadium ? '　' + g.stadium : ''}</span>
-            </button>`;
+            return `<div class="gl-row">
+                <button type="button" class="gl-item" data-game="${g.id}">
+                    <span class="gl-main"><b>${a}</b> <i>${total(g.teams?.a?.score)} : ${total(g.teams?.b?.score)}</i> <b>${b}</b></span>
+                    <span class="gl-sub">${date}　終場${g.stadium ? '　' + g.stadium : ''}</span>
+                </button>
+                <button type="button" class="gl-del" data-del="${g.id}" aria-label="刪除這場比賽">×</button>
+            </div>`;
         }).join('');
     }
 
@@ -960,6 +971,20 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
     function renderGameSetup() {
+        // 比賽進行中就把整個建立流程鎖住（同時只能有一場，不然紀錄會亂掉）
+        const busy = gameInProgress();
+        const busyBox = document.getElementById('gs-busy');
+        if (busyBox) {
+            busyBox.classList.toggle('hidden', !busy);
+            if (busy) {
+                const a = gameState.teams.a, b = gameState.teams.b;
+                const sa = a.score.reduce((x, y) => x + (y || 0), 0);
+                const sb = b.score.reduce((x, y) => x + (y || 0), 0);
+                const txt = document.getElementById('gs-busy-text');
+                if (txt) txt.textContent = `${a.name} ${sa} : ${sb} ${b.name}　${gameState.inning}局${gameState.isTop ? '上' : '下'}`;
+            }
+        }
+        document.getElementById('page-game')?.classList.toggle('is-busy', busy);
         const title = document.getElementById('gs-title');
         const count = document.getElementById('gs-count');
         if (title) title.textContent = ['', '建立比賽', '對手名單', '我方先發'][gsStep];
@@ -1096,6 +1121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.gameDate = (document.getElementById('gs-date') as HTMLInputElement).value || gameState.gameDate;
         gameState.stadium = (document.getElementById('gs-stadium') as HTMLInputElement).value.trim();
         gameState.weather = (document.getElementById('gs-weather') as HTMLSelectElement).value;
+        (gameState as any).createdAt = Date.now();   // 「有一場還沒打完」的依據
         // 常用對手：下次可以直接帶入
         if (oppInfo.name !== '對手') {
             const saved = readOpponents().filter(o => o.name !== oppInfo.name);
@@ -1186,6 +1212,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sub && !sub.classList.contains('hidden')) {
             sub.classList.add('hidden');
             setShellPageClasses();
+            renderTeamPage();      // 人數與陣容套數要是最新的
         }
     }
     function renderSub() {
@@ -1234,10 +1261,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="text" id="lu-name" maxlength="10" value="${lu.name || ''}" placeholder="例：主力"></label>
             <label class="team-row"><span class="team-row-label">啟用 DH</span>
                 <input type="checkbox" id="lu-dh" class="set-switch"${lu.useDH ? ' checked' : ''}></label>
+            <p class="sub-note" id="lu-dh-hint">${lu.useDH ? '第九棒是指定打擊，投手不打擊' : '投手自己打擊，第九棒就是投手'}</p>
             <div class="lu-spots">` + Array.from({ length: 9 }, (_, i) => `
                 <label class="lu-spot"><span>${i + 1}棒</span>
                     <select data-spot="${i}">${opt((lu.spots || [])[i])}</select></label>`).join('') + `</div>
-            <label class="team-row"><span class="team-row-label">先發投手</span>
+            <label class="team-row${lu.useDH ? '' : ' hidden'}" id="lu-pitcher-row"><span class="team-row-label">先發投手</span>
                 <select id="lu-pitcher">${opt(lu.pitcherId)}</select></label>
             <div class="lu-actions">
                 <button type="button" id="lu-delete" class="lu-del">刪除這套</button>
@@ -1990,9 +2018,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.getElementById('home-continue')?.addEventListener('click', () => {
             tapFeedback();
-            if (gameInProgress()) enterGameView();
+            enterGameView();       // 卡片只在有未完成的比賽時才出現，按了就一定要進得去
         });
         // === 建立比賽（三步）===
+        document.getElementById('gs-busy-back')?.addEventListener('click', () => { tapFeedback(); enterGameView(); });
         document.getElementById('gs-back')?.addEventListener('click', () => {
             tapFeedback();
             if (gsStep === 2) collectOppList();
@@ -2065,6 +2094,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('game-log-btn')?.addEventListener('click', () => { tapFeedback(); toggleLogSheet(); });
         document.getElementById('log-sheet-close')?.addEventListener('click', () => { tapFeedback(); toggleLogSheet(false); });
         document.getElementById('home-game-list')?.addEventListener('click', (e) => {
+            const del = (e.target as HTMLElement).closest('.gl-del') as HTMLElement;
+            if (del) {
+                tapFeedback();
+                if (!confirm('確定要刪除這場比賽嗎？此操作無法復原。')) return;
+                (window as any).baseballGameManager?.deleteGame(del.dataset.del);
+                renderHomeGameList();
+                return;
+            }
             const item = (e.target as HTMLElement).closest('.gl-item') as HTMLElement;
             if (!item) return;
             tapFeedback();
@@ -2109,7 +2146,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (t.closest('#mp-add')) {
                 collectSubPlayers();
                 myTeam.players.push(blankMember());
-                saveMyTeam(); renderSub(); return;
+                saveMyTeam(); renderSub(); renderTeamPage(); return;
             }
             const del = t.closest('.mp-del');
             if (del) {
@@ -2148,7 +2185,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const lu = (myTeam.lineups || []).find(l => l.id === sub.dataset.editing);
             if (!lu) return;
             if (t.id === 'lu-name') lu.name = (t as HTMLInputElement).value.trim();
-            else if (t.id === 'lu-dh') lu.useDH = (t as HTMLInputElement).checked;
+            else if (t.id === 'lu-dh') {
+                lu.useDH = (t as HTMLInputElement).checked;
+                saveMyTeam();
+                // 關掉 DH 時第九棒就是投手，投手欄位要收起來，否則看起來像按了沒反應
+                const row = document.getElementById('lu-pitcher-row');
+                if (row) row.classList.toggle('hidden', !lu.useDH);
+                const hint = document.getElementById('lu-dh-hint');
+                if (hint) hint.textContent = lu.useDH ? '第九棒是指定打擊，投手不打擊' : '投手自己打擊，第九棒就是投手';
+                return;
+            }
             else if (t.id === 'lu-pitcher') lu.pitcherId = (t as HTMLSelectElement).value;
             else if ((t as HTMLElement).dataset.spot !== undefined) {
                 lu.spots = lu.spots || Array(9).fill('');

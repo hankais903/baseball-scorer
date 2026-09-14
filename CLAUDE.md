@@ -8,7 +8,7 @@
 ```bash
 npm install                 # 第一次
 npm run build               # Vite 建置到 dist/（測試跑的是 dist/，改完一定要先 build）
-npm test                    # 307+ 項回歸測試（jsdom），約 3 分鐘
+npm test                    # 313+ 項回歸測試（jsdom），約 3 分鐘
 npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自動 build）
 ```
 交付前必須：`npm run build && npm test` 全綠。每修一個 bug 就在 `tests/` 加一條釘住它的測試，套件名稱在 `tests/run.mjs` 註冊。
@@ -110,6 +110,15 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
   改成用 `window.__getGameState()` 直接讀真正的存檔；建立比賽與按 PLAY BALL 時另外 `pushToGameList()` 立刻寫入，
   不用等自動儲存那 10 秒。
 - 點標題列回主畫面一律停在**首頁**（留在「比賽」分頁會看到已經用過的建立流程，首頁的紀錄列表也會被藏住）。
+- **同時只能有一場比賽**：比賽進行中時「比賽」分頁整個壓暗鎖住（`#page-game.is-busy`），
+  改顯示 `#gs-busy` 提醒並給「回到目前的比賽」。要開新的得先用計時器的「結束計時」結束目前這場。
+- 首頁的「繼續比賽」用 `.home-live`（亮橘＋跳動的「比賽進行中」標記），要一眼看得到。
+  顯示條件是 `canContinue()`＝沒結束且（開過賽 或 有 `createdAt`）；**不能用「名單有沒有名字」判斷**，
+  預設狀態本來就有假名字。按下去一律 `enterGameView()`，卡片看得到就一定進得去。
+- 首頁的比賽紀錄**只列已經結束的比賽**（還沒打完的那場由「繼續比賽」負責，兩邊都出現會讓人以為有兩場），
+  每一列右邊有刪除鍵。
+- 常用陣容關掉 DH 要把「先發投手」那一列收起來並換說明文字，否則按了畫面沒變化，看起來像壞掉。
+- 子頁（球員／常用陣容）改完回球隊分頁要 `renderTeamPage()`，人數與陣容套數才會即時更新。
 - **還沒做（下一批）**：成績分頁。
 
 ## 舊的首頁（啟動畫面，已被 #main-shell 取代）

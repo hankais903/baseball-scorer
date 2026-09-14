@@ -1946,3 +1946,96 @@ body.playing.sheet-open #event-log-container { transform: translateY(0); }
 
 /* 標題列不能換行，否則「紀錄」會掉到第二行、多吃一整列的高度 */
 .stadium-toolbar { flex-wrap: nowrap; }
+
+/* ==========================================================================
+   比賽進行中的提示（首頁的繼續比賽、比賽分頁的鎖住）
+   ========================================================================== */
+/* 首頁的「繼續比賽」要一眼看到：亮橘＋跳動的進行中標記 */
+.home-live {
+    position: relative;
+    padding-top: 26px;
+    border-color: #ffb056;
+    background: linear-gradient(180deg, #ff8a33, #e0630f);
+    box-shadow: 0 0 0 2px rgba(255, 176, 86, 0.35), 0 10px 26px rgba(215, 93, 21, 0.5);
+}
+
+.live-badge,
+.gs-busy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+}
+
+.live-badge {
+    position: absolute;
+    top: 7px;
+    left: 16px;
+    padding: 2px 9px;
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+}
+
+.live-badge i,
+.gs-busy-badge i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+    animation: live-pulse 1.8s ease-out infinite;
+}
+
+@keyframes live-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+    70%  { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .live-badge i, .gs-busy-badge i { animation: none; }
+}
+
+/* 比賽分頁：進行中時整個建立流程壓暗、按不動 */
+#page-game.is-busy .gs-head,
+#page-game.is-busy .gs-step {
+    opacity: 0.32;
+    pointer-events: none;
+    filter: grayscale(0.6);
+}
+
+.gs-busy {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 176, 86, 0.55);
+    background: rgba(63, 34, 8, 0.72);
+}
+
+.gs-busy.hidden { display: none; }
+.gs-busy-badge { color: #ffd2a1; }
+.gs-busy-text { margin: 0; font-size: 1.02rem; font-weight: 800; color: #fff; }
+.gs-busy-hint { margin: 0; font-size: 0.78rem; line-height: 1.6; color: rgba(255, 226, 199, 0.8); }
+.gs-busy .ob-primary { margin-top: 4px; }
+
+/* 比賽紀錄：每一列右邊可以刪除 */
+.gl-row { display: flex; gap: 7px; margin-bottom: 8px; }
+.gl-row .gl-item { flex: 1; margin-bottom: 0; min-width: 0; }
+
+.gl-del {
+    flex: none;
+    width: 46px;
+    border-radius: 12px;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.14);
+    color: #fca5a5;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.gl-del:active { filter: brightness(1.3); }

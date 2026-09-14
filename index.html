@@ -451,7 +451,8 @@
                     <img class="shell-logo" src="./img/logo.webp" alt="Diamond Log">
                     <span class="shell-ver" id="shell-version"></span>
                 </header>
-                <button type="button" id="home-continue" class="home-card home-card-main">
+                <button type="button" id="home-continue" class="home-card home-card-main home-live">
+                    <span class="live-badge"><i></i>比賽進行中</span>
                     <span class="home-card-text">
                         <span class="home-card-label">繼續比賽</span>
                         <span class="home-card-sub" id="home-continue-sub"></span>
@@ -501,6 +502,13 @@
 
             <!-- 比賽：建立比賽的三步 -->
             <section class="shell-page hidden" id="page-game">
+                <!-- 比賽進行中：整個建立流程鎖住 -->
+                <div id="gs-busy" class="gs-busy hidden">
+                    <div class="gs-busy-badge"><i></i>比賽進行中</div>
+                    <p class="gs-busy-text" id="gs-busy-text"></p>
+                    <p class="gs-busy-hint">要開始新的比賽，請先回到目前這場，點右上角的計時器選「結束計時」把比賽結束。</p>
+                    <button type="button" id="gs-busy-back" class="ob-primary">回到目前的比賽</button>
+                </div>
                 <div class="gs-head">
                     <button type="button" id="gs-back" class="gs-back hidden" aria-label="上一步">‹</button>
                     <h2 class="shell-title" id="gs-title">建立比賽</h2>
