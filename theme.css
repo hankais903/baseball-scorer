@@ -148,13 +148,6 @@ body {
     box-shadow: var(--th-glow);
 }
 
-#next-batters {
-    background: var(--th-card);
-    border: 1px solid var(--th-line);
-    border-radius: 10px;
-    box-shadow: var(--th-glow);
-}
-
 /* 照片一律方形（依示意圖） */
 .batter-photo-main {
     width: 44px;
@@ -413,6 +406,20 @@ body {
     font-weight: 800;
     letter-spacing: 0.04em;
     line-height: 1.2;
+}
+
+/* 標題右邊的版號 */
+.brand-version {
+    margin-left: 7px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.1);
+    font-size: 0.62em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #9fd0ff;
+    vertical-align: middle;
 }
 
 .brand-text small {
@@ -726,14 +733,17 @@ body {
     appearance: none;
 }
 
-/* --- OUT／局數／計時：獨立一列 --- */
+/* --- OUT／局數／計時：放在打者卡旁邊（原本 NEXT 的位置）---
+   上面一行是局數，下面一行左邊 OUT、右邊計時 */
 #status-bar {
     position: relative;
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
     align-items: center;
+    row-gap: 4px;
     min-height: 46px;
-    padding: 4px 10px;
+    padding: 5px 8px;
     border-radius: 10px;
     border: 1px solid var(--th-line);
     background: var(--th-card);
@@ -742,29 +752,32 @@ body {
 
 #status-bar #sbo-display {
     position: static;
+    grid-row: 2;
     grid-column: 1;
     justify-self: start;
 }
 
 #status-bar .sbo-row span {
     width: auto;
-    margin-right: 4px;
-    font-size: 0.95rem;
+    margin-right: 3px;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
 }
 
 #status-bar .sbo-light {
-    width: 16px;
-    height: 16px;
+    width: 13px;
+    height: 13px;
 }
 
 #status-bar #inning-display {
     position: static;
     transform: none;
-    grid-column: 2;
+    grid-row: 1;
+    grid-column: 1 / -1;
     justify-self: center;
     margin: 0;
-    padding: 5px 16px;
-    font-size: 1rem;
+    padding: 4px 14px;
+    font-size: 0.95rem;
     border-radius: 22px;
     white-space: nowrap;
 }
@@ -775,67 +788,31 @@ body {
 
 #status-bar #game-clock {
     position: static;
-    grid-column: 3;
+    grid-row: 2;
+    grid-column: 2;
     justify-self: end;
     display: flex;
     align-items: center;
-    gap: 4px;
-    min-height: 34px;
-    padding: 4px 12px;
-    border-radius: 18px;
+    justify-content: center;
+    min-width: 0;
+    min-height: 28px;
+    padding: 3px 9px;
+    border-radius: 16px;
     border: 1px solid var(--th-line);
     background: rgba(3, 14, 24, 0.7);
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
     color: #eff5ff;
 }
 
-#status-bar #game-clock::before {
-    content: '';
-    width: 15px;
-    height: 15px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23adc5df' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E") no-repeat center / contain;
-}
+/* 這一格很窄，時鐘圖示省掉，留給數字 */
+#status-bar #game-clock::before { content: none; }
 
 #status-bar #clock-menu {
     top: calc(100% + 6px);
     right: 6px;
     left: auto;
-}
-
-/* --- NEXT 卡片：標題有左右箭頭，兩位打者各自一格 --- */
-.next-label {
-    position: relative;
-    justify-content: center;
-    border: 1px solid rgba(45, 141, 224, 0.8);
-    border-radius: 9px;
-    background: linear-gradient(180deg, #235685, #17375c);
-    box-shadow: inset 0 0 7px rgba(83, 183, 255, 0.28);
-    color: #6ec2ff;
-    font-size: 0.62rem;
-    margin: 4px 0 3px;
-}
-
-.next-label::before,
-.next-label::after {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #7fc4ff;
-    font-size: 0.9rem;
-    line-height: 1;
-}
-
-.next-label::before { content: '‹'; left: 7px; }
-.next-label::after { content: '›'; right: 7px; }
-
-#next-batters .next-item {
-    border: 1px solid rgba(43, 71, 98, 0.9);
-    border-top: 1px solid rgba(43, 71, 98, 0.9);
-    border-radius: 8px;
-    background: rgba(24, 42, 63, 0.6);
-    margin-bottom: 4px;
-    padding: 2px 6px;
 }
 
 /* --- 打者卡的「本場」做成小方塊 --- */
@@ -847,25 +824,10 @@ body {
     font-weight: 700;
 }
 
-/* 多了一列，排序要重新指定 */
+/* 排序：計分板 → 打者卡（含 OUT／局數／計時）→ 球場 → 三顆功能鈕 */
 @media (max-width: 768px), (orientation: portrait) {
-    #main-content > #status-bar { order: 2; }
     #main-content > #game-state-container { order: 3; }
     #main-content > .main-actions-container { order: 5; }
-}
-
-/* NEXT 卡片稍微寬一點，名字才不會被切掉 */
-#next-batters {
-    flex: 0 0 39%;
-    padding: 0 5px;
-}
-
-#next-batters .next-item {
-    grid-template-columns: 2.2em 1fr;
-}
-
-.next-name {
-    font-size: clamp(0.72rem, 3vw, 0.84rem);
 }
 
 /* 日期那顆要省下每一點寬度，字才放得完整 */
@@ -921,11 +883,6 @@ body {
 .batter-order {
     white-space: nowrap;
 }
-
-/* NEXT 卡片的圓角也收斂 */
-.next-label { border-radius: 6px; }
-#next-batters .next-item { border-radius: 6px; }
-#next-batters { border-radius: 10px; }
 
 /* 計分板的字大一點點 */
 #scoreboard th { font-size: 0.78rem; }
@@ -1016,10 +973,11 @@ body {
     .brand-text strong { font-size: 15px; }
     .brand-text small { font-size: 9px; }
 
-    #status-bar { min-height: 40px; padding: 3px 9px; }
-    #status-bar #inning-display { padding: 3px 14px; font-size: 0.95rem; }
-    #status-bar #game-clock { min-height: 30px; padding: 3px 10px; }
-    #status-bar .sbo-light { width: 14px; height: 14px; }
+    #status-bar { min-height: 40px; padding: 4px 6px; row-gap: 3px; }
+    #status-bar #inning-display { padding: 3px 11px; font-size: 0.88rem; }
+    #status-bar #game-clock { min-height: 26px; padding: 2px 7px; font-size: 0.8rem; }
+    #status-bar .sbo-light { width: 12px; height: 12px; }
+    #status-bar .sbo-row span { font-size: 0.72rem; }
 
     /* 快捷結果按鈕改成圖示與字同一行，省下一整排的高度 */
 
@@ -1248,8 +1206,8 @@ body {
 .ev-score b { font-weight: 800; }
 .ev-score i { font-style: normal; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
 
-/* 進攻中的隊名欄反白 */
-#scoreboard td.team-col.team-batting {
+/* 進攻中的那一隊，總分反白 */
+#scoreboard td.total-col.team-batting {
     background: rgba(59, 130, 246, 0.28);
     box-shadow: inset 3px 0 0 #60a5fa;
 }

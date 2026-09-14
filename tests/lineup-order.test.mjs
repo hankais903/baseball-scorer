@@ -193,34 +193,15 @@ export default async function (t) {
     t.assert(/接殺/.test(fly), '飛球出局沒有寫接殺：' + fly);
   });
 
-  // === 打者卡旁的 NEXT：接下來兩位打者 ===
-  const nextText = q => [...q('#next-batters .next-item')]
-    .map(el => el.textContent.replace(/\s+/g, ' ').trim());
 
-  await t('NEXT 顯示接下來兩位打者', async () => {
-    const { window: w, q } = await boot();
-    click(w, q('#play-ball-btn'));
-    const rows = nextText(s => w.document.querySelectorAll(s));
-    t.assert(rows.join(' / ') === '2棒客隊球員02 / 3棒客隊球員03', rows.join(' / '));
-    t.assert(q('#next-batters .next-label').textContent === 'NEXT', '缺少 NEXT 標籤');
-  });
-
-  await t('記完一個打席後 NEXT 會往下移一棒', async () => {
-    const { window: w, q } = await boot();
-    click(w, q('#play-ball-btn'));
-    quickPlay(w, '三振');
-    const rows = nextText(s => w.document.querySelectorAll(s));
-    t.assert(rows.join(' / ') === '3棒客隊球員03 / 4棒客隊球員04', rows.join(' / '));
-  });
-
-  await t('換半局後 NEXT 換成另一隊的打序', async () => {
+  await t('換半局後打者卡換成另一隊的打序', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
     for (let i = 0; i < 3; i++) quickPlay(w, '三振');
     t.assert(q('#inning-display').textContent.includes('下'),
       '沒有換到下半局：' + q('#inning-display').textContent);
-    const rows = nextText(s => w.document.querySelectorAll(s));
-    t.assert(rows.every(r => r.includes('主隊球員')), '仍停在客隊打序：' + rows.join(' / '));
+    const name = q('#batter-main-info').textContent;
+    t.assert(name.includes('主隊球員'), '仍停在客隊打序：' + name);
   });
 
   await t('打者卡照片是方形', async () => {
@@ -277,16 +258,4 @@ export default async function (t) {
     t.assert(!svg.includes('>33<'), '背號頭像被當成照片存進狀態了');
   });
 
-  await t('NEXT 的棒次自己一格置中', async () => {
-    const fs = await import('fs');
-    const path = await import('path');
-    const dir = path.join('dist', 'assets');
-    const css = fs.readFileSync(path.join(dir,
-      fs.readdirSync(dir).find(f => f.endsWith('.css'))), 'utf8');
-    const item = (css.match(/#next-batters \.next-item\{[^}]*\}/g) || []).join(' ');
-    t.assert(/display:\s*grid/.test(item), 'NEXT 的每一列不是格線排版：' + item);
-    t.assert(/grid-template-columns:/.test(item), '沒有把棒次獨立成一欄：' + item);
-    const order = (css.match(/\.next-order\{[^}]*\}/g) || []).join(' ');
-    t.assert(/text-align:\s*center/.test(order), '棒次沒有置中：' + order);
-  });
 }

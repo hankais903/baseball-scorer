@@ -83,7 +83,7 @@
             <div class="stadium-toolbar">
                 <span class="brand-ball" aria-hidden="true">⚾</span>
                 <div class="brand-text">
-                    <strong>棒球比賽紀錄</strong>
+                    <strong>棒球比賽紀錄<span id="app-version" class="brand-version"></span></strong>
                     <small>Baseball Scoring Tool</small>
                 </div>
             </div>
@@ -135,31 +135,25 @@
                         <div id="batter-last-ab"></div>
                     </div>
                 </div>
-                <!-- 接下來兩位打者，由 JS 填入 -->
-                <div id="next-batters" aria-label="接下來的打者">
-                    <div class="next-label">NEXT</div>
-                    <div class="next-item on-deck"></div>
-                    <div class="next-item in-hole"></div>
+                <!-- 出局數／局數／計時：放在打者卡旁邊（原本 NEXT 的位置）-->
+                <div id="status-bar">
+                    <div id="sbo-display">
+                         <div class="sbo-row">
+                            <span>OUT</span><div class="sbo-light"></div><div class="sbo-light"></div>
+                        </div>
+                    </div>
+                    <div id="inning-display">1局上</div>
+                    <button type="button" id="game-clock" aria-label="比賽經過時間，開賽後點一下可暫停或結束">00:00</button>
+                    <div id="clock-menu" class="modal-hidden">
+                        <button type="button" id="clock-pause-btn">暫停計時</button>
+                        <button type="button" id="clock-stop-btn">結束計時</button>
+                    </div>
                 </div>
             </div>
             <div class="main-actions-container">
                  <button type="button" id="undo-btn" class="main-action-btn">上一動 (復原)</button>
                  <button type="button" id="runner-action-btn" class="main-action-btn">壘間事件</button>
                  <button type="button" id="management-btn" class="main-action-btn">球員調度</button>
-            </div>
-            <!-- 出局數／局數／計時：獨立一列，不再疊在球場上 -->
-            <div id="status-bar">
-                <div id="sbo-display">
-                     <div class="sbo-row">
-                        <span>OUT</span><div class="sbo-light"></div><div class="sbo-light"></div>
-                    </div>
-                </div>
-                <div id="inning-display">1局上</div>
-                <button type="button" id="game-clock" aria-label="比賽經過時間，開賽後點一下可暫停或結束">00:00</button>
-                <div id="clock-menu" class="modal-hidden">
-                    <button type="button" id="clock-pause-btn">暫停計時</button>
-                    <button type="button" id="clock-stop-btn">結束計時</button>
-                </div>
             </div>
             <div id="game-state-container">
                 <div id="game-state-display" role="button" aria-label="紀錄打席">

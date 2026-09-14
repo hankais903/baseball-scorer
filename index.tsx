@@ -3,6 +3,8 @@
 declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
+// APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
+const APP_VERSION = 'v1.0';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -723,6 +725,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let offsetX = 0;
     let offsetY = 0;
     function init() {
+        const verEl = document.getElementById('app-version');
+        if (verEl) verEl.textContent = APP_VERSION;
         createLineupInputs();
         loadState();
         addEventListeners();
@@ -1882,7 +1886,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 選單會蓋住球場，所以在標題旁放一張小圖，隨時看得到剛才點在哪裡
             resultPanel.innerHTML =
                 `<div class="frp-title">${fieldMiniMap()}<span>落點：${zoneWord}${ballWord ? '　' + ballWord : ''}　選擇結果</span></div>`
-                + (ball ? `<button type="button" class="frp-back" data-back-ball="1">← 換球種</button>` : '')
+                + `<button type="button" class="frp-back" data-back-ball="1">← 回上一步</button>`
                 + section(main)
                 + (rest.length
                     ? `<button type="button" class="frp-more" data-more="1">其他結果（${rest.length}）</button>`
@@ -2604,10 +2608,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const teamLogoHTML = `<img src="${team.logo || DEFAULT_TEAM_LOGO_BASE64}" alt="${team.name}" class="scoreboard-team-logo">`;
             const shortName = (team.name || '').slice(0, TEAM_NAME_MAX);
             const teamCellContent = `<div class="scoreboard-team-cell">${teamLogoHTML}<span>${shortName}</span></div>`;
-            // 進攻中的那一隊，隊名欄反白（比整欄高亮好認，也不會跟局數欄打架）
+            // 進攻中的那一隊，總分（R 欄）反白
             const batting = gameState.started && !gameState.isGameOver
                 && ((gameState.isTop && teamKey === 'a') || (!gameState.isTop && teamKey === 'b'));
-            return `<tr><td class="team-col${batting ? ' team-batting' : ''}">${teamCellContent}</td>${scoreCells}<td class="rhe rhe-first total-col">${totalRuns}</td><td class="rhe">${team.hits}</td><td class="rhe">${team.errors}</td></tr>`;
+            return `<tr><td class="team-col">${teamCellContent}</td>${scoreCells}<td class="rhe rhe-first total-col${batting ? ' team-batting' : ''}">${totalRuns}</td><td class="rhe">${team.hits}</td><td class="rhe">${team.errors}</td></tr>`;
         }).join('');
         // 比分不再另闢一列，直接由計分板的 R 欄呈現；領先方加重
         const runsA = gameState.teams.a.score.reduce((a, b) => a + (b || 0), 0);
@@ -2781,7 +2785,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else {
             batterDisplayContainer.innerHTML = `<div id="batter-info-text"><div id="batter-main-info">請設定打序</div></div><div id="batter-last-ab"></div>`;
         }
-        renderNextBatters();
         renderPreviousHits(batter);
         renderFieldBatter();
         document.querySelectorAll('#sbo-display .sbo-row:nth-child(1) .sbo-light').forEach((l, i) => l.classList.toggle('o-on', i < outs));
@@ -3230,22 +3233,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 `<circle cx="${p.x}" cy="${p.y}" r="9"/>`
                 + `<text x="${p.x}" y="${p.y - 14}" text-anchor="middle">${label}</text>`;
             layer.appendChild(g);
-        });
-    }
-    // 打者卡旁邊的「NEXT」：接下來兩位打者的棒次與姓名
-    function renderNextBatters() {
-        const card = document.getElementById('next-batters');
-        if (!card) return;
-        const teamKey = gameState.isTop ? 'a' : 'b';
-        const team = gameState.teams[teamKey];
-        const batterIndex = gameState.currentBatterIndex[teamKey];
-        const items = card.querySelectorAll('.next-item');
-        items.forEach((item, n) => {
-            const i = (batterIndex + n + 1) % LINEUP_SIZE;
-            const spot = team.lineupSpots[i];
-            const player = spot ? getPlayerById(teamKey, spot.activePlayerId) : null;
-            item.innerHTML = `<span class="next-order">${i + 1}棒</span>` +
-                             `<span class="next-name">${player?.name || '—'}</span>`;
         });
     }
     function getCurrentBatter() {
@@ -4211,8 +4198,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (isAirDP) {
                             // 平飛：多半是離壘太遠回不去；高飛：多半是接殺後起跑被傳殺
                             toDestText = advancedPlayState.ballType === 'L'
-                                ? '離壘過遠回壘不及，被傳殺出局'
-                                : (last === '捕' ? '接殺後衝本壘，被傳殺出局' : '接殺後起跑進壘，被傳殺出局');
+                                ? '離壘過遠回壘不及'
+                                : (last === '捕' ? '接殺後衝本壘' : '接殺後起跑進壘');
                         }
                         const codeTail = chainTail(c);
                         // 飛球：第一個野手負責接殺打者，之後的傳球才是處理跑者

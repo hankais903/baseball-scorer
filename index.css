@@ -3117,61 +3117,11 @@ aside h2.panel-title { font-size: 1.6rem; }
 
 #batter-last-ab .ab-chip { padding: 0 4px; }
 
-/* NEXT：三段等高（NEXT／下一棒／再下一棒），段與段之間用淡線隔開 */
-#next-batters {
-    flex: 0 0 36%;
-    display: grid;
-    grid-template-rows: repeat(3, 1fr);
-    text-align: center;
-    padding: 0 8px;
-    background-color: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
+/* OUT／局數／計時：佔打者卡旁邊那一格 */
+#batter-row > #status-bar {
+    flex: 0 0 38%;
     min-width: 0;
 }
-
-#next-batters > * {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 0;
-}
-
-/* 棒次自己一格置中，姓名佔滿剩下的寬度，兩位打者才會對齊 */
-#next-batters .next-item {
-    display: grid;
-    grid-template-columns: 2.4em 1fr;
-    align-items: center;
-    gap: 4px;
-    border-top: 1px solid rgba(255, 255, 255, 0.13);
-    line-height: 1.25;
-}
-
-.next-label {
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    color: #7dd3fc;
-}
-
-.next-order {
-    font-size: 0.6rem;
-    font-weight: 700;
-    opacity: 0.7;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-}
-
-.next-name {
-    font-size: 0.82rem;
-    text-align: left;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.next-item.on-deck .next-name { font-weight: 700; }
-.next-item.in-hole { opacity: 0.62; }
 
 /* 比分改由計分板的 R 欄呈現，所以要看得出來 */
 #scoreboard .total-col {

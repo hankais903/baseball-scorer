@@ -291,15 +291,16 @@ class GameListUI {
                             cursor: pointer;
                             font-size: 0.85rem;
                         ">匯出</button>
-                        <button class="delete-game-btn" style="
+                        <button class="delete-game-btn"${isCurrent ? ' disabled title="這是正在記錄的比賽，不能刪除"' : ''} style="
                             padding: 6px 12px;
-                            background: #ef4444;
+                            background: ${isCurrent ? '#6b7280' : '#ef4444'};
                             color: white;
                             border: none;
                             border-radius: 4px;
-                            cursor: pointer;
+                            cursor: ${isCurrent ? 'not-allowed' : 'pointer'};
+                            opacity: ${isCurrent ? '0.5' : '1'};
                             font-size: 0.85rem;
-                        ">刪除</button>
+                        ">${isCurrent ? '使用中' : '刪除'}</button>
                     </div>
                 </div>
             </div>
@@ -340,25 +341,18 @@ class GameListUI {
         }
     }
 
-    // 刪除遊戲
+    // 刪除遊戲（正在記錄的那一場不給刪）
     deleteGame(gameId) {
-        const isCurrent = gameId === this.gameManager.currentGameId;
-        const message = isCurrent 
-            ? '確定要刪除目前的比賽嗎？此操作無法復原！'
-            : '確定要刪除這場比賽嗎？此操作無法復原！';
-
+        if (gameId === this.gameManager.currentGameId) {
+            this.gameManager.showNotification('這是正在記錄的比賽，不能刪除', 'error');
+            return;
+        }
         this.gameManager.showConfirmDialog(
-            message,
+            '確定要刪除這場比賽嗎？此操作無法復原！',
             () => {
                 if (this.gameManager.deleteGame(gameId)) {
                     this.refreshGameList();
                     this.updateStorageInfo();
-                    
-                    if (isCurrent) {
-                        // 觸發重置事件
-                        const event = new CustomEvent('reset-game');
-                        window.dispatchEvent(event);
-                    }
                 }
             }
         );

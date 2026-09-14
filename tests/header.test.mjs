@@ -175,18 +175,49 @@ export default async function (t) {
     t.assert(/\.pb-main\{[^}]*white-space:nowrap/.test(css), 'PLAY BALL 沒有禁止換行');
   });
 
-  // OUT／局數／計時改成球場上方獨立一列（左：OUT，中：局數，右：計時）
-  await t('OUT、局數、計時在同一列且左中右分開', async () => {
+  // 版號顯示在主頁標題右邊，每次交付都要往上加
+  await t('標題右邊有版號', async () => {
+    const { q } = await boot();
+    const el = q('#app-version');
+    t.assert(!!el, '標題旁沒有版號');
+    t.assert(/^v\d+(\.\d+)+$/.test(el.textContent.trim()), '版號格式不對：' + el.textContent);
+    t.assert(el.closest('.brand-text .brand-version, .brand-text') || el.closest('.stadium-toolbar'),
+      '版號沒有放在標題列裡');
+  });
+
+  // 反白的是分數（R 欄），不是隊名
+  await t('進攻中的那一隊反白的是分數', async () => {
+    const { window: w, q } = await boot();
+    click(w, q('#play-ball-btn'));
+    await new Promise(r => setTimeout(r, 150));
+    const rows = [...w.document.querySelectorAll('#scoreboard tbody tr')];
+    t.assert(rows[0].querySelector('td.total-col').classList.contains('team-batting'),
+      '上半局進攻方（客隊）的分數沒有反白');
+    t.assert(!rows[0].querySelector('td.team-col').classList.contains('team-batting'),
+      '隊名欄不該反白');
+    t.assert(!rows[1].querySelector('td.total-col').classList.contains('team-batting'),
+      '守備方的分數不該反白');
+    const fs = await import('node:fs');
+    const css = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css')).map(f => fs.readFileSync('dist/assets/' + f, 'utf8')).join('\n');
+    t.assert(/td\.total-col\.team-batting\{/.test(css), '樣式沒有跟著搬到分數欄');
+  });
+
+  // OUT／局數／計時搬到打者卡旁邊（原本 NEXT 的位置）：上排局數、下排 OUT 與計時
+  await t('OUT、局數、計時在打者卡旁邊那一格', async () => {
     const { q } = await boot();
     const bar = q('#status-bar');
-    t.assert(!!bar, '找不到 OUT／局數／計時那一列');
+    t.assert(!!bar, '找不到 OUT／局數／計時那一格');
+    t.assert(bar.parentElement.id === 'batter-row', '沒有放在打者卡旁邊：' + bar.parentElement.id);
+    t.assert(!q('#next-batters'), 'NEXT 應該已經移除');
     for (const id of ['sbo-display', 'inning-display', 'game-clock']) {
-      t.assert(!!bar.querySelector('#' + id), id + ' 不在那一列裡');
+      t.assert(!!bar.querySelector('#' + id), id + ' 不在那一格裡');
     }
     const fs = await import('node:fs');
     const css = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css')).map(f => fs.readFileSync('dist/assets/' + f, 'utf8')).join('\n');
     const rule = (css.match(/#status-bar\{[^}]*\}/g) || []).join(' ');
-    t.assert(/grid-template-columns:\s*1fr auto 1fr/.test(rule), '不是左中右三欄：' + rule);
+    t.assert(/grid-template-rows:\s*auto auto/.test(rule), '不是上下兩排：' + rule);
+    const inn = (css.match(/#status-bar #inning-display\{[^}]*\}/g) || []).join(' ');
+    t.assert(/grid-row:\s*1/.test(inn) && /grid-column:\s*1\s*\/\s*-1/.test(inn), '局數沒有自己一排：' + inn);
   });
 
   await t('上半局標▲、下半局標▼', async () => {

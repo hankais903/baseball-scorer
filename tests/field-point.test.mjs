@@ -88,14 +88,24 @@ export default async function (t) {
     t.assert(!plays.includes('滾地'), '高飛球不該列滾地出局：' + plays.join(','));
   });
 
-  await t('選錯球種可以按「換球種」回去', async () => {
+  await t('按「回上一步」回到打席選單', async () => {
     const { window: w, q } = await boot();
     startGame(w);
     clickZone(w, 'infield', 'B');
     const plays = mainPlays(w);
     t.assert(plays.includes('犧短'), '短打少了犧牲觸擊：' + plays.join(','));
-    click(w, q('#field-result-panel .frp-back'));
-    t.assert(w.document.querySelectorAll('#field-result-panel [data-ball]').length === 5, '沒有回到球種選單');
+    const back = q('#field-result-panel .frp-back');
+    t.assert(back.textContent.includes('回上一步'), '字樣不對：' + back.textContent);
+    click(w, back);
+    t.assert(w.document.querySelectorAll('#field-result-panel [data-ball]').length === 5, '沒有回到打席選單');
+    t.assert(q('#mf-mark').style.display === 'none', '回上一步應該把落點的紅點清掉');
+  });
+
+  await t('沒挑球種（直接標落點）也有「回上一步」', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    clickZone(w, 'outfield');                      // 預設走「不確定，直接標落點」
+    t.assert(!!q('#field-result-panel .frp-back'), '少了回上一步');
   });
 
   await t('「直接看全部結果」會列出所有結果', async () => {

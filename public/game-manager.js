@@ -4,6 +4,7 @@ class GameManager {
         this.STORAGE_KEY = 'baseball_games_v2';
         this.CURRENT_GAME_KEY = 'baseball_current_game_id';
         this.AUTO_SAVE_INTERVAL = 10000; // 10秒自動儲存
+        this.MAX_GAMES = 10;             // 最多留 10 場，超過就把最舊的丟掉（不會丟正在記的那場）
         this.autoSaveTimer = null;
         this.currentGameId = null;
         
@@ -49,6 +50,7 @@ class GameManager {
                 lastModified: new Date().toISOString(),
                 version: 2
             };
+            this.trimToLimit(games, gameId);
             const payload = JSON.stringify(games);
             // 判斷內容是否真的變動時要排除時間戳，否則每次都會被當成有變
             const { lastModified, timestamp, savedAt, ...compareData } = gameData || {};
@@ -100,20 +102,29 @@ class GameManager {
         return this.loadGame(this.currentGameId);
     }
 
-    // 刪除遊戲
+    // 只留最近的 MAX_GAMES 場，最舊的先丟；正在記的那場一定留著
+    trimToLimit(games, keepId) {
+        const ids = Object.keys(games);
+        if (ids.length <= this.MAX_GAMES) return games;
+        ids
+            .filter(id => id !== keepId && id !== this.currentGameId)
+            .sort((a, b) => new Date(games[a].lastModified || 0) - new Date(games[b].lastModified || 0))
+            .slice(0, ids.length - this.MAX_GAMES)
+            .forEach(id => { delete games[id]; });
+        return games;
+    }
+
+    // 刪除遊戲（正在記的那一場不給刪，刪了畫面會整個空掉）
     deleteGame(gameId) {
+        if (gameId === this.currentGameId) {
+            this.showNotification('這是正在記錄的比賽，不能刪除', 'error');
+            return false;
+        }
         try {
             const games = this.getAllGames();
             delete games[gameId];
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(games));
-            
-            // 如果刪除的是當前遊戲，清除當前ID
-            if (gameId === this.currentGameId) {
-                this.currentGameId = null;
-                localStorage.removeItem(this.CURRENT_GAME_KEY);
-            }
-            
-            this.showNotification('✓ 遊戲已刪除', 'success');
+            this.showNotification('✓ 比賽已刪除', 'success');
             return true;
         } catch (error) {
             console.error('刪除遊戲失敗:', error);
