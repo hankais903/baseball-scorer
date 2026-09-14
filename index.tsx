@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.1';
+const APP_VERSION = 'v2.2';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -1109,7 +1109,46 @@ document.addEventListener('DOMContentLoaded', () => {
         createLineupInputs();
         attachTeamSettingsListeners();
         render();
+        pushToGameList();
         return true;
+    }
+
+    // 把一場存起來的比賽直接讀進記憶體。
+    // **絕對不要用 location.reload()**：預覽檔是把整個 APP 塞在 iframe 裡的，
+    // 重新整理那個 iframe 會得到一張空白文件，畫面整片變白而且回不去（踩過一次）。
+    function adoptSavedGame(data) {
+        if (!data) return false;
+        const { id, lastModified, version, ...state } = data as any;
+        try { localStorage.setItem('baseballGameState', JSON.stringify(state)); }
+        catch { return false; }
+        loadState();                 // 沿用原本的讀檔流程，舊存檔的補值與紙條都會處理好
+        gameStateHistory = [];
+        createLineupInputs();
+        attachTeamSettingsListeners();
+        render();
+        return true;
+    }
+    // 從頭開始（清除全部資料之後用），同樣不重新整理
+    // 立刻寫進比賽紀錄（不然要等自動儲存那 10 秒，列表上會看不到剛建立的比賽）
+    function pushToGameList() {
+        const gm = (window as any).baseballGameManager;
+        if (!gm) return;
+        try { gm.saveCurrentGame(JSON.parse(localStorage.getItem('baseballGameState') || 'null')); }
+        catch { /* 存不進去就等自動儲存 */ }
+    }
+    function restartApp() {
+        loadMyTeam();
+        loadSettings();
+        gameStateHistory = [];
+        resetReplayLog();
+        loadState();
+        createLineupInputs();
+        attachTeamSettingsListeners();
+        render();
+        leaveGameView();
+        document.getElementById('onboard-screen')?.classList.add('hidden');
+        if (!myTeam) { obPlayers = []; showOnboard(0); }
+        else showShell('home');
     }
 
     // --- 比賽中的畫面：底部分頁藏起來，紀錄改成從下面滑出 ---
@@ -1207,6 +1246,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function init() {
+        // 舊的比賽列表視窗原本靠 location.reload() 載入，在預覽檔裡會變成空白頁；
+        // 這裡把它改接到就地載入
+        // 自動儲存原本是「從畫面反推比賽狀態」，那樣存進比賽紀錄的東西是不完整的。
+        // 直接把真正的存檔內容給它。
+        (window as any).__getGameState = () => {
+            try { return JSON.parse(localStorage.getItem('baseballGameState') || 'null'); }
+            catch { return null; }
+        };
+        (window as any).__adoptSavedGame = (data) => {
+            if (!adoptSavedGame(data)) return false;
+            enterGameView();
+            return true;
+        };
         const verEl = document.getElementById('app-version');
         if (verEl) verEl.textContent = APP_VERSION;
         loadMyTeam();
@@ -1926,7 +1978,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // === 五分頁 ===
-        document.getElementById('home-btn')?.addEventListener('click', () => { tapFeedback(); leaveGameView(); showShell(); });
+        // 回主畫面一律停在首頁：留在「比賽」分頁會看到已經用過的建立流程，很怪
+        document.getElementById('home-btn')?.addEventListener('click', () => { tapFeedback(); leaveGameView(); showShell('home'); });
         document.getElementById('shell-nav')?.addEventListener('click', (e) => {
             const btn = (e.target as HTMLElement).closest('.shell-tab') as HTMLElement;
             if (!btn) return;
@@ -2015,7 +2068,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const item = (e.target as HTMLElement).closest('.gl-item') as HTMLElement;
             if (!item) return;
             tapFeedback();
-            window.dispatchEvent(new CustomEvent('load-game', { detail: { gameId: item.dataset.game } }));
+            const gm = (window as any).baseballGameManager;
+            if (!adoptSavedGame(gm?.loadGame(item.dataset.game))) { alert('讀不到這場比賽。'); return; }
+            gm?.switchToGame(item.dataset.game);
+            enterGameView();
         });
 
         // === 球隊分頁 ===
@@ -2139,7 +2195,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!parsed || !parsed.data) throw new Error('格式不對');
                 if (!confirm('還原備份會覆蓋現在的球隊與比賽資料，確定嗎？')) return;
                 Object.entries(parsed.data).forEach(([k, v]) => localStorage.setItem(k, v as string));
-                location.reload();
+                restartApp();
+                alert('已還原備份。');
             }
             catch { alert('還原失敗：這個檔案不是 Diamond Log 的備份。'); }
         });
@@ -2148,7 +2205,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('真的要清除全部資料嗎？')) return;
             Object.keys(localStorage).filter(k => k.startsWith('baseball') || k === SAVED_ROSTERS_KEY)
                 .forEach(k => localStorage.removeItem(k));
-            location.reload();
+            myTeam = null;
+            gameState = getInitialGameState();
+            restartApp();
         });
 
         cancelResetBtn.addEventListener('click', () => { closeModal(confirmModal); });
@@ -2176,6 +2235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             logEvent('比賽開始。');
             captureStartSnapshot();     // 重算的起點
             saveState();
+            pushToGameList();
             render();
             startGameClock();
         });

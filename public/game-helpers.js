@@ -24,11 +24,11 @@ function initHelperFunctions() {
         try {
             console.log('正在載入遊戲...', gameData);
             
-            // 觸發頁面重新整理並載入數據
-            // 暫時使用 localStorage 傳遞數據
+            // 主程式提供的就地載入。**不要用 location.reload()**：
+            // 預覽檔把整個 APP 放在 iframe 裡，重新整理會得到一張空白文件（踩過一次）
+            if (window.__adoptSavedGame) return window.__adoptSavedGame(gameData);
             localStorage.setItem('temp_game_load', JSON.stringify(gameData));
             location.reload();
-            
             return true;
         } catch (error) {
             console.error('載入遊戲狀態失敗:', error);

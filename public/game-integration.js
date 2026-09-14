@@ -31,7 +31,9 @@
         // 監聽自動儲存事件
         window.addEventListener('autosave-trigger', () => {
             // 從主程式獲取當前遊戲狀態
-            const gameState = window.getCurrentGameState ? window.getCurrentGameState() : null;
+            // 優先用主程式提供的真正狀態；從畫面反推那一套只是後備
+            const gameState = window.__getGameState ? window.__getGameState()
+                : (window.getCurrentGameState ? window.getCurrentGameState() : null);
             if (gameState) {
                 gameManager.saveCurrentGame(gameState);
             }
@@ -112,7 +114,9 @@
         // Ctrl/Cmd + S: 手動儲存
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            const gameState = window.getCurrentGameState ? window.getCurrentGameState() : null;
+            // 優先用主程式提供的真正狀態；從畫面反推那一套只是後備
+            const gameState = window.__getGameState ? window.__getGameState()
+                : (window.getCurrentGameState ? window.getCurrentGameState() : null);
             if (gameState && window.baseballGameManager) {
                 window.baseballGameManager.saveCurrentGame(gameState);
                 window.baseballGameManager.showNotification('✓ 手動儲存成功', 'success');
@@ -131,7 +135,9 @@
     // 頁面可見性變化時儲存
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
-            const gameState = window.getCurrentGameState ? window.getCurrentGameState() : null;
+            // 優先用主程式提供的真正狀態；從畫面反推那一套只是後備
+            const gameState = window.__getGameState ? window.__getGameState()
+                : (window.getCurrentGameState ? window.getCurrentGameState() : null);
             if (gameState && window.baseballGameManager) {
                 window.baseballGameManager.saveCurrentGame(gameState);
             }

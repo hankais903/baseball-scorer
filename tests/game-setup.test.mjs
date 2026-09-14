@@ -161,6 +161,39 @@ export default async function (t) {
     t.assert(/body\.playing\s+#event-log-container\s*\{[^}]*position:\s*fixed/.test(css), '紀錄面板不是固定在畫面下方');
   });
 
+  // 預覽檔把 APP 放在 iframe 裡，location.reload() 會把它洗成空白頁，
+  // 所以讀取比賽、還原備份、清除資料都不能重新整理（踩過一次：點比賽紀錄整片變白）
+  await t('讀取比賽不會重新整理整頁，直接讀進來', async () => {
+    const { window: w, q } = await withTeam();
+    await createGame(w, q, { opp: '海盜' });
+    click(w, q('#play-ball-btn'));
+    await sleep(400);
+    const gm = w.baseballGameManager;
+    gm.saveCurrentGame(JSON.parse(w.localStorage.getItem('baseballGameState')));
+    const id = gm.currentGameId;
+    // 回主畫面，再從比賽紀錄點回這一場
+    click(w, q('#home-btn'));
+    let reloaded = false;
+    try { w.location.reload = () => { reloaded = true; }; } catch { /* 改不了就算了 */ }
+    const item = q(`#home-game-list .gl-item[data-game="${id}"]`);
+    t.assert(!!item, '比賽紀錄裡找不到剛才那一場');
+    click(w, item);
+    t.assert(!reloaded, '讀取比賽時重新整理了整頁（預覽檔會變成空白）');
+    t.assert(w.document.body.classList.contains('playing'), '沒有進到比賽畫面');
+    t.assert(!q('#main-shell').classList.contains('hidden') === false, '主畫面沒有收起來');
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.teams.a.name === '新莊' && gs.started === true, '讀進來的比賽不對：' + gs.teams.a.name);
+  });
+
+  await t('程式碼裡不再用重新整理來載入比賽', async () => {
+    const fs = await import('fs');
+    const js = fs.readFileSync('dist/game-helpers.js', 'utf8');
+    t.assert(js.includes('__adoptSavedGame'), '舊的載入流程沒有接到就地載入');
+    const dir = 'dist/assets';
+    const main = fs.readdirSync(dir).filter(f => f.endsWith('.js')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    t.assert(!/location\.reload/.test(main), '主程式裡還留著 location.reload()');
+  });
+
   await t('點標題列回主畫面，比賽畫面的狀態會收乾淨', async () => {
     const { window: w, q } = await withTeam();
     await createGame(w, q);
@@ -170,5 +203,20 @@ export default async function (t) {
     t.assert(!w.document.body.classList.contains('sheet-open'), '紀錄面板沒有一起收起來');
     t.assert(q('#game-log-btn').classList.contains('hidden'), '紀錄按鈕沒有收起來');
     t.assert(!q('#main-shell').classList.contains('hidden'), '沒有回到主畫面');
+    // 停在「比賽」分頁會看到已經用過的建立流程，而且首頁的比賽紀錄會被藏住
+    const shown = [...w.document.querySelectorAll('#main-shell .shell-page')].filter(s => !s.classList.contains('hidden'));
+    t.assert(shown.length === 1 && shown[0].id === 'page-home', '回主畫面應該停在首頁：' + shown.map(s => s.id).join());
+  });
+
+  await t('建立比賽後立刻出現在比賽紀錄，不用等自動儲存', async () => {
+    const { window: w, q } = await withTeam();
+    for (let i = 0; i < 40 && !w.baseballGameManager; i++) await sleep(50);   // 等多場比賽的模組起來
+    t.assert(!!w.baseballGameManager, '比賽管理模組沒有啟動');
+    await createGame(w, q, { opp: '海盜' });
+    click(w, q('#home-btn'));
+    const items = w.document.querySelectorAll('#home-game-list .gl-item');
+    t.assert(items.length === 1, '比賽紀錄裡沒有剛建立的那一場：' + items.length);
+    t.assert(items[0].textContent.includes('新莊') && items[0].textContent.includes('海盜'),
+      '紀錄上沒有寫出兩隊：' + items[0].textContent.replace(/\s+/g, ' '));
   });
 }

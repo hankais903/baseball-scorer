@@ -8,7 +8,7 @@
 ```bash
 npm install                 # 第一次
 npm run build               # Vite 建置到 dist/（測試跑的是 dist/，改完一定要先 build）
-npm test                    # 304+ 項回歸測試（jsdom），約 3 分鐘
+npm test                    # 307+ 項回歸測試（jsdom），約 3 分鐘
 npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自動 build）
 ```
 交付前必須：`npm run build && npm test` 全綠。每修一個 bug 就在 `tests/` 加一條釘住它的測試，套件名稱在 `tests/run.mjs` 註冊。
@@ -102,7 +102,15 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
   會以它為基準，滑出來的位置整個跑掉（已有測試釘住）。
 - 「紀錄」鍵放在標題列裡（`.stadium-toolbar` 改成容器，左邊 `.brand-btn` 回主畫面、右邊 `#game-log-btn`）。
   放到標題列外面會多吃一整列、球場少 38px。
-- **還沒做（下一批）**：成績分頁、首頁比賽紀錄的載入細節。
+- **絕對不要用 `location.reload()`**：預覽檔是把整個 APP 塞在 iframe 裡（`doc.write`），
+  重新整理那個 iframe 會得到一張空白文件，畫面整片變白而且回不去。踩過一次（點比賽紀錄整片變白）。
+  讀取比賽走 `adoptSavedGame()`、清除／還原資料走 `restartApp()`，都是就地重來；
+  `game-helpers.js` 的 `loadGameState` 也改接到 `window.__adoptSavedGame`。已有測試釘住（主程式不得出現 `location.reload`）。
+- 自動儲存原本是 `extractGameStateFromDOM()`「從畫面反推比賽狀態」，存進比賽紀錄的東西不完整。
+  改成用 `window.__getGameState()` 直接讀真正的存檔；建立比賽與按 PLAY BALL 時另外 `pushToGameList()` 立刻寫入，
+  不用等自動儲存那 10 秒。
+- 點標題列回主畫面一律停在**首頁**（留在「比賽」分頁會看到已經用過的建立流程，首頁的紀錄列表也會被藏住）。
+- **還沒做（下一批）**：成績分頁。
 
 ## 舊的首頁（啟動畫面，已被 #main-shell 取代）
 - `#home-screen`：大 LOGO ＋ 四塊（繼續比賽／開始新比賽／比賽紀錄／我的球隊）。
