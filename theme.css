@@ -1351,21 +1351,21 @@ body.home-open #mobile-nav { display: none; }
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 14px;
+    gap: 12px;
 }
 
 #home-logo {
     display: block;
-    width: min(78%, 300px);
+    width: min(94%, 360px);
     height: auto;
-    margin: 0 auto;
-    filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55));
+    margin: 0 auto -4px;
+    filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.6));
 }
 
 .home-actions {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .home-card {
@@ -1373,9 +1373,9 @@ body.home-open #mobile-nav { display: none; }
     align-items: center;
     gap: 10px;
     width: 100%;
-    min-height: 60px;
-    padding: 12px 16px;
-    border-radius: 14px;
+    min-height: 50px;
+    padding: 8px 14px;
+    border-radius: 12px;
     border: 1px solid var(--th-line, rgba(255, 255, 255, 0.14));
     background: rgba(13, 30, 51, 0.86);
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
@@ -1407,27 +1407,27 @@ body.home-open #mobile-nav { display: none; }
 }
 
 .home-card-label {
-    font-size: 1.02rem;
+    font-size: 0.94rem;
     font-weight: 800;
     letter-spacing: 0.02em;
 }
 
 .home-card-sub {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     color: rgba(214, 230, 248, 0.68);
     line-height: 1.35;
 }
 
 /* 最常按的那一顆：橘色，跟 LOGO 同一個調 */
 .home-card-main {
-    min-height: 76px;
+    min-height: 62px;
     border-color: rgba(244, 124, 32, 0.85);
     background: linear-gradient(180deg, #f0762a, #d75d15);
     box-shadow: 0 8px 22px rgba(215, 93, 21, 0.38);
     color: #fff;
 }
 
-.home-card-main .home-card-label { font-size: 1.2rem; }
+.home-card-main .home-card-label { font-size: 1.08rem; }
 .home-card-main .home-card-sub { color: rgba(255, 255, 255, 0.9); font-weight: 600; }
 .home-card-main::after { border-color: rgba(255, 255, 255, 0.8); }
 
