@@ -79,14 +79,17 @@
                 <span id="edit-mode-text"></span>
                 <button type="button" id="edit-mode-cancel">取消修改</button>
             </div>
-            <!-- 上方標題列：點一下回首頁 -->
-            <button type="button" class="stadium-toolbar" id="home-btn" aria-label="回首頁">
-                <span class="brand-ball" aria-hidden="true">⚾</span>
-                <div class="brand-text">
-                    <strong>棒球比賽紀錄<span id="app-version" class="brand-version"></span></strong>
-                    <small>Baseball Scoring Tool</small>
-                </div>
-            </button>
+            <!-- 上方標題列：左邊點一下回首頁，右邊「紀錄」只有比賽中才出現 -->
+            <div class="stadium-toolbar">
+                <button type="button" class="brand-btn" id="home-btn" aria-label="回首頁">
+                    <span class="brand-ball" aria-hidden="true">⚾</span>
+                    <span class="brand-text">
+                        <strong>棒球比賽紀錄<span id="app-version" class="brand-version"></span></strong>
+                        <small>Baseball Scoring Tool</small>
+                    </span>
+                </button>
+                <button type="button" id="game-log-btn" class="hidden">紀錄</button>
+            </div>
             <header id="game-info">
                 <div id="game-meta-row">
                     <!-- 球場：可直接打字，右邊的箭頭會列出用過的球場 -->
@@ -212,6 +215,7 @@
 
         <!-- Right Panel: Event Log -->
         <aside id="event-log-container">
+            <button type="button" id="log-sheet-close" class="hidden" aria-label="收起紀錄"></button>
             <h2 class="panel-title">事件及記錄</h2>
             <div id="log-actions" class="top-actions-row">
                 <button type="button" id="export-log-btn">匯出紀錄</button>
@@ -495,16 +499,64 @@
                 </div>
             </section>
 
-            <!-- 比賽 -->
+            <!-- 比賽：建立比賽的三步 -->
             <section class="shell-page hidden" id="page-game">
-                <h2 class="shell-title">比賽</h2>
-                <button type="button" id="game-new" class="home-card home-card-main">
-                    <span class="home-card-text">
-                        <span class="home-card-label">開始新比賽</span>
-                        <span class="home-card-sub">設定比賽資訊與先發名單</span>
-                    </span>
-                </button>
-                <p class="shell-hint">下一批會把這裡換成「比賽時間／球場／天氣／先攻後攻 → 對手名單 → 先發名單」的流程。</p>
+                <div class="gs-head">
+                    <button type="button" id="gs-back" class="gs-back hidden" aria-label="上一步">‹</button>
+                    <h2 class="shell-title" id="gs-title">建立比賽</h2>
+                    <span class="gs-count" id="gs-count">1 / 3</span>
+                </div>
+
+                <!-- 1. 比賽資訊 -->
+                <div class="gs-step" data-gstep="1">
+                    <div class="team-rows">
+                        <label class="team-row"><span class="team-row-label">日期</span>
+                            <input type="date" id="gs-date"></label>
+                        <label class="team-row"><span class="team-row-label">時間</span>
+                            <input type="time" id="gs-time"></label>
+                        <label class="team-row"><span class="team-row-label">球場</span>
+                            <input type="text" id="gs-stadium" maxlength="20" placeholder="例：新莊球場"></label>
+                        <label class="team-row"><span class="team-row-label">天氣</span>
+                            <select id="gs-weather">
+                                <option value="sunny">☀ 晴</option>
+                                <option value="cloudy">☁ 陰</option>
+                                <option value="rainy">☂ 雨</option>
+                            </select></label>
+                        <label class="team-row"><span class="team-row-label">對手隊名</span>
+                            <input type="text" id="gs-opp-name" maxlength="5" placeholder="最多 5 字"></label>
+                    </div>
+                    <div class="gs-side">
+                        <span class="gs-side-label">我方</span>
+                        <div class="gs-side-pick">
+                            <button type="button" class="gs-side-btn active" data-side="top">先攻（客隊）</button>
+                            <button type="button" class="gs-side-btn" data-side="bottom">後攻（主隊）</button>
+                        </div>
+                    </div>
+                    <button type="button" class="ob-primary" id="gs-to-opp">下一頁：對手名單</button>
+                </div>
+
+                <!-- 2. 對手名單 -->
+                <div class="gs-step hidden" data-gstep="2">
+                    <p class="sub-note">填對手的先發九人與投手，兩隊的成績才記得完整。沒填名字的會用「對手＋號碼」。</p>
+                    <label class="team-row" id="gs-opp-load-row"><span class="team-row-label">常用對手</span>
+                        <select id="gs-opp-load"></select></label>
+                    <div id="gs-opp-list"></div>
+                    <button type="button" class="ob-add" id="gs-opp-add">＋ 新增球員</button>
+                    <button type="button" class="ob-primary" id="gs-to-lineup">下一頁：先發名單</button>
+                </div>
+
+                <!-- 3. 我方先發名單 -->
+                <div class="gs-step hidden" data-gstep="3">
+                    <p class="sub-note">從常用陣容帶入，這一場要調整就直接改，不會動到常用陣容。</p>
+                    <label class="team-row"><span class="team-row-label">帶入陣容</span>
+                        <select id="gs-lineup-pick"></select></label>
+                    <label class="team-row"><span class="team-row-label">啟用 DH</span>
+                        <input type="checkbox" id="gs-dh" class="set-switch"></label>
+                    <div class="lu-spots" id="gs-spots"></div>
+                    <label class="team-row" id="gs-pitcher-row"><span class="team-row-label">先發投手</span>
+                        <select id="gs-pitcher"></select></label>
+                    <button type="button" class="ob-primary" id="gs-create">建立比賽</button>
+                </div>
             </section>
 
             <!-- 成績（預留） -->

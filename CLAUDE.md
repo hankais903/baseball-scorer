@@ -8,7 +8,7 @@
 ```bash
 npm install                 # 第一次
 npm run build               # Vite 建置到 dist/（測試跑的是 dist/，改完一定要先 build）
-npm test                    # 291+ 項回歸測試（jsdom），約 3 分鐘
+npm test                    # 304+ 項回歸測試（jsdom），約 3 分鐘
 npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自動 build）
 ```
 交付前必須：`npm run build && npm test` 全綠。每修一個 bug 就在 `tests/` 加一條釘住它的測試，套件名稱在 `tests/run.mjs` 註冊。
@@ -90,9 +90,19 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - `#main-shell` 是五分頁主畫面（首頁／球隊／比賽／成績／設定），疊在 APP 上面，
   `z-index: 90`、`body.shell-open` 會把 `#app-container` 藏起來——規則與舊的首頁相同，兩條都有測試釘住。
 - 設定存在 `baseball_settings`：語言、比賽局數、延長上限、預設 DH、點擊震動；另有備份／還原／清除全部資料。
-- **還沒做（下一批）**：比賽分頁的賽前設定流程（時間／球場／天氣／先攻後攻 → 對手名單 → 先發名單）、
-  比賽中的獨立畫面（底部分頁藏起來）、從下面滑出的紀錄面板、成績分頁。
-  對手球隊的決定：**建立比賽時要填對手名單**（兩隊都記完整成績，戰況表與正式記錄表照舊）。
+- **建立比賽是三步**（`#page-game`）：比賽資訊（日期／時間／球場／天氣／對手隊名／我方先攻或後攻）
+  → 對手名單（預設十列＝九棒＋投手，沒填名字用「對手01」；存進 `baseball_opponents`，下次可帶入）
+  → 我方先發（從常用陣容帶入，改了不會動到常用陣容；關掉 DH 時第九棒就是投手）。
+  `buildTeamState()` 把資料鋪成計分引擎要的格式：先發九人放 roster[0..8]、投手放 roster[24]（DH 關掉時改用 roster[8]），
+  其餘的人依序進板凳（跳過 24）。**我方先攻＝客隊 a，後攻＝主隊 b。**
+- **比賽中是獨立畫面**（`body.playing`）：底部分頁全部藏起來，球場因此高出約 60px。
+  紀錄改成從下面滑出（`body.sheet-open`），面板就是原本那個 `#event-log-container` 用 CSS 換位置，
+  所以即時事件／戰況表／兩隊成績全部照舊、事件也不用搬 DOM。
+  **`body.playing` 一定要把 `#app-container` 的 transform 關掉**，否則裡面 `position:fixed` 的面板
+  會以它為基準，滑出來的位置整個跑掉（已有測試釘住）。
+- 「紀錄」鍵放在標題列裡（`.stadium-toolbar` 改成容器，左邊 `.brand-btn` 回主畫面、右邊 `#game-log-btn`）。
+  放到標題列外面會多吃一整列、球場少 38px。
+- **還沒做（下一批）**：成績分頁、首頁比賽紀錄的載入細節。
 
 ## 舊的首頁（啟動畫面，已被 #main-shell 取代）
 - `#home-screen`：大 LOGO ＋ 四塊（繼續比賽／開始新比賽／比賽紀錄／我的球隊）。

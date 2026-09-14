@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.0';
+const APP_VERSION = 'v2.1';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -935,6 +935,202 @@ document.addEventListener('DOMContentLoaded', () => {
         if (about) about.textContent = `Diamond Log ${APP_VERSION}`;
     }
 
+    // ======================================================================
+    // 建立比賽（三步）：比賽資訊 → 對手名單 → 我方先發名單
+    // ======================================================================
+    const OPPONENTS_KEY = 'baseball_opponents';
+    let gsStep = 1;
+    let gsSide = 'top';                 // 我方先攻（客隊）或後攻（主隊）
+    let gsOpp: any[] = [];              // 對手名單
+    let gsLineup: any = null;           // 我方這一場的先發
+
+    const readOpponents = () => { try { return JSON.parse(localStorage.getItem(OPPONENTS_KEY) || '[]'); } catch { return []; } };
+    const oppName = (p, i) => (p && p.name || '').trim() || '對手' + String(i + 1).padStart(2, '0');
+
+    function resetGameSetup() {
+        gsStep = 1;
+        gsSide = 'top';
+        gsOpp = Array.from({ length: 10 }, () => blankMember());
+        const lus = (myTeam && myTeam.lineups) || [];
+        gsLineup = {
+            useDH: lus[0] ? !!lus[0].useDH : !!appSettings.dh,
+            spots: lus[0] ? [...(lus[0].spots || Array(9).fill(''))] : Array(9).fill(''),
+            pitcherId: lus[0] ? lus[0].pitcherId : '',
+            from: lus[0] ? lus[0].id : '',
+        };
+    }
+    function renderGameSetup() {
+        const title = document.getElementById('gs-title');
+        const count = document.getElementById('gs-count');
+        if (title) title.textContent = ['', '建立比賽', '對手名單', '我方先發'][gsStep];
+        if (count) count.textContent = `${gsStep} / 3`;
+        document.getElementById('gs-back')?.classList.toggle('hidden', gsStep === 1);
+        document.querySelectorAll('#page-game .gs-step').forEach(s => {
+            s.classList.toggle('hidden', Number((s as HTMLElement).dataset.gstep) !== gsStep);
+        });
+        if (gsStep === 1) {
+            const d = document.getElementById('gs-date') as HTMLInputElement;
+            if (d && !d.value) d.value = new Date().toISOString().split('T')[0];
+            document.querySelectorAll('.gs-side-btn').forEach(b => {
+                b.classList.toggle('active', (b as HTMLElement).dataset.side === gsSide);
+            });
+        }
+        if (gsStep === 2) renderOppList();
+        if (gsStep === 3) renderStarters();
+    }
+    function renderOppList() {
+        const sel = document.getElementById('gs-opp-load') as HTMLSelectElement;
+        const saved = readOpponents();
+        if (sel) {
+            sel.innerHTML = '<option value="">－ 不帶入 －</option>'
+                + saved.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+            document.getElementById('gs-opp-load-row')?.classList.toggle('hidden', !saved.length);
+        }
+        const box = document.getElementById('gs-opp-list');
+        if (!box) return;
+        box.innerHTML = gsOpp.map((p, i) => `
+            <div class="mp-row" data-i="${i}">
+                <input type="text" class="mp-jersey" value="${p.jersey || ''}" inputmode="numeric" maxlength="3" placeholder="${i + 1}" aria-label="背號">
+                <input type="text" class="mp-name" value="${p.name || ''}" maxlength="10" placeholder="${oppName(p, i)}" aria-label="姓名">
+                <select class="mp-pos" aria-label="守位">${POS_OPTIONS(p.pos)}</select>
+                <button type="button" class="mp-del" aria-label="刪除">×</button>
+            </div>`).join('');
+    }
+    function collectOppList() {
+        document.querySelectorAll('#gs-opp-list .mp-row').forEach(row => {
+            const i = Number((row as HTMLElement).dataset.i);
+            gsOpp[i].jersey = (row.querySelector('.mp-jersey') as HTMLInputElement).value.trim();
+            gsOpp[i].name = (row.querySelector('.mp-name') as HTMLInputElement).value.trim();
+            gsOpp[i].pos = (row.querySelector('.mp-pos') as HTMLSelectElement).value;
+        });
+    }
+    function renderStarters() {
+        const players = (myTeam && myTeam.players) || [];
+        const lus = (myTeam && myTeam.lineups) || [];
+        const pick = document.getElementById('gs-lineup-pick') as HTMLSelectElement;
+        if (pick) {
+            pick.innerHTML = '<option value="">－ 自己排 －</option>'
+                + lus.map(l => `<option value="${l.id}"${l.id === gsLineup.from ? ' selected' : ''}>${l.name || '未命名'}</option>`).join('');
+        }
+        const dh = document.getElementById('gs-dh') as HTMLInputElement;
+        if (dh) dh.checked = !!gsLineup.useDH;
+        const opt = (sel) => '<option value="">－</option>' + players.map((p, i) =>
+            `<option value="${p._id}"${p._id === sel ? ' selected' : ''}>${p.jersey ? p.jersey + '　' : ''}${memberName(p, i)}</option>`).join('');
+        const spots = document.getElementById('gs-spots');
+        if (spots) {
+            spots.innerHTML = Array.from({ length: 9 }, (_, i) => `
+                <label class="lu-spot"><span>${i + 1}棒</span>
+                    <select data-gspot="${i}">${opt(gsLineup.spots[i])}</select></label>`).join('');
+        }
+        const pit = document.getElementById('gs-pitcher') as HTMLSelectElement;
+        if (pit) pit.innerHTML = opt(gsLineup.pitcherId);
+        // DH 關掉時投手自己打擊，第 9 棒就是投手，不需要另一個欄位
+        document.getElementById('gs-pitcher-row')?.classList.toggle('hidden', !gsLineup.useDH);
+    }
+
+    // 把一隊的資料鋪進計分引擎要的格式（先發九人、投手、板凳）
+    function buildTeamState(key: 'a' | 'b', info, order: any[], pitcherSrc, useDH: boolean, bench: any[]) {
+        const t = createDefaultTeamState(key);
+        t.name = (info.shortName || info.name || '').slice(0, TEAM_NAME_MAX) || (key === 'a' ? '客隊' : '主隊');
+        if (info.color) t.color = info.color;
+        if (info.logo) t.logo = info.logo;
+        t.useDH = useDH;
+        const fill = (slot, src, fallbackName, fallbackJersey) => {
+            slot.jersey = (src && src.jersey) || fallbackJersey;
+            slot.name = (src && (src.name || '').trim()) || fallbackName;
+            if (src && src.pos) slot.pos = src.pos;
+            if (src && src.photo) slot.photo = src.photo;
+        };
+        order.forEach((src, i) => {
+            fill(t.roster[i], src, `${t.name}${String(i + 1).padStart(2, '0')}`, String(i + 1).padStart(2, '0'));
+        });
+        if (useDH) {
+            const pit = t.roster[PITCHER_ROSTER_INDEX];
+            fill(pit, pitcherSrc, `${t.name}投手`, '10');
+            pit.pos = 'P';
+            t.pitchers[0]._id = pit._id;
+            t.pitchers[0].name = pit.name;
+            t.activePitcherId = pit._id;
+        }
+        else {
+            // 投手自己打擊：第 9 棒就是投手
+            const pit = t.roster[8];
+            pit.pos = 'P';
+            t.roster[PITCHER_ROSTER_INDEX].name = '';
+            t.roster[PITCHER_ROSTER_INDEX].jersey = '';
+            t.pitchers[0]._id = pit._id;
+            t.pitchers[0].name = pit.name;
+            t.activePitcherId = pit._id;
+        }
+        // 其餘的人放板凳（跳過投手那一格）
+        let slot = LINEUP_SIZE;
+        bench.forEach(src => {
+            while (slot === PITCHER_ROSTER_INDEX) slot++;
+            if (slot >= ROSTER_SIZE) return;
+            fill(t.roster[slot], src, '', '');
+            slot++;
+        });
+        return t;
+    }
+
+    function createGameFromSetup() {
+        if (!myTeam) return false;
+        const players = myTeam.players || [];
+        const byId = id => players.find(p => p._id === id);
+        const order = gsLineup.spots.map(id => byId(id));
+        if (order.some(p => !p)) { alert('先發九棒還沒排完，每一棒都要指定球員。'); return false; }
+        if (gsLineup.useDH && !byId(gsLineup.pitcherId)) { alert('請選先發投手。'); return false; }
+        const used = new Set(gsLineup.spots.concat(gsLineup.useDH ? [gsLineup.pitcherId] : []));
+        const bench = players.filter(p => !used.has(p._id));
+        const oppInfo = { name: (document.getElementById('gs-opp-name') as HTMLInputElement).value.trim() || '對手' };
+        const oppOrder = gsOpp.slice(0, 9).map((p, i) => ({ ...p, name: oppName(p, i) }));
+        const oppPitcher = gsOpp[9] ? { ...gsOpp[9], name: oppName(gsOpp[9], 9) } : null;
+        const oppBench = gsOpp.slice(10);
+
+        const mine = () => buildTeamState(gsSide === 'top' ? 'a' : 'b', myTeam, order, byId(gsLineup.pitcherId), gsLineup.useDH, bench);
+        const theirs = () => buildTeamState(gsSide === 'top' ? 'b' : 'a', oppInfo, oppOrder, oppPitcher, true, oppBench);
+
+        gameState = getInitialGameState();
+        if (gsSide === 'top') { gameState.teams.a = mine(); gameState.teams.b = theirs(); }
+        else { gameState.teams.b = mine(); gameState.teams.a = theirs(); }
+        gameState.gameDate = (document.getElementById('gs-date') as HTMLInputElement).value || gameState.gameDate;
+        gameState.stadium = (document.getElementById('gs-stadium') as HTMLInputElement).value.trim();
+        gameState.weather = (document.getElementById('gs-weather') as HTMLSelectElement).value;
+        // 常用對手：下次可以直接帶入
+        if (oppInfo.name !== '對手') {
+            const saved = readOpponents().filter(o => o.name !== oppInfo.name);
+            saved.unshift({ id: 'opp_' + Date.now(), name: oppInfo.name, players: gsOpp.filter(p => p.name || p.jersey) });
+            try { localStorage.setItem(OPPONENTS_KEY, JSON.stringify(saved.slice(0, 10))); } catch { /* 滿了就算了 */ }
+        }
+        gameStateHistory = [];
+        resetReplayLog();
+        (window as any).baseballGameManager?.createNewGame();
+        saveState();
+        createLineupInputs();
+        attachTeamSettingsListeners();
+        render();
+        return true;
+    }
+
+    // --- 比賽中的畫面：底部分頁藏起來，紀錄改成從下面滑出 ---
+    function enterGameView() {
+        hideShell();
+        document.body.classList.add('playing');
+        document.body.classList.remove('sheet-open');
+        document.getElementById('game-log-btn')?.classList.remove('hidden');
+        document.getElementById('log-sheet-close')?.classList.remove('hidden');
+        navigateToPanel(1);
+    }
+    function leaveGameView() {
+        document.body.classList.remove('playing', 'sheet-open');
+        document.getElementById('game-log-btn')?.classList.add('hidden');
+        document.getElementById('log-sheet-close')?.classList.add('hidden');
+    }
+    function toggleLogSheet(open?: boolean) {
+        const on = open === undefined ? !document.body.classList.contains('sheet-open') : open;
+        document.body.classList.toggle('sheet-open', on);
+    }
+
     // --- 子頁：球員 / 常用陣容 ---
     function openSub(kind) {
         const sub = document.getElementById('shell-sub');
@@ -1022,7 +1218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLayout(); // Set initial layout based on screen size
         // 還沒建立球隊 → 只給「創建球隊」；有比賽在進行 → 直接進比賽；其餘停在主畫面
         if (!myTeam) showOnboard(0);
-        else if (gameInProgress()) hideShell();
+        else if (gameInProgress()) enterGameView();
         else showShell('home');
     }
     // 拖曳只改了 DOM 順序，輸入欄上的 data-index 仍是舊的位置。
@@ -1730,22 +1926,91 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // === 五分頁 ===
-        document.getElementById('home-btn')?.addEventListener('click', () => { tapFeedback(); showShell(); });
+        document.getElementById('home-btn')?.addEventListener('click', () => { tapFeedback(); leaveGameView(); showShell(); });
         document.getElementById('shell-nav')?.addEventListener('click', (e) => {
             const btn = (e.target as HTMLElement).closest('.shell-tab') as HTMLElement;
             if (!btn) return;
             tapFeedback();
+            if (btn.dataset.page === 'game' && shellPage !== 'game') resetGameSetup();
             setShellPage(btn.dataset.page);
+            if (btn.dataset.page === 'game') renderGameSetup();
         });
         document.getElementById('home-continue')?.addEventListener('click', () => {
             tapFeedback();
-            if (gameInProgress()) { hideShell(); navigateToPanel(1); }
+            if (gameInProgress()) enterGameView();
         });
-        document.getElementById('game-new')?.addEventListener('click', () => {
+        // === 建立比賽（三步）===
+        document.getElementById('gs-back')?.addEventListener('click', () => {
             tapFeedback();
-            if (gameState.started || gameState.isGameOver) { openModal(confirmModal); return; }
-            hideShell(); navigateToPanel(0);
+            if (gsStep === 2) collectOppList();
+            gsStep = Math.max(1, gsStep - 1);
+            renderGameSetup();
         });
+        document.querySelectorAll('.gs-side-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                tapFeedback();
+                gsSide = (b as HTMLElement).dataset.side;
+                renderGameSetup();
+            });
+        });
+        document.getElementById('gs-to-opp')?.addEventListener('click', () => {
+            tapFeedback(); gsStep = 2; renderGameSetup();
+        });
+        document.getElementById('gs-to-lineup')?.addEventListener('click', () => {
+            collectOppList(); tapFeedback(); gsStep = 3; renderGameSetup();
+        });
+        document.getElementById('gs-opp-add')?.addEventListener('click', () => {
+            collectOppList(); gsOpp.push(blankMember()); renderOppList();
+        });
+        document.getElementById('gs-opp-list')?.addEventListener('click', (e) => {
+            const del = (e.target as HTMLElement).closest('.mp-del');
+            if (!del) return;
+            collectOppList();
+            gsOpp.splice(Number((del.closest('.mp-row') as HTMLElement).dataset.i), 1);
+            if (!gsOpp.length) gsOpp.push(blankMember());
+            renderOppList();
+        });
+        document.getElementById('gs-opp-load')?.addEventListener('change', (e) => {
+            const id = (e.target as HTMLSelectElement).value;
+            const o = readOpponents().find(x => x.id === id);
+            if (!o) return;
+            (document.getElementById('gs-opp-name') as HTMLInputElement).value = o.name;
+            gsOpp = (o.players || []).map(p => ({ ...blankMember(), ...p }));
+            while (gsOpp.length < 10) gsOpp.push(blankMember());
+            renderOppList();
+        });
+        document.getElementById('gs-lineup-pick')?.addEventListener('change', (e) => {
+            const id = (e.target as HTMLSelectElement).value;
+            const lu = ((myTeam && myTeam.lineups) || []).find(l => l.id === id);
+            gsLineup.from = id;
+            if (lu) {
+                gsLineup.useDH = !!lu.useDH;
+                gsLineup.spots = [...(lu.spots || Array(9).fill(''))];
+                gsLineup.pitcherId = lu.pitcherId || '';
+            }
+            renderStarters();
+        });
+        document.getElementById('gs-dh')?.addEventListener('change', (e) => {
+            gsLineup.useDH = (e.target as HTMLInputElement).checked;
+            renderStarters();
+        });
+        document.getElementById('gs-spots')?.addEventListener('change', (e) => {
+            const t = e.target as HTMLElement;
+            if (t.dataset.gspot === undefined) return;
+            gsLineup.spots[Number(t.dataset.gspot)] = (t as HTMLSelectElement).value;
+        });
+        document.getElementById('gs-pitcher')?.addEventListener('change', (e) => {
+            gsLineup.pitcherId = (e.target as HTMLSelectElement).value;
+        });
+        document.getElementById('gs-create')?.addEventListener('click', () => {
+            tapFeedback();
+            if (!createGameFromSetup()) return;
+            enterGameView();
+        });
+
+        // === 比賽中的紀錄面板 ===
+        document.getElementById('game-log-btn')?.addEventListener('click', () => { tapFeedback(); toggleLogSheet(); });
+        document.getElementById('log-sheet-close')?.addEventListener('click', () => { tapFeedback(); toggleLogSheet(false); });
         document.getElementById('home-game-list')?.addEventListener('click', (e) => {
             const item = (e.target as HTMLElement).closest('.gl-item') as HTMLElement;
             if (!item) return;
