@@ -2371,3 +2371,90 @@ body.playing.sheet-open #event-log-container { transform: translateY(0); }
 .st-table thead th.st-name { background: rgba(30, 58, 95, 0.98); }
 .st-table tr.st-total td { background: rgba(59, 130, 246, 0.16); font-weight: 800; color: #fff; }
 .st-table tr.st-total td.st-name { background: rgba(41, 86, 140, 0.98); }
+
+/* ==========================================================================
+   記錄流程的視窗與按鈕統一尺寸
+   原本每個視窗各寫各的：結果鍵 38、球種 52、取消 34、進階視窗 50，
+   圓角有 4 有 12，寬度有 500 有 350 有 420。場邊記錄時大小不一很難按，
+   所以這裡用同一組數字收斂（放在檔案最後面，蓋掉前面各自的寫法）。
+   ========================================================================== */
+:root {
+    --rec-btn-h: 46px;          /* 所有可按的選項 */
+    --rec-btn-font: 0.88rem;
+    --rec-radius: 12px;
+    --rec-gap: 7px;
+    --rec-win-w: min(94vw, 440px);
+    --rec-win-pad: 14px;
+    --rec-win-radius: 16px;
+}
+
+/* --- 視窗本體：同寬、同內距、同圓角 --- */
+#modal-content,
+#runner-action-modal-content,
+.confirm-modal-content,
+.picker-content,
+.management-modal-content,
+.ask-box {
+    width: var(--rec-win-w);
+    max-width: var(--rec-win-w);
+    padding: var(--rec-win-pad);
+    border-radius: var(--rec-win-radius);
+}
+
+/* --- 選項按鈕：同高、同字級、同圓角 --- */
+#field-result-panel button,
+#field-result-panel .frp-balls button,
+#field-result-panel .frp-more,
+#field-result-panel .frp-cancel,
+.frp-all,
+.frp-back,
+.frp-more,
+.frp-cancel,
+.modal-options button,
+.runner-options button,
+.advanced-play-modifiers button,
+.hit-direction .dir-btn,
+.hit-direction .dir-clear,
+.confirm-modal-actions button,
+#modal-advanced-done,
+#runner-action-done,
+#back-button-runner-action {
+    min-height: var(--rec-btn-h);
+    padding: 0.35rem 0.4rem;
+    font-size: var(--rec-btn-font);
+    font-weight: 700;
+    border-radius: var(--rec-radius);
+}
+
+/* 完成鍵是一列的主角，讓它跟選項一樣高、但佔滿整列 */
+#modal-advanced-done,
+#runner-action-done {
+    width: 100%;
+    padding: 0.35rem 1rem;
+}
+#modal-advanced-actions,
+#runner-action-actions { margin-top: 12px; }
+
+/* 取消／回上一步／其他結果：跟選項同高，靠顏色分主次 */
+.frp-all,
+.frp-back,
+.frp-more,
+.frp-cancel,
+#field-result-panel .frp-more,
+#field-result-panel .frp-cancel,
+#back-button-runner-action {
+    width: 100%;
+    margin: 6px 0 0;
+    font-weight: 600;
+}
+.frp-back, .frp-all { margin: 0 0 6px; }
+
+/* 格線間距也統一 */
+.modal-options,
+.frp-options,
+.frp-balls,
+.runner-options,
+.hit-direction-row,
+.def-chips { gap: var(--rec-gap); }
+#field-result-panel .frp-options { gap: var(--rec-gap); }
+.frp-balls { grid-template-columns: repeat(2, 1fr); }

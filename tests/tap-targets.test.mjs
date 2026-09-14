@@ -208,4 +208,23 @@ export default async function (t) {
     t.assert(/prefers-reduced-motion:\s*reduce[^{]*\{[^{}]*\.mf-mark\.just-tapped\{animation:none/.test(css.replace(/\s+/g, '')) ||
              /prefers-reduced-motion/.test(css), '沒有處理減少動態效果');
   });
+
+  // 記錄流程的視窗與按鈕原本每個各寫各的（結果鍵 38、球種 52、取消 34、
+  // 進階視窗 50，圓角 4 和 12 混用，寬度 500／420／350），場邊很難按
+  await t('記錄流程的視窗與按鈕都同一個大小', async () => {
+    const css = await builtCss();
+    t.assert(/--rec-btn-h:\s*46px/.test(css), '沒有定義統一的按鈕高度');
+    t.assert(/--rec-win-w:\s*min\(94vw,\s*440px\)/.test(css), '沒有定義統一的視窗寬度');
+    // 每個會用到的選擇器都吃同一組變數
+    const btnRule = (css.match(/[^{}]*#field-result-panel button[^{}]*\{[^}]*\}/g) || []).join(' ');
+    t.assert(/min-height:\s*var\(--rec-btn-h\)/.test(btnRule), '選項按鈕沒有套用統一高度：' + btnRule.slice(0, 120));
+    for (const sel of ['.modal-options button', '.runner-options button', '.hit-direction .dir-btn', '.frp-cancel']) {
+      t.assert(btnRule.includes(sel), '「' + sel + '」沒有被收進統一規則');
+    }
+    const winRule = (css.match(/[^{}]*#modal-content[^{}]*\{[^}]*\}/g) || []).join(' ');
+    t.assert(/width:\s*var\(--rec-win-w\)/.test(winRule), '視窗沒有套用統一寬度');
+    for (const sel of ['#runner-action-modal-content', '.confirm-modal-content', '.picker-content', '.management-modal-content', '.ask-box']) {
+      t.assert(winRule.includes(sel), '「' + sel + '」沒有被收進統一寬度');
+    }
+  });
 }
