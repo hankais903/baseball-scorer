@@ -192,19 +192,20 @@ export default async function (t) {
     await new Promise(r => setTimeout(r, 150));
     const lit = () => [...w.document.querySelectorAll('#scoreboard tbody tr')].map(tr => {
       const cells = [...tr.querySelectorAll('td')];
-      return cells.findIndex(td => td.classList.contains('team-batting'));
+      return cells.findIndex(td => td.classList.contains('inning-now'));
     });
     // 1 局上：客隊（第一列）第 1 局那一格（第 0 欄是隊名，所以索引 1）
     t.assert(lit().join() === '1,-1', '1局上反白的位置不對：' + lit().join());
-    t.assert(!q('#scoreboard td.team-col.team-batting'), '隊名欄不該反白');
-    t.assert(!q('#scoreboard td.total-col.team-batting'), 'R 欄不該反白');
+    t.assert(!q('#scoreboard td.team-col.inning-now'), '隊名欄不該反白');
+    t.assert(!q('#scoreboard td.total-col.inning-now'), 'R 欄不該反白');
+    t.assert(w.document.querySelectorAll('#scoreboard tbody td.inning-now').length === 1,
+      '同一欄另一隊的格子也反白了');
     // 換到 1 局下，反白要跟著換到主隊那一列
     for (let i = 0; i < 3; i++) quickPlay(w, '三振');
     await new Promise(r => setTimeout(r, 200));
     t.assert(lit().join() === '-1,1', '換半局後反白沒有跟著走：' + lit().join());
-    const fs = await import('node:fs');
-    const css = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css')).map(f => fs.readFileSync('dist/assets/' + f, 'utf8')).join('\n');
-    t.assert(/td\.inning-now\.team-batting\{/.test(css), '樣式沒有跟著搬到半局那一格');
+    t.assert(w.document.querySelectorAll('#scoreboard tbody td.inning-now').length === 1,
+      '換半局後還有多餘的反白格');
   });
 
   // OUT／局數／計時搬到打者卡旁邊（原本 NEXT 的位置）：上排局數、下排 OUT 與計時

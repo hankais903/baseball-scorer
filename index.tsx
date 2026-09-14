@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v1.1';
+const APP_VERSION = 'v1.2';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -2597,9 +2597,8 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let i = 0; i < numInnings; i++) {
                 const score = team.score[i];
                 const hasPlayed = gameState.inning > i + 1 || (gameState.inning === i + 1 && (teamKey === 'a' || !gameState.isTop));
-                const now = i + 1 === activeInning;
-                const cls = [now ? 'inning-now' : '', now && batting ? 'team-batting' : ''].filter(Boolean).join(' ');
-                const nowCls = cls ? ` class="${cls}"` : '';
+                // 只有「正在進行的那個半局」那一格反白，同一欄另一隊的格子不反白
+                const nowCls = (i + 1 === activeInning && batting) ? ' class="inning-now"' : '';
                 if (score != null) {
                     scoreCells += `<td${nowCls}>${score}</td>`;
                 }
