@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v1.6';
+const APP_VERSION = 'v2.0';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -724,68 +724,306 @@ document.addEventListener('DOMContentLoaded', () => {
     let dragTarget: HTMLElement | null = null;
     let offsetX = 0;
     let offsetY = 0;
-    // === 首頁（啟動畫面）===
-    // 場邊記錄時每多按一次都嫌煩，所以「有比賽進行中就直接進比賽」，
-    // 首頁只在沒有進行中的比賽時擋在前面；要回首頁點上面的標題列。
+    // ======================================================================
+    // 我的球隊 + 五分頁主畫面
+    // 主畫面（#main-shell）疊在整個 APP 上面，記比賽時才收起來。
+    // 第一次使用（還沒建立球隊）只會看到 #onboard-screen。
+    // ======================================================================
+    const MY_TEAM_KEY = 'baseball_my_team';
+    const SETTINGS_KEY = 'baseball_settings';
+    const DEFAULT_SETTINGS = { lang: 'zh-TW', innings: 9, maxInnings: 12, dh: true, haptic: true };
+    let myTeam: any = null;
+    let appSettings: any = { ...DEFAULT_SETTINGS };
+    let shellPage = 'home';
+
+    function loadMyTeam() {
+        try { myTeam = JSON.parse(localStorage.getItem(MY_TEAM_KEY) || 'null'); }
+        catch { myTeam = null; }
+    }
+    function saveMyTeam() {
+        if (!myTeam) return;
+        try { localStorage.setItem(MY_TEAM_KEY, JSON.stringify(myTeam)); }
+        catch { alert('儲存失敗：瀏覽器的空間不足，通常是球員照片或 LOGO 太大。'); }
+    }
+    function loadSettings() {
+        try { appSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
+        catch { appSettings = { ...DEFAULT_SETTINGS }; }
+    }
+    function saveSettings() {
+        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings)); } catch { /* 滿了就算了 */ }
+    }
+    // 沒填名字的球員用「簡稱＋兩位數」代替，名單上才不會一片空白
+    function memberName(p, i) {
+        const n = (p && p.name || '').trim();
+        if (n) return n;
+        const short = (myTeam && myTeam.shortName) || '球員';
+        return short + String(i + 1).padStart(2, '0');
+    }
+    const blankMember = () => ({ _id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), jersey: '', name: '', pos: '', photo: '' });
+
+    // --- 建立球隊（三步）---
+    function showOnboard(step = 0) {
+        const scr = document.getElementById('onboard-screen');
+        if (!scr) return;
+        scr.classList.remove('hidden');
+        document.body.classList.add('shell-open');
+        gotoOnboardStep(step);
+    }
+    function gotoOnboardStep(step) {
+        document.querySelectorAll('#onboard-screen .ob-step').forEach(s => {
+            s.classList.toggle('hidden', Number((s as HTMLElement).dataset.step) !== step);
+        });
+        if (step === 2) renderOnboardPlayers();
+    }
+    let obPlayers: any[] = [];
+    function renderOnboardPlayers() {
+        const box = document.getElementById('ob-players');
+        if (!box) return;
+        if (!obPlayers.length) obPlayers = Array.from({ length: 9 }, () => blankMember());
+        const short = (document.getElementById('ob-shortname') as HTMLInputElement)?.value.trim() || '球員';
+        box.innerHTML = obPlayers.map((p, i) => `
+            <div class="ob-player" data-i="${i}">
+                <input type="text" class="ob-jersey" value="${p.jersey}" inputmode="numeric" maxlength="3" placeholder="${i + 1}" aria-label="背號">
+                <input type="text" class="ob-name" value="${p.name}" maxlength="10" placeholder="${short}${String(i + 1).padStart(2, '0')}" aria-label="姓名">
+                <button type="button" class="ob-del" aria-label="刪除">×</button>
+            </div>`).join('');
+    }
+    function collectOnboardPlayers() {
+        document.querySelectorAll('#ob-players .ob-player').forEach(row => {
+            const i = Number((row as HTMLElement).dataset.i);
+            obPlayers[i].jersey = (row.querySelector('.ob-jersey') as HTMLInputElement).value.trim();
+            obPlayers[i].name = (row.querySelector('.ob-name') as HTMLInputElement).value.trim();
+        });
+    }
+
+    function fileToDataUrl(file: File): Promise<string> {
+        return new Promise(resolve => {
+            const r = new FileReader();
+            r.onload = () => resolve(String(r.result || ''));
+            r.onerror = () => resolve('');
+            r.readAsDataURL(file);
+        });
+    }
+    // 子頁上的球員欄位收回資料（每次改動都要先收，不然重畫會把沒存的字洗掉）
+    function collectSubPlayers() {
+        if (!myTeam) return;
+        document.querySelectorAll('#sub-body .mp-row').forEach(row => {
+            const id = (row as HTMLElement).dataset.id;
+            const p = (myTeam.players || []).find(x => x._id === id);
+            if (!p) return;
+            p.jersey = (row.querySelector('.mp-jersey') as HTMLInputElement).value.trim();
+            p.name = (row.querySelector('.mp-name') as HTMLInputElement).value.trim();
+            p.pos = (row.querySelector('.mp-pos') as HTMLSelectElement).value;
+        });
+    }
+
+    // --- 五分頁主畫面 ---
+    function showShell(page?: string) {
+        document.getElementById('main-shell')?.classList.remove('hidden');
+        document.body.classList.add('shell-open');
+        closeSub();
+        if (page) shellPage = page;
+        renderShell();
+    }
+    function hideShell() {
+        document.getElementById('main-shell')?.classList.add('hidden');
+        document.body.classList.remove('shell-open');
+    }
+    function setShellPage(page) {
+        shellPage = page;
+        closeSub();
+        document.querySelectorAll('#main-shell .shell-page').forEach(s => {
+            s.classList.toggle('hidden', s.id !== 'page-' + page);
+        });
+        document.querySelectorAll('#shell-nav .shell-tab').forEach(b => {
+            b.classList.toggle('active', (b as HTMLElement).dataset.page === page);
+        });
+        renderShell();
+    }
     const gameInProgress = () => !!gameState.started && !gameState.isGameOver;
-    function showHome() {
-        renderHome();
-        document.getElementById('home-screen')?.classList.remove('hidden');
-        document.body.classList.add('home-open');
+
+    function renderShell() {
+        setShellPageClasses();
+        renderHomePage();
+        renderTeamPage();
+        renderSettingsPage();
     }
-    function hideHome() {
-        document.getElementById('home-screen')?.classList.add('hidden');
-        document.body.classList.remove('home-open');
+    function setShellPageClasses() {
+        document.querySelectorAll('#main-shell .shell-page').forEach(s => {
+            s.classList.toggle('hidden', s.id !== 'page-' + shellPage);
+        });
+        document.querySelectorAll('#shell-nav .shell-tab').forEach(b => {
+            b.classList.toggle('active', (b as HTMLElement).dataset.page === shellPage);
+        });
     }
-    function renderHome() {
-        const main = document.getElementById('home-continue');
-        const newBtn = document.getElementById('home-new');
-        if (!main) return;
-        const label = main.querySelector('.home-card-label');
-        const sub = document.getElementById('home-continue-sub');
-        if (gameInProgress()) {
-            // 有比賽在進行：最大那顆是「繼續比賽」，順便把戰況寫在上面
-            const a = gameState.teams.a, b = gameState.teams.b;
-            const sa = a.score.reduce((x, y) => x + (y || 0), 0);
-            const sb = b.score.reduce((x, y) => x + (y || 0), 0);
-            const half = gameState.isTop ? '上' : '下';
-            const where = gameState.stadium ? `　${gameState.stadium}` : '';
-            if (label) label.textContent = '繼續比賽';
-            if (sub) sub.textContent = `${a.name} ${sa} : ${sb} ${b.name}　${gameState.inning}局${half}${where}`;
-            newBtn?.classList.remove('hidden');
-        }
-        else {
-            // 沒有進行中的比賽：最大那顆直接變成「開始新比賽」，小的那顆收起來
-            if (label) label.textContent = '開始新比賽';
-            if (sub) sub.textContent = gameState.isGameOver ? '上一場已經結束了' : '設定兩隊名單與打序';
-            newBtn?.classList.add('hidden');
-        }
-        const games = (() => {
-            try { return (window as any).baseballGameManager?.getGamesList()?.length || 0; }
-            catch { return 0; }
-        })();
-        const gsub = document.getElementById('home-games-sub');
-        if (gsub) gsub.textContent = games ? `已存 ${games} 場，最多保留 10 場` : '還沒有存過比賽';
-        const teams = (() => {
-            try { return JSON.parse(localStorage.getItem(SAVED_ROSTERS_KEY) || '[]').length; }
-            catch { return 0; }
-        })();
-        const tsub = document.getElementById('home-teams-sub');
-        if (tsub) tsub.textContent = teams ? `已存 ${teams} 隊，開賽時直接帶入` : '把常用名單存起來，開賽直接帶入';
-        const ver = document.getElementById('home-version');
+
+    function renderHomePage() {
+        const ver = document.getElementById('shell-version');
         if (ver) ver.textContent = APP_VERSION;
+        const main = document.getElementById('home-continue');
+        const label = main?.querySelector('.home-card-label');
+        const sub = document.getElementById('home-continue-sub');
+        if (main) {
+            if (gameInProgress()) {
+                const a = gameState.teams.a, b = gameState.teams.b;
+                const sa = a.score.reduce((x, y) => x + (y || 0), 0);
+                const sb = b.score.reduce((x, y) => x + (y || 0), 0);
+                const where = gameState.stadium ? `　${gameState.stadium}` : '';
+                if (label) label.textContent = '繼續比賽';
+                if (sub) sub.textContent = `${a.name} ${sa} : ${sb} ${b.name}　${gameState.inning}局${gameState.isTop ? '上' : '下'}${where}`;
+                main.classList.remove('hidden');
+            }
+            else main.classList.add('hidden');
+        }
+        renderHomeGameList();
     }
+    function renderHomeGameList() {
+        const box = document.getElementById('home-game-list');
+        if (!box) return;
+        let games = [];
+        try { games = (window as any).baseballGameManager?.getGamesList() || []; } catch { games = []; }
+        const cur = (window as any).baseballGameManager?.currentGameId;
+        if (!games.length) {
+            box.innerHTML = '<div class="shell-empty"><p>還沒有比賽紀錄</p><p class="shell-empty-sub">記完一場就會出現在這裡</p></div>';
+            return;
+        }
+        const total = s => (s || []).reduce((a, b) => a + (b || 0), 0);
+        box.innerHTML = games.map(g => {
+            const a = g.teams?.a?.name || '客隊', b = g.teams?.b?.name || '主隊';
+            const d = new Date(g.lastModified || Date.now());
+            const date = `${d.getMonth() + 1}/${d.getDate()}`;
+            const state = g.isGameOver ? '終場' : `${g.inning || 1}局${g.isTop === false ? '下' : '上'}`;
+            const now = g.id === cur ? '<span class="gl-now">記錄中</span>' : '';
+            return `<button type="button" class="gl-item" data-game="${g.id}">
+                <span class="gl-main"><b>${a}</b> <i>${total(g.teams?.a?.score)} : ${total(g.teams?.b?.score)}</i> <b>${b}</b>${now}</span>
+                <span class="gl-sub">${date}　${state}${g.stadium ? '　' + g.stadium : ''}</span>
+            </button>`;
+        }).join('');
+    }
+
+    function renderTeamPage() {
+        if (!myTeam) return;
+        const img = document.getElementById('team-logo-img') as HTMLImageElement;
+        if (img) {
+            img.src = myTeam.logo || '';
+            img.closest('.team-logo-pick')?.classList.toggle('has-logo', !!myTeam.logo);
+        }
+        const hero = document.getElementById('team-hero-name');
+        if (hero) hero.textContent = myTeam.fullName || myTeam.shortName || '我的球隊';
+        const set = (id, v) => { const el = document.getElementById(id) as HTMLInputElement; if (el && el !== document.activeElement) el.value = v; };
+        set('team-short-input', myTeam.shortName || '');
+        set('team-full-input', myTeam.fullName || '');
+        set('team-founded-input', myTeam.foundedAt || '');
+        set('team-color-input', myTeam.color || '#4a90e2');
+        const pc = document.getElementById('team-players-count');
+        if (pc) pc.textContent = `${(myTeam.players || []).length} 人`;
+        const lc = document.getElementById('team-lineups-count');
+        const n = (myTeam.lineups || []).length;
+        if (lc) lc.textContent = n ? `${n} 套` : '還沒編排';
+    }
+
+    function renderSettingsPage() {
+        const set = (id, v) => { const el = document.getElementById(id) as HTMLInputElement; if (el) el.value = String(v); };
+        set('set-lang', appSettings.lang);
+        set('set-innings', appSettings.innings);
+        set('set-max-innings', appSettings.maxInnings);
+        const dh = document.getElementById('set-dh') as HTMLInputElement;
+        if (dh) dh.checked = !!appSettings.dh;
+        const hap = document.getElementById('set-haptic') as HTMLInputElement;
+        if (hap) hap.checked = !!appSettings.haptic;
+        const about = document.getElementById('set-about');
+        if (about) about.textContent = `Diamond Log ${APP_VERSION}`;
+    }
+
+    // --- 子頁：球員 / 常用陣容 ---
+    function openSub(kind) {
+        const sub = document.getElementById('shell-sub');
+        const title = document.getElementById('sub-title');
+        if (!sub || !title) return;
+        sub.dataset.kind = kind;
+        title.textContent = kind === 'players' ? '球員' : '常用陣容';
+        document.querySelectorAll('#main-shell .shell-page').forEach(s => s.classList.add('hidden'));
+        sub.classList.remove('hidden');
+        renderSub();
+    }
+    function closeSub() {
+        const sub = document.getElementById('shell-sub');
+        if (sub && !sub.classList.contains('hidden')) {
+            sub.classList.add('hidden');
+            setShellPageClasses();
+        }
+    }
+    function renderSub() {
+        const sub = document.getElementById('shell-sub');
+        const body = document.getElementById('sub-body');
+        if (!sub || !body || !myTeam) return;
+        if (sub.dataset.kind === 'players') renderSubPlayers(body);
+        else renderSubLineups(body);
+    }
+    function renderSubPlayers(body) {
+        const list = myTeam.players || [];
+        body.innerHTML = `<p class="sub-note">這裡放全部的球員，不分先發或替補。沒填名字的會自動用「簡稱＋號碼」。</p>`
+            + `<div class="mp-list">` + list.map((p, i) => `
+                <div class="mp-row" data-id="${p._id}">
+                    <input type="text" class="mp-jersey" value="${p.jersey || ''}" inputmode="numeric" maxlength="3" placeholder="－" aria-label="背號">
+                    <input type="text" class="mp-name" value="${p.name || ''}" maxlength="10" placeholder="${memberName(p, i)}" aria-label="姓名">
+                    <select class="mp-pos" aria-label="守位">${POS_OPTIONS(p.pos)}</select>
+                    <button type="button" class="mp-del" aria-label="刪除">×</button>
+                </div>`).join('') + `</div>`
+            + `<button type="button" class="ob-add" id="mp-add">＋ 新增球員</button>`;
+    }
+    const POS_LIST = ['', 'P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
+    const POS_OPTIONS = (cur) => POS_LIST.map(v => `<option value="${v}"${v === (cur || '') ? ' selected' : ''}>${v || '－'}</option>`).join('');
+
+    function renderSubLineups(body) {
+        const lineups = myTeam.lineups || [];
+        const editing = (document.getElementById('shell-sub') as HTMLElement).dataset.editing;
+        if (editing) { renderLineupEditor(body, lineups.find(l => l.id === editing)); return; }
+        body.innerHTML = `<p class="sub-note">先把常用的先發打序排好，建立比賽時就能直接帶入，不用每次重排。</p>`
+            + (lineups.length
+                ? `<div class="lu-list">` + lineups.map(l => `
+                    <button type="button" class="lu-item" data-lineup="${l.id}">
+                        <span class="lu-name">${l.name || '未命名'}</span>
+                        <span class="lu-sub">${l.useDH ? 'DH 制' : '投手打擊'}　${(l.spots || []).filter(Boolean).length} / 9 棒</span>
+                    </button>`).join('') + `</div>`
+                : '<div class="shell-empty"><p>還沒有常用陣容</p></div>')
+            + `<button type="button" class="ob-add" id="lu-add">＋ 新增陣容</button>`;
+    }
+    function renderLineupEditor(body, lu) {
+        if (!lu) return;
+        const players = myTeam.players || [];
+        const opt = (sel) => `<option value="">－</option>` + players.map((p, i) =>
+            `<option value="${p._id}"${p._id === sel ? ' selected' : ''}>${p.jersey ? p.jersey + '　' : ''}${memberName(p, i)}</option>`).join('');
+        body.innerHTML = `
+            <label class="team-row"><span class="team-row-label">陣容名稱</span>
+                <input type="text" id="lu-name" maxlength="10" value="${lu.name || ''}" placeholder="例：主力"></label>
+            <label class="team-row"><span class="team-row-label">啟用 DH</span>
+                <input type="checkbox" id="lu-dh" class="set-switch"${lu.useDH ? ' checked' : ''}></label>
+            <div class="lu-spots">` + Array.from({ length: 9 }, (_, i) => `
+                <label class="lu-spot"><span>${i + 1}棒</span>
+                    <select data-spot="${i}">${opt((lu.spots || [])[i])}</select></label>`).join('') + `</div>
+            <label class="team-row"><span class="team-row-label">先發投手</span>
+                <select id="lu-pitcher">${opt(lu.pitcherId)}</select></label>
+            <div class="lu-actions">
+                <button type="button" id="lu-delete" class="lu-del">刪除這套</button>
+                <button type="button" id="lu-done" class="ob-primary">完成</button>
+            </div>`;
+    }
+
     function init() {
         const verEl = document.getElementById('app-version');
         if (verEl) verEl.textContent = APP_VERSION;
+        loadMyTeam();
+        loadSettings();
         createLineupInputs();
         loadState();
         addEventListeners();
         render();
         updateLayout(); // Set initial layout based on screen size
-        // 有比賽在進行就直接進比賽頁，不要擋在首頁
-        if (gameInProgress()) hideHome();
-        else showHome();
+        // 還沒建立球隊 → 只給「創建球隊」；有比賽在進行 → 直接進比賽；其餘停在主畫面
+        if (!myTeam) showOnboard(0);
+        else if (gameInProgress()) hideShell();
+        else showShell('home');
     }
     // 拖曳只改了 DOM 順序，輸入欄上的 data-index 仍是舊的位置。
     // 套用前先依畫面上的排列把 roster 重新排好（整個球員物件一起搬，統計數據跟著走）。
@@ -1436,25 +1674,218 @@ document.addEventListener('DOMContentLoaded', () => {
         savedRostersList.addEventListener('mousedown', handleLoadRosterModalClick);
         attachTeamSettingsListeners();
         newGameBtn.addEventListener('click', () => { openModal(confirmModal); });
-        confirmResetBtn.addEventListener('click', () => { gameState = getInitialGameState(); gameStateHistory = []; resetReplayLog(); saveState(); createLineupInputs(); attachTeamSettingsListeners(); render(); closeModal(confirmModal); hideHome(); navigateToPanel(0); });
-        // === 首頁的四塊 ===
-        document.getElementById('home-btn')?.addEventListener('click', () => { tapFeedback(); showHome(); });
+        confirmResetBtn.addEventListener('click', () => { gameState = getInitialGameState(); gameStateHistory = []; resetReplayLog(); saveState(); createLineupInputs(); attachTeamSettingsListeners(); render(); closeModal(confirmModal); hideShell(); navigateToPanel(0); });
+        // === 建立球隊（三步）===
+        document.getElementById('ob-start')?.addEventListener('click', () => { tapFeedback(); gotoOnboardStep(1); });
+        document.querySelectorAll('#onboard-screen .ob-back').forEach(b => {
+            b.addEventListener('click', () => { collectOnboardPlayers(); gotoOnboardStep(Number((b as HTMLElement).dataset.goto)); });
+        });
+        document.getElementById('ob-to-players')?.addEventListener('click', () => {
+            const full = (document.getElementById('ob-fullname') as HTMLInputElement).value.trim();
+            const short = (document.getElementById('ob-shortname') as HTMLInputElement).value.trim();
+            if (!full && !short) { alert('至少要填球隊全名或簡稱。'); return; }
+            if (!short) (document.getElementById('ob-shortname') as HTMLInputElement).value = full.slice(0, 5);
+            tapFeedback();
+            gotoOnboardStep(2);
+        });
+        document.getElementById('ob-logo-input')?.addEventListener('change', async (e) => {
+            const f = (e.target as HTMLInputElement).files?.[0];
+            if (!f) return;
+            const url = await shrinkImage(await fileToDataUrl(f), 420);
+            const img = document.getElementById('ob-logo-preview') as HTMLImageElement;
+            img.src = url;
+            document.getElementById('ob-logo-pick')?.classList.add('has-logo');
+        });
+        document.getElementById('ob-add-player')?.addEventListener('click', () => {
+            collectOnboardPlayers();
+            obPlayers.push(blankMember());
+            renderOnboardPlayers();
+        });
+        document.getElementById('ob-players')?.addEventListener('click', (e) => {
+            const del = (e.target as HTMLElement).closest('.ob-del');
+            if (!del) return;
+            collectOnboardPlayers();
+            obPlayers.splice(Number((del.closest('.ob-player') as HTMLElement).dataset.i), 1);
+            if (!obPlayers.length) obPlayers.push(blankMember());
+            renderOnboardPlayers();
+        });
+        document.getElementById('ob-finish')?.addEventListener('click', () => {
+            collectOnboardPlayers();
+            const full = (document.getElementById('ob-fullname') as HTMLInputElement).value.trim();
+            const short = (document.getElementById('ob-shortname') as HTMLInputElement).value.trim() || full.slice(0, 5);
+            myTeam = {
+                id: 'team_' + Date.now(),
+                fullName: full || short,
+                shortName: short,
+                logo: (document.getElementById('ob-logo-preview') as HTMLImageElement).src.startsWith('data:')
+                    ? (document.getElementById('ob-logo-preview') as HTMLImageElement).src : '',
+                color: (document.getElementById('ob-color-input') as HTMLInputElement).value,
+                foundedAt: new Date().toISOString().split('T')[0],
+                players: obPlayers.filter(p => p.jersey || p.name).length ? obPlayers : obPlayers,
+                lineups: [],
+            };
+            saveMyTeam();
+            document.getElementById('onboard-screen')?.classList.add('hidden');
+            showShell('team');
+        });
+
+        // === 五分頁 ===
+        document.getElementById('home-btn')?.addEventListener('click', () => { tapFeedback(); showShell(); });
+        document.getElementById('shell-nav')?.addEventListener('click', (e) => {
+            const btn = (e.target as HTMLElement).closest('.shell-tab') as HTMLElement;
+            if (!btn) return;
+            tapFeedback();
+            setShellPage(btn.dataset.page);
+        });
         document.getElementById('home-continue')?.addEventListener('click', () => {
             tapFeedback();
-            if (gameInProgress()) { hideHome(); navigateToPanel(1); return; }
-            // 沒有進行中的比賽：上一場結束過或已經開打過就先問一次，其餘直接進名單頁
+            if (gameInProgress()) { hideShell(); navigateToPanel(1); }
+        });
+        document.getElementById('game-new')?.addEventListener('click', () => {
+            tapFeedback();
             if (gameState.started || gameState.isGameOver) { openModal(confirmModal); return; }
-            hideHome(); navigateToPanel(0);
+            hideShell(); navigateToPanel(0);
         });
-        document.getElementById('home-new')?.addEventListener('click', () => { tapFeedback(); openModal(confirmModal); });
-        document.getElementById('home-games')?.addEventListener('click', () => {
+        document.getElementById('home-game-list')?.addEventListener('click', (e) => {
+            const item = (e.target as HTMLElement).closest('.gl-item') as HTMLElement;
+            if (!item) return;
             tapFeedback();
-            (window as any).baseballGameListUI?.showGameList();
+            window.dispatchEvent(new CustomEvent('load-game', { detail: { gameId: item.dataset.game } }));
         });
-        document.getElementById('home-teams')?.addEventListener('click', () => {
-            tapFeedback();
-            openLoadRosterModal(null);       // 從首頁進來還不知道要載入哪一隊，兩邊都給
+
+        // === 球隊分頁 ===
+        const teamField = (id, key, after?) => {
+            document.getElementById(id)?.addEventListener('change', (e) => {
+                if (!myTeam) return;
+                myTeam[key] = (e.target as HTMLInputElement).value.trim();
+                saveMyTeam(); renderTeamPage(); after && after();
+            });
+        };
+        teamField('team-short-input', 'shortName');
+        teamField('team-full-input', 'fullName');
+        teamField('team-founded-input', 'foundedAt');
+        teamField('team-color-input', 'color');
+        document.getElementById('team-logo-input')?.addEventListener('change', async (e) => {
+            const f = (e.target as HTMLInputElement).files?.[0];
+            if (!f || !myTeam) return;
+            myTeam.logo = await shrinkImage(await fileToDataUrl(f), 420);
+            saveMyTeam(); renderTeamPage();
         });
+        document.querySelectorAll('#page-team .team-row-link').forEach(b => {
+            b.addEventListener('click', () => { tapFeedback(); openSub((b as HTMLElement).dataset.sub); });
+        });
+        document.getElementById('sub-back')?.addEventListener('click', () => {
+            const sub = document.getElementById('shell-sub') as HTMLElement;
+            if (sub.dataset.editing) { delete sub.dataset.editing; renderSub(); return; }   // 先退出編輯
+            tapFeedback(); closeSub();
+        });
+
+        // 子頁：球員與常用陣容（內容是動態產生的，用委派處理）
+        document.getElementById('sub-body')?.addEventListener('click', (e) => {
+            const t = e.target as HTMLElement;
+            const sub = document.getElementById('shell-sub') as HTMLElement;
+            if (!myTeam) return;
+            if (t.closest('#mp-add')) {
+                collectSubPlayers();
+                myTeam.players.push(blankMember());
+                saveMyTeam(); renderSub(); return;
+            }
+            const del = t.closest('.mp-del');
+            if (del) {
+                collectSubPlayers();
+                const id = (del.closest('.mp-row') as HTMLElement).dataset.id;
+                myTeam.players = myTeam.players.filter(p => p._id !== id);
+                // 陣容裡用到這個人的格子要一起清掉，否則會指到不存在的球員
+                (myTeam.lineups || []).forEach(l => {
+                    l.spots = (l.spots || []).map(s => (s === id ? '' : s));
+                    if (l.pitcherId === id) l.pitcherId = '';
+                });
+                saveMyTeam(); renderSub(); renderTeamPage(); return;
+            }
+            if (t.closest('#lu-add')) {
+                myTeam.lineups = myTeam.lineups || [];
+                const lu = { id: 'lu_' + Date.now(), name: '', useDH: !!appSettings.dh, spots: Array(9).fill(''), pitcherId: '' };
+                myTeam.lineups.push(lu);
+                saveMyTeam();
+                sub.dataset.editing = lu.id;
+                renderSub(); return;
+            }
+            const item = t.closest('.lu-item') as HTMLElement;
+            if (item) { sub.dataset.editing = item.dataset.lineup; renderSub(); return; }
+            if (t.closest('#lu-done')) { delete sub.dataset.editing; renderSub(); renderTeamPage(); return; }
+            if (t.closest('#lu-delete')) {
+                if (!confirm('確定要刪除這套陣容嗎？')) return;
+                myTeam.lineups = myTeam.lineups.filter(l => l.id !== sub.dataset.editing);
+                saveMyTeam(); delete sub.dataset.editing; renderSub(); renderTeamPage(); return;
+            }
+        });
+        document.getElementById('sub-body')?.addEventListener('change', (e) => {
+            const t = e.target as HTMLElement;
+            const sub = document.getElementById('shell-sub') as HTMLElement;
+            if (!myTeam) return;
+            if (t.closest('.mp-row')) { collectSubPlayers(); saveMyTeam(); renderTeamPage(); return; }
+            const lu = (myTeam.lineups || []).find(l => l.id === sub.dataset.editing);
+            if (!lu) return;
+            if (t.id === 'lu-name') lu.name = (t as HTMLInputElement).value.trim();
+            else if (t.id === 'lu-dh') lu.useDH = (t as HTMLInputElement).checked;
+            else if (t.id === 'lu-pitcher') lu.pitcherId = (t as HTMLSelectElement).value;
+            else if ((t as HTMLElement).dataset.spot !== undefined) {
+                lu.spots = lu.spots || Array(9).fill('');
+                lu.spots[Number((t as HTMLElement).dataset.spot)] = (t as HTMLSelectElement).value;
+            }
+            saveMyTeam();
+        });
+
+        // === 設定 ===
+        const settingField = (id, key, cast: any = String) => {
+            document.getElementById(id)?.addEventListener('change', (e) => {
+                const el = e.target as HTMLInputElement;
+                appSettings[key] = el.type === 'checkbox' ? el.checked : cast(el.value);
+                saveSettings();
+            });
+        };
+        settingField('set-lang', 'lang');
+        settingField('set-innings', 'innings', Number);
+        settingField('set-max-innings', 'maxInnings', Number);
+        settingField('set-dh', 'dh');
+        settingField('set-haptic', 'haptic');
+        document.getElementById('set-backup')?.addEventListener('click', () => {
+            const dump = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith('baseball')) dump[k] = localStorage.getItem(k);
+            }
+            const blob = new Blob([JSON.stringify({ app: 'DiamondLog', version: APP_VERSION, data: dump }, null, 2)],
+                { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `diamondlog-備份-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        });
+        document.getElementById('set-restore')?.addEventListener('click', () => {
+            (document.getElementById('set-restore-input') as HTMLInputElement).click();
+        });
+        document.getElementById('set-restore-input')?.addEventListener('change', async (e) => {
+            const f = (e.target as HTMLInputElement).files?.[0];
+            if (!f) return;
+            try {
+                const parsed = JSON.parse(await f.text());
+                if (!parsed || !parsed.data) throw new Error('格式不對');
+                if (!confirm('還原備份會覆蓋現在的球隊與比賽資料，確定嗎？')) return;
+                Object.entries(parsed.data).forEach(([k, v]) => localStorage.setItem(k, v as string));
+                location.reload();
+            }
+            catch { alert('還原失敗：這個檔案不是 Diamond Log 的備份。'); }
+        });
+        document.getElementById('set-reset')?.addEventListener('click', () => {
+            if (!confirm('這會刪除球隊、名單與全部比賽紀錄，而且無法復原。確定嗎？')) return;
+            if (!confirm('真的要清除全部資料嗎？')) return;
+            Object.keys(localStorage).filter(k => k.startsWith('baseball') || k === SAVED_ROSTERS_KEY)
+                .forEach(k => localStorage.removeItem(k));
+            location.reload();
+        });
+
         cancelResetBtn.addEventListener('click', () => { closeModal(confirmModal); });
         confirmModal.addEventListener('click', (e) => { if (e.target === confirmModal)
             closeModal(confirmModal); });
@@ -5832,7 +6263,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const teamKey = (loadButton as HTMLElement).dataset.team || loadRosterModal.dataset.teamKey;
             if (rosterId && teamKey) {
                 loadRoster(rosterId, teamKey);
-                hideHome();
+                hideShell();
                 navigateToPanel(0);          // 載完直接帶到名單頁看結果
             }
             return;

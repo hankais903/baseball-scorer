@@ -8,7 +8,7 @@
 ```bash
 npm install                 # 第一次
 npm run build               # Vite 建置到 dist/（測試跑的是 dist/，改完一定要先 build）
-npm test                    # 288+ 項回歸測試（jsdom），約 2 分鐘
+npm test                    # 291+ 項回歸測試（jsdom），約 3 分鐘
 npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自動 build）
 ```
 交付前必須：`npm run build && npm test` 全綠。每修一個 bug 就在 `tests/` 加一條釘住它的測試，套件名稱在 `tests/run.mjs` 註冊。
@@ -80,7 +80,21 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 計時器**一開始就顯示**（停在 00:00），按了 PLAY BALL 才開始跑；開賽前點它不會叫出選單。開賽後可點：叫出「暫停／繼續」與「結束計時」（`pausedMs`／`pausedAt` 記錄暫停時間）。**「結束計時」＝比賽結束**，按下去會先用 `confirm` 問一次，確定後才停錶並 `endGame()`。
 - 正式記錄表暫時只顯示與「匯出紀錄」相同的內容，在 APP 內開視窗，不另開新視窗。
 
-## 首頁（啟動畫面）
+## 我的球隊與五分頁主畫面（v2.0 改版，進行中）
+- **第一次使用只有「創建球隊」**（`#onboard-screen`，三步：簡介 → 球員 → 完成）。
+  簡介＝全名（≤15）、簡稱（≤5，記分板顯示這個）、LOGO、代表色；成立時間自動記當天。
+  沒填名字的球員一律用「簡稱＋兩位數」（`memberName`）。
+- 球隊資料存在 `baseball_my_team`：`{ id, fullName, shortName, logo, color, foundedAt, players[], lineups[] }`。
+  `players` 是全部球員（不分先發替補）；`lineups` 是常用陣容 `{ id, name, useDH, spots[9], pitcherId }`。
+  **刪球員時要把陣容裡指到他的格子一起清掉**，否則會指向不存在的人（已有測試）。
+- `#main-shell` 是五分頁主畫面（首頁／球隊／比賽／成績／設定），疊在 APP 上面，
+  `z-index: 90`、`body.shell-open` 會把 `#app-container` 藏起來——規則與舊的首頁相同，兩條都有測試釘住。
+- 設定存在 `baseball_settings`：語言、比賽局數、延長上限、預設 DH、點擊震動；另有備份／還原／清除全部資料。
+- **還沒做（下一批）**：比賽分頁的賽前設定流程（時間／球場／天氣／先攻後攻 → 對手名單 → 先發名單）、
+  比賽中的獨立畫面（底部分頁藏起來）、從下面滑出的紀錄面板、成績分頁。
+  對手球隊的決定：**建立比賽時要填對手名單**（兩隊都記完整成績，戰況表與正式記錄表照舊）。
+
+## 舊的首頁（啟動畫面，已被 #main-shell 取代）
 - `#home-screen`：大 LOGO ＋ 四塊（繼續比賽／開始新比賽／比賽紀錄／我的球隊）。
   沒有進行中的比賽時，最大那顆直接變成「開始新比賽」，重複的那張收起來。
 - **有比賽進行中就直接進比賽，不擋首頁**；要回首頁點標題列。場邊記錄每多一次點擊都嫌煩。

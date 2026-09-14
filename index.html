@@ -382,38 +382,208 @@
         <button type="button" class="nav-dot" data-index="2">紀錄</button>
     </div>
 
-    <!-- 首頁：一進 APP 先看到這裡；有比賽進行中就直接跳過 -->
-    <div id="home-screen" class="hidden" aria-label="首頁">
-        <div class="home-inner">
-            <img id="home-logo" src="./img/logo.webp" alt="Diamond Log 棒球比賽紀錄">
-            <div class="home-actions">
+    <!-- 第一次使用：建立球隊（三步）。只有這一個選項，沒有別的路 -->
+    <div id="onboard-screen" class="hidden" aria-label="建立球隊">
+        <div class="ob-inner">
+            <img class="ob-logo" src="./img/logo.webp" alt="Diamond Log">
+
+            <!-- 第 0 步：只有一個選項 -->
+            <section class="ob-step" data-step="0">
+                <p class="ob-hello">歡迎！先建立你的球隊，之後記比賽都會用到。</p>
+                <button type="button" id="ob-start" class="ob-primary">創建球隊</button>
+            </section>
+
+            <!-- 第 1 步：球隊簡介 -->
+            <section class="ob-step hidden" data-step="1">
+                <h2 class="ob-title">球隊簡介<span class="ob-count">1 / 2</span></h2>
+                <label class="ob-field">
+                    <span>球隊全名<i>最多 15 字</i></span>
+                    <input type="text" id="ob-fullname" maxlength="15" placeholder="例：新莊社區棒球隊">
+                </label>
+                <label class="ob-field">
+                    <span>球隊簡稱<i>最多 5 字，記分板上顯示這個</i></span>
+                    <input type="text" id="ob-shortname" maxlength="5" placeholder="例：新莊">
+                </label>
+                <div class="ob-field">
+                    <span>球隊識別<i>LOGO 與代表色，可以之後再設定</i></span>
+                    <div class="ob-brand">
+                        <label class="ob-logo-pick" id="ob-logo-pick">
+                            <img id="ob-logo-preview" alt="">
+                            <span class="ob-logo-hint">上傳<br>LOGO</span>
+                            <input type="file" id="ob-logo-input" accept="image/*">
+                        </label>
+                        <label class="ob-color">
+                            <input type="color" id="ob-color-input" value="#4a90e2">
+                            <span>代表色</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="ob-actions">
+                    <button type="button" class="ob-back" data-goto="0">上一步</button>
+                    <button type="button" class="ob-primary" id="ob-to-players">下一頁</button>
+                </div>
+            </section>
+
+            <!-- 第 2 步：球員名單 -->
+            <section class="ob-step hidden" data-step="2">
+                <h2 class="ob-title">球員名單<span class="ob-count">2 / 2</span></h2>
+                <p class="ob-note">沒填名字的會自動用「簡稱＋號碼」，之後隨時可以改。</p>
+                <div id="ob-players"></div>
+                <button type="button" id="ob-add-player" class="ob-add">＋ 新增球員</button>
+                <div class="ob-actions">
+                    <button type="button" class="ob-back" data-goto="1">上一步</button>
+                    <button type="button" class="ob-primary" id="ob-finish">完成，進入主畫面</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- 主畫面：五個分頁（首頁／球隊／比賽／成績／設定） -->
+    <div id="main-shell" class="hidden">
+        <div class="shell-body">
+            <!-- 首頁 -->
+            <section class="shell-page" id="page-home">
+                <header class="shell-head">
+                    <img class="shell-logo" src="./img/logo.webp" alt="Diamond Log">
+                    <span class="shell-ver" id="shell-version"></span>
+                </header>
                 <button type="button" id="home-continue" class="home-card home-card-main">
                     <span class="home-card-text">
                         <span class="home-card-label">繼續比賽</span>
                         <span class="home-card-sub" id="home-continue-sub"></span>
                     </span>
                 </button>
-                <button type="button" id="home-new" class="home-card">
+                <h3 class="shell-section">比賽紀錄</h3>
+                <div id="home-game-list"></div>
+            </section>
+
+            <!-- 球隊 -->
+            <section class="shell-page hidden" id="page-team">
+                <div class="team-hero">
+                    <label class="team-logo-pick" id="team-logo-pick">
+                        <img id="team-logo-img" alt="">
+                        <span class="team-logo-hint">換 LOGO</span>
+                        <input type="file" id="team-logo-input" accept="image/*">
+                    </label>
+                    <div class="team-hero-name" id="team-hero-name"></div>
+                </div>
+                <div class="team-rows">
+                    <label class="team-row">
+                        <span class="team-row-label">球隊簡稱</span>
+                        <input type="text" id="team-short-input" maxlength="5">
+                    </label>
+                    <label class="team-row">
+                        <span class="team-row-label">球隊全名</span>
+                        <input type="text" id="team-full-input" maxlength="15">
+                    </label>
+                    <label class="team-row">
+                        <span class="team-row-label">成立時間</span>
+                        <input type="date" id="team-founded-input">
+                    </label>
+                    <label class="team-row">
+                        <span class="team-row-label">代表色</span>
+                        <input type="color" id="team-color-input">
+                    </label>
+                    <button type="button" class="team-row team-row-link" data-sub="players">
+                        <span class="team-row-label">球員</span>
+                        <span class="team-row-value" id="team-players-count"></span>
+                    </button>
+                    <button type="button" class="team-row team-row-link" data-sub="lineups">
+                        <span class="team-row-label">常用陣容</span>
+                        <span class="team-row-value" id="team-lineups-count"></span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- 比賽 -->
+            <section class="shell-page hidden" id="page-game">
+                <h2 class="shell-title">比賽</h2>
+                <button type="button" id="game-new" class="home-card home-card-main">
                     <span class="home-card-text">
                         <span class="home-card-label">開始新比賽</span>
-                        <span class="home-card-sub">設定兩隊名單與打序</span>
+                        <span class="home-card-sub">設定比賽資訊與先發名單</span>
                     </span>
                 </button>
-                <button type="button" id="home-games" class="home-card">
-                    <span class="home-card-text">
-                        <span class="home-card-label">比賽紀錄</span>
-                        <span class="home-card-sub" id="home-games-sub"></span>
-                    </span>
-                </button>
-                <button type="button" id="home-teams" class="home-card">
-                    <span class="home-card-text">
-                        <span class="home-card-label">我的球隊</span>
-                        <span class="home-card-sub" id="home-teams-sub"></span>
-                    </span>
-                </button>
-            </div>
-            <div class="home-foot"><span id="home-version"></span></div>
+                <p class="shell-hint">下一批會把這裡換成「比賽時間／球場／天氣／先攻後攻 → 對手名單 → 先發名單」的流程。</p>
+            </section>
+
+            <!-- 成績（預留） -->
+            <section class="shell-page hidden" id="page-stats">
+                <h2 class="shell-title">成績</h2>
+                <div class="shell-empty">
+                    <p>這裡之後會放球員的累計成績</p>
+                    <p class="shell-empty-sub">打擊率、長打率、防禦率⋯⋯跨場次累加</p>
+                </div>
+            </section>
+
+            <!-- 設定 -->
+            <section class="shell-page hidden" id="page-settings">
+                <h2 class="shell-title">設定</h2>
+                <div class="team-rows">
+                    <label class="team-row">
+                        <span class="team-row-label">語言</span>
+                        <select id="set-lang">
+                            <option value="zh-TW">繁體中文</option>
+                        </select>
+                    </label>
+                    <label class="team-row">
+                        <span class="team-row-label">比賽局數</span>
+                        <select id="set-innings">
+                            <option value="7">7 局</option>
+                            <option value="9">9 局</option>
+                        </select>
+                    </label>
+                    <label class="team-row">
+                        <span class="team-row-label">延長賽上限</span>
+                        <select id="set-max-innings">
+                            <option value="9">9 局</option>
+                            <option value="10">10 局</option>
+                            <option value="12">12 局</option>
+                            <option value="0">不限</option>
+                        </select>
+                    </label>
+                    <label class="team-row">
+                        <span class="team-row-label">預設啟用 DH</span>
+                        <input type="checkbox" id="set-dh" class="set-switch">
+                    </label>
+                    <label class="team-row">
+                        <span class="team-row-label">點擊震動</span>
+                        <input type="checkbox" id="set-haptic" class="set-switch">
+                    </label>
+                    <button type="button" class="team-row team-row-link" id="set-backup">
+                        <span class="team-row-label">備份全部資料</span>
+                        <span class="team-row-value">匯出成檔案</span>
+                    </button>
+                    <button type="button" class="team-row team-row-link" id="set-restore">
+                        <span class="team-row-label">還原備份</span>
+                        <span class="team-row-value">從檔案讀回</span>
+                    </button>
+                    <input type="file" id="set-restore-input" accept="application/json" hidden>
+                    <button type="button" class="team-row team-row-link" id="set-reset">
+                        <span class="team-row-label team-row-danger">清除全部資料</span>
+                        <span class="team-row-value">球隊與比賽都會刪除</span>
+                    </button>
+                </div>
+                <p class="shell-foot" id="set-about"></p>
+            </section>
+
+            <!-- 子頁：球員／常用陣容（從球隊分頁進來） -->
+            <section class="shell-sub hidden" id="shell-sub">
+                <header class="sub-head">
+                    <button type="button" id="sub-back" aria-label="返回">‹</button>
+                    <h2 id="sub-title"></h2>
+                </header>
+                <div id="sub-body"></div>
+            </section>
         </div>
+
+        <nav id="shell-nav" aria-label="切換分頁">
+            <button type="button" class="shell-tab active" data-page="home"><i></i>首頁</button>
+            <button type="button" class="shell-tab" data-page="team"><i></i>球隊</button>
+            <button type="button" class="shell-tab" data-page="game"><i></i>比賽</button>
+            <button type="button" class="shell-tab" data-page="stats"><i></i>成績</button>
+            <button type="button" class="shell-tab" data-page="settings"><i></i>設定</button>
+        </nav>
     </div>
 
     <script type="module" src="./index.tsx"></script>
