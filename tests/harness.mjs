@@ -135,7 +135,12 @@ export function recordAtBat(w, label = '三振') {
 
 // 整片球場單一點擊區：用座標表達內野／外野／界外（測試環境把 clientX/Y 當 viewBox 座標）
 const ZONE_XY = { infield: [202, 250], outfield: [202, 90], foul: [60, 330], field: [202, 250], deepcf: [202, -20] };
-export function clickZone(w, zone) {
+// 點落點之後會先問球種；測試大多直接指定結果，所以預設按「直接看全部結果」。
+// 要測球種流程的測試自己傳 ball（'G'／'L'／'F'／'B'）。
+export function clickZone(w, zone, ball = 'all') {
   const [x, y] = ZONE_XY[zone] || ZONE_XY.field;
   w.document.querySelector('[data-zone="field"]').dispatchEvent(new w.MouseEvent('click', { bubbles: true, clientX: x, clientY: y }));
+  if (!ball) return;
+  const btn = w.document.querySelector(`#field-result-panel button[data-ball="${ball}"]`);
+  if (btn) btn.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }));
 }

@@ -1310,3 +1310,39 @@ body {
     background: rgba(59, 130, 246, 0.28);
     box-shadow: inset 3px 0 0 #60a5fa;
 }
+
+/* 落點之後先問球種：四顆大按鈕，比一次列十幾個結果好按 */
+.frp-balls {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+    margin-bottom: 6px;
+}
+
+.frp-balls button {
+    min-height: 52px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-color);
+    background-color: rgba(255, 255, 255, 0.09);
+    border: 1px solid var(--th-line);
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.frp-balls button:active { filter: brightness(1.45); transform: scale(0.96); }
+
+.frp-all,
+.frp-back {
+    width: 100%;
+    min-height: 34px;
+    margin-bottom: 6px;
+    padding: 0.3rem;
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: #8fa4c2;
+    background: transparent;
+    border: 1px solid var(--th-line);
+    border-radius: 10px;
+    cursor: pointer;
+}

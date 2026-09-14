@@ -12,21 +12,21 @@ const MAX_INNINGS = 12;
     // 任何結果都還是記得到，只是不用每次都從十幾顆按鈕裡找。
     const ZONE_PLAYS = {
         field: [
-            { play: '一安', label: '一壘安打', group: '安打', zones: ['infield', 'outfield'] },
-            { play: '二安', label: '二壘安打', group: '安打', zones: ['outfield'] },
-            { play: '三安', label: '三壘安打', group: '安打', zones: ['outfield'] },
-            { play: '本打', label: '全壘打', group: '安打', zones: ['outfield'] },
-            { play: '內安', label: '內野安打', group: '安打', zones: ['infield'] },
-            { play: '滾地', label: '滾地出局', out: true, group: '出局', zones: ['infield'] },
-            { play: '飛球', label: '飛球出局', out: true, group: '出局', zones: ['infield', 'outfield'] },
-            { play: '界飛', label: '界外飛球接殺', out: true, group: '出局', zones: ['foul'] },
-            { play: '犧飛', label: '高飛犧牲', out: true, group: '出局', zones: ['outfield'] },
-            { play: '犧短', label: '犧牲觸擊', out: true, group: '出局', zones: ['infield', 'foul'] },
-            { play: '雙殺', label: '雙殺', out: true, group: '出局', zones: ['infield'] },
-            { play: '三殺', label: '三殺', out: true, group: '出局', zones: ['infield'] },
-            { play: '失誤', label: '失誤上壘', group: '其他', zones: ['infield', 'outfield', 'foul'] },
-            { play: '野手選擇', label: '野手選擇', group: '其他', zones: ['infield'] },
-            { play: '妨礙守備', label: '妨礙守備', out: true, group: '其他', zones: ['infield', 'foul'] }
+            { play: '一安', label: '一壘安打', group: '安打', zones: ['infield', 'outfield'], balls: ['G', 'L', 'F', 'B'] },
+            { play: '二安', label: '二壘安打', group: '安打', zones: ['outfield'], balls: ['G', 'L', 'F'] },
+            { play: '三安', label: '三壘安打', group: '安打', zones: ['outfield'], balls: ['G', 'L', 'F'] },
+            { play: '本打', label: '全壘打', group: '安打', zones: ['outfield'], balls: ['L', 'F'] },
+            { play: '內安', label: '內野安打', group: '安打', zones: ['infield'], balls: ['G', 'B'] },
+            { play: '滾地', label: '滾地出局', out: true, group: '出局', zones: ['infield'], balls: ['G', 'B'] },
+            { play: '飛球', label: '飛球出局', out: true, group: '出局', zones: ['infield', 'outfield'], balls: ['L', 'F'] },
+            { play: '界飛', label: '界外飛球接殺', out: true, group: '出局', zones: ['foul'], balls: ['L', 'F', 'B'] },
+            { play: '犧飛', label: '高飛犧牲', out: true, group: '出局', zones: ['outfield'], balls: ['F'] },
+            { play: '犧短', label: '犧牲觸擊', out: true, group: '出局', zones: ['infield', 'foul'], balls: ['B'] },
+            { play: '雙殺', label: '雙殺', out: true, group: '出局', zones: ['infield'], balls: ['G', 'L', 'F', 'B'] },
+            { play: '三殺', label: '三殺', out: true, group: '出局', zones: ['infield'], balls: ['G', 'L', 'F'] },
+            { play: '失誤', label: '失誤上壘', group: '其他', zones: ['infield', 'outfield', 'foul'], balls: ['G', 'L', 'F', 'B'] },
+            { play: '野手選擇', label: '野手選擇', group: '其他', zones: ['infield'], balls: ['G', 'B'] },
+            { play: '妨礙守備', label: '妨礙守備', out: true, group: '其他', zones: ['infield', 'foul'], balls: ['G', 'B'] }
         ]
     };
     ZONE_PLAYS.infield = ZONE_PLAYS.field;   // 相容舊呼叫
@@ -1789,17 +1789,52 @@ document.addEventListener('DOMContentLoaded', () => {
         function clearPendingPoint() {
             pendingPoint = null;
             pendingZone = null;
+            pendingBall = null;
             const mark = document.getElementById('mf-mark');
             if (mark) (mark as any).style.display = 'none';
             if (resultPanel) { resultPanel.classList.add('hidden'); resultPanel.innerHTML = ''; }
         }
 
-        function showResultOptions(zone) {
+        // 落點標好之後先問球種：一次只看四顆大按鈕，比一次列十幾個結果好按
+        const BALL_KINDS = [
+            { key: 'G', label: '滾地球' },
+            { key: 'L', label: '平飛球' },
+            { key: 'F', label: '高飛球' },
+            { key: 'B', label: '短打' },
+        ];
+        let pendingBall: string | null = null;
+        function fieldMiniMap() {
+            const dot = pendingPoint
+                ? `<circle class="frp-map-dot" cx="${pendingPoint.x}" cy="${pendingPoint.y}" r="26"/>` : '';
+            return `<svg class="frp-map" viewBox="18 -35 370 425" aria-hidden="true">`
+                + `<path class="frp-map-fan" d="M202 341 L15 154 A265 265 0 0 1 389 154 Z"/>`
+                + `<path class="frp-map-infield" d="M202 341 L127 271 L202 198 L275 272 Z"/>`
+                + dot + `</svg>`;
+        }
+        function zoneWordOf(zone) {
+            return zone === 'foul' ? '界外' : zone === 'infield' ? '內野' : '外野';
+        }
+        function showBallOptions(zone) {
+            if (!resultPanel) return;
+            pendingBall = null;
+            resultPanel.innerHTML =
+                `<div class="frp-title">${fieldMiniMap()}<span>落點：${zoneWordOf(zone)}　打成什麼球？</span></div>`
+                + `<div class="frp-balls">`
+                + BALL_KINDS.map(b => `<button type="button" data-ball="${b.key}">${b.label}</button>`).join('')
+                + `</div>`
+                + `<button type="button" class="frp-all" data-ball="all">直接看全部結果</button>`
+                + `<button type="button" class="frp-cancel" data-cancel="1">取消</button>`;
+            resultPanel.classList.remove('hidden');
+        }
+        function showResultOptions(zone, ball: string | null = null) {
             const list = ZONE_PLAYS.field;
             if (!resultPanel) return;
+            pendingBall = ball;
             const groups = ['安打', '出局', '其他'];
-            const zoneWord = zone === 'foul' ? '界外' : zone === 'infield' ? '內野' : '外野';
-            const fits = (o: any) => !o.zones || o.zones.indexOf(zone) >= 0;
+            const zoneWord = zoneWordOf(zone);
+            const ballWord = (BALL_KINDS.find(b => b.key === ball) || { label: '' }).label;
+            const fits = (o: any) => (!o.zones || o.zones.indexOf(zone) >= 0)
+                && (!ball || !o.balls || o.balls.indexOf(ball) >= 0);
             const btn = (o: any) => `<button type="button" data-play="${o.play}" class="${o.out ? 'is-out' : ''}">${o.label}</button>`;
             const section = (items: any[]) => groups.map(g => {
                 const inGroup = items.filter(o => o.group === g);
@@ -1810,14 +1845,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const main = list.filter(fits);
             const rest = list.filter(o => !fits(o));
             // 選單會蓋住球場，所以在標題旁放一張小圖，隨時看得到剛才點在哪裡
-            const dot = pendingPoint
-                ? `<circle class="frp-map-dot" cx="${pendingPoint.x}" cy="${pendingPoint.y}" r="26"/>` : '';
-            const miniMap = `<svg class="frp-map" viewBox="18 -35 370 425" aria-hidden="true">`
-                + `<path class="frp-map-fan" d="M202 341 L15 154 A265 265 0 0 1 389 154 Z"/>`
-                + `<path class="frp-map-infield" d="M202 341 L127 271 L202 198 L275 272 Z"/>`
-                + dot + `</svg>`;
             resultPanel.innerHTML =
-                `<div class="frp-title">${miniMap}<span>落點：${zoneWord}　選擇結果</span></div>`
+                `<div class="frp-title">${fieldMiniMap()}<span>落點：${zoneWord}${ballWord ? '　' + ballWord : ''}　選擇結果</span></div>`
+                + (ball ? `<button type="button" class="frp-back" data-back-ball="1">← 換球種</button>` : '')
                 + section(main)
                 + (rest.length
                     ? `<button type="button" class="frp-more" data-more="1">其他結果（${rest.length}）</button>`
@@ -1846,6 +1876,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const isSpecialOut = category === 'special-out';
             if (isHit || isAdvancedOut || isAdvancedOnBase || isGroundOrFlyOut || isSpecialOut) {
                 startAdvancedPlay(play, { batterIsOut: isAdvancedOut || isGroundOrFlyOut || isSpecialOut });
+                // 落點時已經選過球種，雙殺／三殺就不必再問一次
+                if (pendingBall && ['G', 'L', 'F'].includes(pendingBall) && ['雙殺', '三殺'].includes(play)) {
+                    advancedPlayState.ballType = pendingBall;
+                }
                 if (pendingPoint) {
                     // 主畫面已經標好落點，換算成記錄用小圖座標後直接沿用，
                     // 後面的視窗只顯示結果，不再要求重選一次。
@@ -1918,7 +1952,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try { (mainField as any).releasePointerCapture((e as PointerEvent).pointerId); } catch { /* 同上 */ }
                 setPendingFromEvent(e);
                 moveMarkTo(pendingPoint);
-                showResultOptions(pendingZone);
+                showBallOptions(pendingZone);
             };
             mainField.addEventListener('pointerup', finishDrag);
             mainField.addEventListener('pointercancel', () => { dragging = false; });
@@ -1929,7 +1963,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setPendingFromEvent(e);
                 moveMarkTo(pendingPoint, true);
                 tapFeedback();
-                showResultOptions(pendingZone);
+                showBallOptions(pendingZone);
             });
         }
 
@@ -1945,6 +1979,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     btn.remove();
                     return;
                 }
+                if (btn.dataset.ball) {
+                    tapFeedback();
+                    showResultOptions(pendingZone, btn.dataset.ball === 'all' ? null : btn.dataset.ball);
+                    return;
+                }
+                if (btn.dataset.backBall) { tapFeedback(); showBallOptions(pendingZone); return; }
                 if (btn.dataset.play) { tapFeedback(); runPlay(btn.dataset.play); }
             });
         }

@@ -9,6 +9,13 @@ function mainPointAt(deg, rMain) {
   return { x: 202 + Math.sin(rad) * rMain, y: 341 - Math.cos(rad) * rMain };
 }
 
+// 先顯示的那一區（收在「其他結果」裡的不算）
+function mainPlays(w) {
+  return [...w.document.querySelectorAll('#field-result-panel button[data-play]')]
+    .filter(b => !b.closest('.frp-rest'))
+    .map(b => b.dataset.play);
+}
+
 // 從主畫面球場點擊，一路走到進階視窗
 function clickFieldThen(w, zone, play) {
   startGame(w);
@@ -17,6 +24,57 @@ function clickFieldThen(w, zone, play) {
 }
 
 export default async function (t) {
+  // 先問球種再列結果：一次只看四顆大按鈕，比一次列十幾個結果好按
+  await t('點完落點先出現球種，選了才列結果', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    clickZone(w, 'infield', null);                 // 只點落點，不選球種
+    const balls = [...w.document.querySelectorAll('#field-result-panel [data-ball]')].map(b => b.textContent.trim());
+    t.assert(balls.join(',') === '滾地球,平飛球,高飛球,短打,直接看全部結果', '球種選項不對：' + balls.join(','));
+    t.assert(!q('#field-result-panel button[data-play]'), '還沒選球種就列出結果了');
+    click(w, q('#field-result-panel button[data-ball="G"]'));
+    const plays = mainPlays(w);
+    t.assert(plays.includes('滾地') && plays.includes('內安') && plays.includes('雙殺'), '滾地球少了常用結果：' + plays.join(','));
+    t.assert(!plays.includes('飛球') && !plays.includes('犧飛'), '滾地球不該列飛球類的結果：' + plays.join(','));
+  });
+
+  await t('外野高飛球會列出全壘打與高飛犧牲', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    clickZone(w, 'outfield', 'F');
+    const plays = mainPlays(w);
+    t.assert(plays.includes('本打') && plays.includes('犧飛') && plays.includes('飛球'), '高飛球少了結果：' + plays.join(','));
+    t.assert(!plays.includes('滾地'), '高飛球不該列滾地出局：' + plays.join(','));
+  });
+
+  await t('選錯球種可以按「換球種」回去', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    clickZone(w, 'infield', 'B');
+    const plays = mainPlays(w);
+    t.assert(plays.includes('犧短'), '短打少了犧牲觸擊：' + plays.join(','));
+    click(w, q('#field-result-panel .frp-back'));
+    t.assert(w.document.querySelectorAll('#field-result-panel [data-ball]').length === 5, '沒有回到球種選單');
+  });
+
+  await t('「直接看全部結果」會列出所有結果', async () => {
+    const { window: w } = await boot();
+    startGame(w);
+    clickZone(w, 'infield');                       // 預設就是全部
+    const plays = [...w.document.querySelectorAll('#field-result-panel button[data-play]')].map(b => b.dataset.play);
+    t.assert(plays.includes('滾地') && plays.includes('飛球') && plays.includes('犧短'), '全部結果不完整：' + plays.join(','));
+  });
+
+  await t('落點選過滾地，雙殺就不用再挑一次球種', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    click(w, q('#quick-plays button[data-play="四壞"]'));
+    clickZone(w, 'infield', 'G');
+    click(w, q('#field-result-panel button[data-play="雙殺"]'));
+    const sel = q('#modal-advanced-options button[data-ball="G"]');
+    t.assert(sel && sel.classList.contains('selected'), '雙殺的球種沒有自動帶成滾地');
+  });
+
   // 按住拖曳到想要的位置再放開，放開才跳出結果選單
   await t('按住拖曳才放開，過程看得到紅點', async () => {
     const { window: w, q } = await boot();
