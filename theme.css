@@ -1334,15 +1334,23 @@ body {
     flex-direction: column;
     justify-content: center;
     padding: calc(env(safe-area-inset-top) + 18px) 18px calc(env(safe-area-inset-bottom) + 18px);
-    background:
-        radial-gradient(120% 70% at 50% 0%, rgba(23, 60, 105, 0.75), rgba(4, 12, 24, 0.94) 70%),
-        var(--th-bg, #050f1d);
+    /* 首頁不自己畫底色，讓底下那張球場照（#stadium-bg-layer）透出來，
+       跟三個內頁共用同一張圖；只再蓋一層薄紗把字壓清楚。 */
+    background: linear-gradient(180deg,
+        rgba(4, 13, 24, 0.42) 0%,
+        rgba(4, 13, 24, 0.30) 34%,
+        rgba(4, 13, 24, 0.62) 70%,
+        rgba(4, 13, 24, 0.86) 100%);
 }
 
 #home-screen.hidden { display: none; }
 
-/* 首頁打開時，底下的換頁列要收起來，不然會浮在首頁上面 */
+/* 首頁打開時，底下的換頁列要收起來，不然會浮在首頁上面。
+   球場照在最底層（z-index 0）、APP 內容在它上面（1）、首頁在 90，
+   所以首頁只蓋一層薄紗的話會透出比賽頁 —— APP 內容要一起藏起來，
+   用 visibility 而不是 display，版面尺寸才不會被打亂。 */
 body.home-open #mobile-nav { display: none; }
+body.home-open #app-container { visibility: hidden; }
 
 .home-inner {
     width: 100%;

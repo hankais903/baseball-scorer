@@ -127,6 +127,26 @@ export default async function (t) {
     t.assert(q('#load-roster-title').textContent === '我的球隊', '視窗標題不對：' + q('#load-roster-title').textContent);
   });
 
+  // 首頁跟三個內頁共用同一張球場照：首頁自己不畫底色，只蓋一層薄紗。
+  // 但球場照在最底層、APP 內容在它上面，所以首頁打開時 APP 內容要一起藏起來，
+  // 否則比賽頁會從薄紗後面透出來（踩過一次）
+  await t('首頁跟內頁共用同一張底圖，且不會透出比賽頁', async () => {
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    const home = (css.match(/#home-screen\{[^}]*\}/g) || []).join(' ');
+    const bg = (home.match(/background:([^;}]*)/) || [])[1] || '';
+    t.assert(/^linear-gradient\(/.test(bg.trim()), '首頁的底不是純漸層薄紗：' + bg);
+    // 漸層裡的每個顏色都要是半透明的（壓縮後會寫成 8 碼色碼或 rgba），
+    // 只要有一個不透明就會把底下的球場照整片蓋掉
+    const solid = (bg.match(/#[0-9a-f]{6}(?![0-9a-f])/gi) || []);
+    t.assert(solid.length === 0, '薄紗裡有不透明的顏色，會蓋掉球場照：' + solid.join(','));
+    t.assert(/\.home-open\s+#app-container\s*\{[^}]*visibility:\s*hidden/.test(css),
+      '首頁打開時沒有把 APP 內容藏起來，比賽頁會透出來');
+    const { q } = await boot();
+    t.assert(!!q('#stadium-bg'), '找不到共用的球場底圖');
+  });
+
   await t('LOGO 有進離線清單，預覽檔也會內嵌', async () => {
     const fs = await import('fs');
     t.assert(fs.readFileSync('dist/service-worker.js', 'utf8').includes('./img/logo.webp'), 'LOGO 沒有進離線清單');
