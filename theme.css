@@ -39,11 +39,9 @@ body {
 /* 照整張寬度放，兩側的燈塔才看得到；下半部用漸層融進底色 */
 #stadium-bg {
     position: absolute;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100%;
-    height: auto;
-    min-height: 62%;
+    height: 100%;
     object-fit: cover;
     object-position: center top;
     display: block;
@@ -55,10 +53,11 @@ body {
     position: absolute;
     inset: 0;
     background: linear-gradient(180deg,
-        rgba(4, 13, 24, 0.72) 0%,
-        rgba(4, 13, 24, 0.70) 30%,
-        rgba(4, 13, 24, 0.86) 58%,
-        #040d18 78%);
+        rgba(4, 13, 24, 0.62) 0%,
+        rgba(4, 13, 24, 0.56) 28%,
+        rgba(4, 13, 24, 0.74) 55%,
+        rgba(4, 13, 24, 0.90) 76%,
+        #040d18 100%);
 }
 
 /* 頁面本身要透明，底圖才透得出來 */

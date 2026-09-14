@@ -9,7 +9,7 @@ const urlsToCache = [
   './icon-192.png',
   './icon-512.png',
   './img/field.png',
-  './img/stadium-night.jpg',
+  './img/stadium-night.webp',
   './img/batter-default.jpg',
   './img/logo.webp'
 ];

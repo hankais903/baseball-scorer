@@ -93,7 +93,7 @@ let html = read('index.html')
     // 球場圖轉成內嵌圖檔
     .replaceAll('href="./img/field.png"', lit(`href="data:image/png;base64,${b64('img/field.png')}"`))
     // 夜景背景與卡通打者頭像也要內嵌（JS 裡的那一處是打者卡的預設頭像）
-    .replaceAll('src="./img/stadium-night.jpg"', lit(`src="data:image/jpeg;base64,${b64('img/stadium-night.jpg')}"`))
+    .replaceAll('src="./img/stadium-night.webp"', lit(`src="data:image/webp;base64,${b64('img/stadium-night.webp')}"`))
     .replaceAll('src="./img/logo.webp"', lit(`src="data:image/webp;base64,${b64('img/logo.webp')}"`))
     .replaceAll("'./img/batter-default.jpg'", lit(`"data:image/jpeg;base64,${b64('img/batter-default.jpg')}"`))
     .replaceAll('"./img/batter-default.jpg"', lit(`"data:image/jpeg;base64,${b64('img/batter-default.jpg')}"`))

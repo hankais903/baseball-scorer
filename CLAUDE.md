@@ -8,7 +8,7 @@
 ```bash
 npm install                 # 第一次
 npm run build               # Vite 建置到 dist/（測試跑的是 dist/，改完一定要先 build）
-npm test                    # 275+ 項回歸測試（jsdom），約 2 分鐘
+npm test                    # 288+ 項回歸測試（jsdom），約 2 分鐘
 npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自動 build）
 ```
 交付前必須：`npm run build && npm test` 全綠。每修一個 bug 就在 `tests/` 加一條釘住它的測試，套件名稱在 `tests/run.mjs` 註冊。
@@ -18,7 +18,8 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 ## 檔案結構
 - `index.tsx`（主程式，單一 IIFE）、`index.css`、`mobile.css`（手機／直向覆寫）、`index.html`
 - `public/*.js`：不經 Vite 打包的全域腳本 — `game-manager.js`（多場比賽／自動儲存）、`game-list-ui.js`、`game-helpers.js`、`game-integration.js`、`official-sheet.js`（正式記錄表，另開視窗列印）、`service-worker.js`
-- `public/img/stadium-night.jpg`（820×1230）：主頁球場後面的夜景照；`public/img/batter-default.jpg`（330×440）：主頁打者卡沒照片時的卡通小打者（名單頁仍用背號頭像）。兩張都在 service worker 的離線清單裡，預覽檔也會內嵌。
+- `public/img/stadium-night.webp`（1000×1777）：**整個 APP 的底圖**（首頁與三個內頁共用同一張，換圖只要換這個檔）；`public/img/batter-default.jpg`（330×440）：主頁打者卡沒照片時的卡通小打者（名單頁仍用背號頭像）。兩張都在 service worker 的離線清單裡，預覽檔也會內嵌。
+- `public/img/logo.webp`（760×710）：Diamond Log 的 LOGO，放在首頁；`public/icon-192.png`／`icon-512.png` 是加到主畫面的 APP 圖示（iOS 不吃透明背景，所以配深藍底）。
 - `public/img/field.png`（412×402）：主頁球場圖，也給球員調度的守位圖用。本壘 (202,341)、一壘 (275,272)、二壘 (202,198)、三壘 (127,271)。主球場 SVG viewBox 為 `18 -35 370 425`（上方多 60 單位是全壘打區）。
 - `tests/harness.mjs`：jsdom 開機、`click`、`clickZone(w, 'infield'|'outfield'|'foul'|'deepcf')` 等工具。
 
@@ -64,7 +65,7 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 手機優先（iPhone 393×852，動態島 59px 用 `env(safe-area-inset-*)`），三面板：名單頁／主頁／事件頁，**只用底部的文字分頁切換**（名單／比賽／紀錄，仍是 `.nav-dot`）。左右滑動換頁已移除，因為會跟球場上「按住拖曳標落點」搶手勢。每頁各自有底色（深夜藍），滑動時背景會跟著頁面一起移動，不要用固定在螢幕上的背景。表格（打擊、投手、戰況表）可橫向捲動，手指在表格上時面板手勢要讓路。
 - 打者卡右邊原本的 NEXT（接下來兩位打者）已移除，那一格改放 **OUT／局數／計時**（`#status-bar`，上排局數置中、下排左 OUT 右計時）。格子很窄，計時的時鐘圖示要關掉，否則會被切到。
 - 上方資訊列（依使用者提供的示意圖）：三顆藥丸——球場（圖示＋可輸入，右邊箭頭列出用過的球場，存在 `baseball_stadium_history`）／日期（左右箭頭前後一天，中間顯示「2026年9月11日 (五)」，真正的 `input[type=date]` 透明疊在上面點了叫日曆）／天氣。局數依 `data-half` 顯示 ▲／▼。
-- 主頁最上面是標題列（`.stadium-toolbar`：⚾＋「棒球比賽紀錄」），只有標題沒有功能鍵。夜景照是**整個畫面的底圖**（`#stadium-bg-layer`，放在 `#app-container` 外面、`position:fixed`，左右滑頁時不會跟著動），上面蓋一層深色漸層紗保持字的清晰度；三個頁面本身都是透明的。全壘打區 `.mf-wall-area` 設成透明讓底圖透出來。
+- 主頁最上面是標題列（`.stadium-toolbar`：⚾＋「棒球比賽紀錄」＋版號），**點一下回首頁**（`#home-btn`）。LOGO 縮到 30px 會糊成一團，所以這裡維持 ⚾。夜景照是**整個畫面的底圖**（`#stadium-bg-layer`，放在 `#app-container` 外面、`position:fixed`，左右滑頁時不會跟著動），上面蓋一層深色漸層紗保持字的清晰度；三個頁面本身都是透明的。全壘打區 `.mf-wall-area` 設成透明讓底圖透出來。
 - 主頁高度很緊：改版面後用 playwright 量一次，最下排按鈕底部要跟換頁列留至少 6px。
 - 球場上的疊層（`#bases-container` 裡的 PLAY BALL、`#field-result-panel` 落點結果、開賽前壓暗的 `.pregame::after`）靠 `index.css` 原本的 position 與 z-index 互相疊。**不要在主題檔裡改它們的 position，也不要另外給 z-index**：改 position 會讓 PLAY BALL 掉到球場下面不見，加 z-index 會多開一層堆疊、讓 PLAY BALL 被壓暗那層蓋住。已有回歸測試釘住。
 - 主頁：計分板全顯示；球場滿版；開賽前球場壓暗、PLAY BALL 黃色膠囊；開賽後計時在右上、局數標籤置中。打者卡片只放打者資訊。
@@ -78,6 +79,18 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 點擊回饋：`mobile.css` 關掉了 iOS 預設的灰色點擊框，所以按鈕要自己給回饋——一律 `:active` 變亮，記錄流程的大按鈕再加 `scale(0.95)`；點球場時落點標記播 `mf-mark-pop` 擴散動畫；`tapFeedback()` 會試著震動（Android 有效，iPhone 的 Safari 不支援）。動畫都要尊重 `prefers-reduced-motion`。
 - 計時器**一開始就顯示**（停在 00:00），按了 PLAY BALL 才開始跑；開賽前點它不會叫出選單。開賽後可點：叫出「暫停／繼續」與「結束計時」（`pausedMs`／`pausedAt` 記錄暫停時間）。**「結束計時」＝比賽結束**，按下去會先用 `confirm` 問一次，確定後才停錶並 `endGame()`。
 - 正式記錄表暫時只顯示與「匯出紀錄」相同的內容，在 APP 內開視窗，不另開新視窗。
+
+## 首頁（啟動畫面）
+- `#home-screen`：大 LOGO ＋ 四塊（繼續比賽／開始新比賽／比賽紀錄／我的球隊）。
+  沒有進行中的比賽時，最大那顆直接變成「開始新比賽」，重複的那張收起來。
+- **有比賽進行中就直接進比賽，不擋首頁**；要回首頁點標題列。場邊記錄每多一次點擊都嫌煩。
+- `z-index: 90`：要蓋過換頁列（50），但**一定要低於視窗**（遮罩 100、球員選擇 1000、比賽列表 9999），
+  否則從首頁叫出來的「我的球隊」會被首頁整片蓋住（踩過一次）。
+- 首頁不自己畫底色，吃底下那張球場照；但球場照在最底層、APP 內容在它上面，
+  所以 `body.home-open` 要一併把 `#app-container` 藏起來（用 `visibility`，別用 `display`），
+  不然比賽頁會從薄紗後面透出來（也踩過一次）。兩件事都有測試釘住。
+- 「我的球隊」沿用既有的儲存名單（`savedBaseballRosters`）：從首頁進來時每一隊給
+  「載入客隊／載入主隊」兩顆、視窗標題是「我的球隊」；從名單頁進來仍然只有一顆「載入」。
 
 ## 多場比賽（`public/game-manager.js`／`game-list-ui.js`）
 - **最多留 10 場**（`MAX_GAMES`）：存檔時 `trimToLimit` 會把最舊的丟掉，正在記錄的那一場一定保留。
