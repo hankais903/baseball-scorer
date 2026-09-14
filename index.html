@@ -79,14 +79,14 @@
                 <span id="edit-mode-text"></span>
                 <button type="button" id="edit-mode-cancel">取消修改</button>
             </div>
-            <!-- 上方標題列：只有棒球圖示與標題，不放功能鍵 -->
-            <div class="stadium-toolbar">
+            <!-- 上方標題列：點一下回首頁 -->
+            <button type="button" class="stadium-toolbar" id="home-btn" aria-label="回首頁">
                 <span class="brand-ball" aria-hidden="true">⚾</span>
                 <div class="brand-text">
                     <strong>棒球比賽紀錄<span id="app-version" class="brand-version"></span></strong>
                     <small>Baseball Scoring Tool</small>
                 </div>
-            </div>
+            </button>
             <header id="game-info">
                 <div id="game-meta-row">
                     <!-- 球場：可直接打字，右邊的箭頭會列出用過的球場 -->
@@ -360,7 +360,7 @@
     <div id="load-roster-modal" class="modal-hidden">
         <div class="load-roster-modal-content draggable-modal-content">
             <button id="close-load-roster-modal" aria-label="Close">&times;</button>
-            <h3 class="modal-drag-handle">讀取儲存的名單</h3>
+            <h3 class="modal-drag-handle" id="load-roster-title">讀取儲存的名單</h3>
             <div id="saved-rosters-list">
                 <!-- Saved rosters will be listed here by JS -->
             </div>
@@ -380,6 +380,40 @@
         <button type="button" class="nav-dot" data-index="0">名單</button>
         <button type="button" class="nav-dot active" data-index="1" aria-current="page">比賽</button>
         <button type="button" class="nav-dot" data-index="2">紀錄</button>
+    </div>
+
+    <!-- 首頁：一進 APP 先看到這裡；有比賽進行中就直接跳過 -->
+    <div id="home-screen" class="hidden" aria-label="首頁">
+        <div class="home-inner">
+            <img id="home-logo" src="./img/logo.webp" alt="Diamond Log 棒球比賽紀錄">
+            <div class="home-actions">
+                <button type="button" id="home-continue" class="home-card home-card-main">
+                    <span class="home-card-text">
+                        <span class="home-card-label">繼續比賽</span>
+                        <span class="home-card-sub" id="home-continue-sub"></span>
+                    </span>
+                </button>
+                <button type="button" id="home-new" class="home-card">
+                    <span class="home-card-text">
+                        <span class="home-card-label">開始新比賽</span>
+                        <span class="home-card-sub">設定兩隊名單與打序</span>
+                    </span>
+                </button>
+                <button type="button" id="home-games" class="home-card">
+                    <span class="home-card-text">
+                        <span class="home-card-label">比賽紀錄</span>
+                        <span class="home-card-sub" id="home-games-sub"></span>
+                    </span>
+                </button>
+                <button type="button" id="home-teams" class="home-card">
+                    <span class="home-card-text">
+                        <span class="home-card-label">我的球隊</span>
+                        <span class="home-card-sub" id="home-teams-sub"></span>
+                    </span>
+                </button>
+            </div>
+            <div class="home-foot"><span id="home-version"></span></div>
+        </div>
     </div>
 
     <script type="module" src="./index.tsx"></script>

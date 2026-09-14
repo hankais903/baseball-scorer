@@ -94,6 +94,7 @@ let html = read('index.html')
     .replaceAll('href="./img/field.png"', lit(`href="data:image/png;base64,${b64('img/field.png')}"`))
     // 夜景背景與卡通打者頭像也要內嵌（JS 裡的那一處是打者卡的預設頭像）
     .replaceAll('src="./img/stadium-night.jpg"', lit(`src="data:image/jpeg;base64,${b64('img/stadium-night.jpg')}"`))
+    .replaceAll('src="./img/logo.webp"', lit(`src="data:image/webp;base64,${b64('img/logo.webp')}"`))
     .replaceAll("'./img/batter-default.jpg'", lit(`"data:image/jpeg;base64,${b64('img/batter-default.jpg')}"`))
     .replaceAll('"./img/batter-default.jpg"', lit(`"data:image/jpeg;base64,${b64('img/batter-default.jpg')}"`))
     // 單檔預覽沒有 service worker 可以註冊

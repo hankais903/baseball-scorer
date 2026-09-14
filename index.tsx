@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v1.2';
+const APP_VERSION = 'v1.3';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -724,6 +724,57 @@ document.addEventListener('DOMContentLoaded', () => {
     let dragTarget: HTMLElement | null = null;
     let offsetX = 0;
     let offsetY = 0;
+    // === 首頁（啟動畫面）===
+    // 場邊記錄時每多按一次都嫌煩，所以「有比賽進行中就直接進比賽」，
+    // 首頁只在沒有進行中的比賽時擋在前面；要回首頁點上面的標題列。
+    const gameInProgress = () => !!gameState.started && !gameState.isGameOver;
+    function showHome() {
+        renderHome();
+        document.getElementById('home-screen')?.classList.remove('hidden');
+        document.body.classList.add('home-open');
+    }
+    function hideHome() {
+        document.getElementById('home-screen')?.classList.add('hidden');
+        document.body.classList.remove('home-open');
+    }
+    function renderHome() {
+        const main = document.getElementById('home-continue');
+        const newBtn = document.getElementById('home-new');
+        if (!main) return;
+        const label = main.querySelector('.home-card-label');
+        const sub = document.getElementById('home-continue-sub');
+        if (gameInProgress()) {
+            // 有比賽在進行：最大那顆是「繼續比賽」，順便把戰況寫在上面
+            const a = gameState.teams.a, b = gameState.teams.b;
+            const sa = a.score.reduce((x, y) => x + (y || 0), 0);
+            const sb = b.score.reduce((x, y) => x + (y || 0), 0);
+            const half = gameState.isTop ? '上' : '下';
+            const where = gameState.stadium ? `　${gameState.stadium}` : '';
+            if (label) label.textContent = '繼續比賽';
+            if (sub) sub.textContent = `${a.name} ${sa} : ${sb} ${b.name}　${gameState.inning}局${half}${where}`;
+            newBtn?.classList.remove('hidden');
+        }
+        else {
+            // 沒有進行中的比賽：最大那顆直接變成「開始新比賽」，小的那顆收起來
+            if (label) label.textContent = '開始新比賽';
+            if (sub) sub.textContent = gameState.isGameOver ? '上一場已經結束了' : '設定兩隊名單與打序';
+            newBtn?.classList.add('hidden');
+        }
+        const games = (() => {
+            try { return (window as any).baseballGameManager?.getGamesList()?.length || 0; }
+            catch { return 0; }
+        })();
+        const gsub = document.getElementById('home-games-sub');
+        if (gsub) gsub.textContent = games ? `已存 ${games} 場，最多保留 10 場` : '還沒有存過比賽';
+        const teams = (() => {
+            try { return JSON.parse(localStorage.getItem(SAVED_ROSTERS_KEY) || '[]').length; }
+            catch { return 0; }
+        })();
+        const tsub = document.getElementById('home-teams-sub');
+        if (tsub) tsub.textContent = teams ? `已存 ${teams} 隊，開賽時直接帶入` : '把常用名單存起來，開賽直接帶入';
+        const ver = document.getElementById('home-version');
+        if (ver) ver.textContent = APP_VERSION;
+    }
     function init() {
         const verEl = document.getElementById('app-version');
         if (verEl) verEl.textContent = APP_VERSION;
@@ -732,6 +783,9 @@ document.addEventListener('DOMContentLoaded', () => {
         addEventListeners();
         render();
         updateLayout(); // Set initial layout based on screen size
+        // 有比賽在進行就直接進比賽頁，不要擋在首頁
+        if (gameInProgress()) hideHome();
+        else showHome();
     }
     // 拖曳只改了 DOM 順序，輸入欄上的 data-index 仍是舊的位置。
     // 套用前先依畫面上的排列把 roster 重新排好（整個球員物件一起搬，統計數據跟著走）。
@@ -1382,7 +1436,25 @@ document.addEventListener('DOMContentLoaded', () => {
         savedRostersList.addEventListener('mousedown', handleLoadRosterModalClick);
         attachTeamSettingsListeners();
         newGameBtn.addEventListener('click', () => { openModal(confirmModal); });
-        confirmResetBtn.addEventListener('click', () => { gameState = getInitialGameState(); gameStateHistory = []; resetReplayLog(); saveState(); createLineupInputs(); attachTeamSettingsListeners(); render(); closeModal(confirmModal); });
+        confirmResetBtn.addEventListener('click', () => { gameState = getInitialGameState(); gameStateHistory = []; resetReplayLog(); saveState(); createLineupInputs(); attachTeamSettingsListeners(); render(); closeModal(confirmModal); hideHome(); navigateToPanel(0); });
+        // === 首頁的四塊 ===
+        document.getElementById('home-btn')?.addEventListener('click', () => { tapFeedback(); showHome(); });
+        document.getElementById('home-continue')?.addEventListener('click', () => {
+            tapFeedback();
+            if (gameInProgress()) { hideHome(); navigateToPanel(1); return; }
+            // 沒有進行中的比賽：上一場結束過或已經開打過就先問一次，其餘直接進名單頁
+            if (gameState.started || gameState.isGameOver) { openModal(confirmModal); return; }
+            hideHome(); navigateToPanel(0);
+        });
+        document.getElementById('home-new')?.addEventListener('click', () => { tapFeedback(); openModal(confirmModal); });
+        document.getElementById('home-games')?.addEventListener('click', () => {
+            tapFeedback();
+            (window as any).baseballGameListUI?.showGameList();
+        });
+        document.getElementById('home-teams')?.addEventListener('click', () => {
+            tapFeedback();
+            openLoadRosterModal(null);       // 從首頁進來還不知道要載入哪一隊，兩邊都給
+        });
         cancelResetBtn.addEventListener('click', () => { closeModal(confirmModal); });
         confirmModal.addEventListener('click', (e) => { if (e.target === confirmModal)
             closeModal(confirmModal); });
@@ -5664,22 +5736,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return { name: teamName, useDH, roster };
     }
     // Renders the list of saved rosters in the modal.
-    function renderSavedRostersList() {
+    // teamKey 為 null 表示從首頁進來：還不知道要載入哪一隊，所以兩邊都給一顆
+    function renderSavedRostersList(teamKey?: string | null) {
         const savedRosters = JSON.parse(localStorage.getItem(SAVED_ROSTERS_KEY) || '[]');
         if (savedRosters.length === 0) {
-            savedRostersList.innerHTML = '<p>沒有已儲存的名單。</p>';
+            savedRostersList.innerHTML = '<p>還沒有存過球隊名單。<br>到名單頁按隊名旁邊的「儲存名單」就會出現在這裡。</p>';
+            return;
         }
-        else {
-            savedRostersList.innerHTML = savedRosters.map(roster => `
-                <div class="saved-roster-item">
-                    <span class="saved-roster-item-name">${roster.name}</span>
-                    <div class="saved-roster-item-actions">
-                        <button class="load-roster-item-btn" data-roster-id="${roster.id}">載入</button>
-                        <button class="delete-roster-item-btn" data-roster-id="${roster.id}">刪除</button>
-                    </div>
+        const loadBtns = teamKey
+            ? `<button class="load-roster-item-btn" data-roster-id="{id}">載入</button>`
+            : `<button class="load-roster-item-btn" data-roster-id="{id}" data-team="a">載入客隊</button>`
+              + `<button class="load-roster-item-btn" data-roster-id="{id}" data-team="b">載入主隊</button>`;
+        savedRostersList.innerHTML = savedRosters.map(roster => `
+            <div class="saved-roster-item">
+                <span class="saved-roster-item-name">${roster.name}</span>
+                <div class="saved-roster-item-actions">
+                    ${loadBtns.split('{id}').join(roster.id)}
+                    <button class="delete-roster-item-btn" data-roster-id="${roster.id}">刪除</button>
                 </div>
-            `).join('');
-        }
+            </div>
+        `).join('');
     }
     function saveRoster(teamKey: 'a' | 'b') {
         const teamDataFromForm = getRosterFromForm(teamKey);
@@ -5731,9 +5807,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function openLoadRosterModal(teamKey) {
-        renderSavedRostersList();
+        renderSavedRostersList(teamKey);
         // Store the target teamKey on the modal for the click handler
-        loadRosterModal.dataset.teamKey = teamKey;
+        const title = document.getElementById('load-roster-title');
+        if (title) title.textContent = teamKey ? '讀取儲存的名單' : '我的球隊';
+        if (teamKey) loadRosterModal.dataset.teamKey = teamKey;
+        else delete loadRosterModal.dataset.teamKey;
         openModal(loadRosterModal);
     }
     function handleLoadRosterModalClick(e: MouseEvent) {
@@ -5749,9 +5828,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const deleteButton = target.closest('.delete-roster-item-btn');
         if (loadButton) {
             const rosterId = (loadButton as HTMLElement).dataset.rosterId;
-            const teamKey = loadRosterModal.dataset.teamKey;
+            // 從首頁進來時，是哪一隊寫在按鈕上；從名單頁進來時寫在視窗上
+            const teamKey = (loadButton as HTMLElement).dataset.team || loadRosterModal.dataset.teamKey;
             if (rosterId && teamKey) {
                 loadRoster(rosterId, teamKey);
+                hideHome();
+                navigateToPanel(0);          // 載完直接帶到名單頁看結果
             }
             return;
         }
@@ -5822,7 +5904,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const updatedRosters = savedRosters.filter(r => r.id !== rosterId);
             localStorage.setItem(SAVED_ROSTERS_KEY, JSON.stringify(updatedRosters));
             // Re-render the list to ensure the UI is in sync with the latest data.
-            renderSavedRostersList();
+            renderSavedRostersList(loadRosterModal.dataset.teamKey || null);
         }
     }
     init();

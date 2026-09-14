@@ -10,7 +10,8 @@ const urlsToCache = [
   './icon-512.png',
   './img/field.png',
   './img/stadium-night.jpg',
-  './img/batter-default.jpg'
+  './img/batter-default.jpg',
+  './img/logo.webp'
 ];
 
 // 安裝：先把外殼存起來，並要求立刻接手（不用等所有分頁關掉）
