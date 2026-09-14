@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.5';
+const APP_VERSION = 'v2.6';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -361,7 +361,11 @@ document.addEventListener('DOMContentLoaded', () => {
             case '二安': return `${area}二壘安打`;
             case '三安': return `${area}三壘安打`;
             case '本打': return `${area}全壘打`;
-            case '失誤': return `擊向${who}`;
+            case '失誤': {
+                // 用「落點方向＋球種」開頭，跟其他結果一致（原本寫「擊向中外野手」很生硬）
+                const bw = { G: '滾地球', L: '平飛球', F: '高飛球', B: '短打' }[advancedPlayState.ballType] || '';
+                return bw ? `${area}${bw}` : `${area}的球`;
+            }
             case '不死三振': return `揮空三振但${who}未能接妥`;
             default: return `${PLAY_DESCRIPTIONS[play]}，由${who}處理`;
         }
@@ -1062,10 +1066,12 @@ document.addEventListener('DOMContentLoaded', () => {
             `<option value="${p._id}"${p._id === sel ? ' selected' : ''}>${p.jersey ? p.jersey + '　' : ''}${memberName(p, i)}</option>`).join('');
         const spots = document.getElementById('gs-spots');
         if (spots) {
-            spots.innerHTML = Array.from({ length: 9 }, (_, i) => `
-                <div class="lu-spot"><span>${i + 1}棒</span>
+            spots.innerHTML = Array.from({ length: 9 }, (_, i) => {
+                const isP = !gsLineup.useDH && i === 8;
+                return `<div class="lu-spot${isP ? ' is-pitcher' : ''}"><span>${i + 1}棒${isP ? '（投）' : ''}</span>
                     <select data-gspot="${i}">${opt(gsLineup.spots[i])}</select>
-                    <select class="lu-pos" data-gpos="${i}" aria-label="守位">${POS_OPTIONS((gsLineup.positions || [])[i])}</select></div>`).join('');
+                    <select class="lu-pos" data-gpos="${i}" aria-label="守位"${isP ? ' disabled' : ''}>${isP ? '<option value="P" selected>P</option>' : POS_OPTIONS((gsLineup.positions || [])[i])}</select></div>`;
+            }).join('');
         }
         const pit = document.getElementById('gs-pitcher') as HTMLSelectElement;
         if (pit) pit.innerHTML = opt(gsLineup.pitcherId);
@@ -1293,10 +1299,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button type="button" class="dh-btn${lu.useDH ? '' : ' active'}" data-dh="0">投手打擊</button>
             </div>
             <p class="sub-note" id="lu-dh-hint">${lu.useDH ? '第九棒是指定打擊，投手不排進打線' : '投手自己打擊，第九棒就是投手'}</p>
-            <div class="lu-spots">` + Array.from({ length: 9 }, (_, i) => `
-                <div class="lu-spot"><span>${i + 1}棒</span>
+            <div class="lu-spots">` + Array.from({ length: 9 }, (_, i) => {
+                // DH 關掉時第九棒就是投手，守位鎖成 P，不要再讓人自己選
+                const isP = !lu.useDH && i === 8;
+                return `<div class="lu-spot${isP ? ' is-pitcher' : ''}"><span>${i + 1}棒${isP ? '（投）' : ''}</span>
                     <select data-spot="${i}">${opt((lu.spots || [])[i])}</select>
-                    <select class="lu-pos" data-pos="${i}" aria-label="守位">${POS_OPTIONS(pos[i])}</select></div>`).join('') + `</div>
+                    <select class="lu-pos" data-pos="${i}" aria-label="守位"${isP ? ' disabled' : ''}>${isP ? '<option value="P" selected>P</option>' : POS_OPTIONS(pos[i])}</select></div>`;
+            }).join('') + `</div>
             <label class="team-row${lu.useDH ? '' : ' hidden'}" id="lu-pitcher-row"><span class="team-row-label">先發投手</span>
                 <select id="lu-pitcher">${opt(lu.pitcherId)}</select></label>
             <div class="lu-actions">
@@ -2117,6 +2126,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!b) return;
             tapFeedback();
             gsLineup.useDH = b.dataset.dh === '1';
+            gsLineup.positions = gsLineup.positions || Array(9).fill('');
+            if (!gsLineup.useDH) gsLineup.positions[8] = 'P';
             renderStarters();
         });
         document.getElementById('gs-spots')?.addEventListener('change', (e) => {
@@ -2220,7 +2231,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const dhBtn = t.closest('.dh-btn') as HTMLElement;
             if (dhBtn && t.closest('#lu-dh')) {
                 const lu2 = (myTeam.lineups || []).find(l => l.id === sub.dataset.editing);
-                if (lu2) { lu2.useDH = dhBtn.dataset.dh === '1'; saveMyTeam(); renderSub(); }
+                if (lu2) {
+                    lu2.useDH = dhBtn.dataset.dh === '1';
+                    lu2.positions = lu2.positions || Array(9).fill('');
+                    if (!lu2.useDH) lu2.positions[8] = 'P';          // 第九棒就是投手
+                    saveMyTeam(); renderSub();
+                }
                 return;
             }
             if (t.closest('#lu-done')) { delete sub.dataset.editing; renderSub(); renderTeamPage(); return; }
@@ -2232,6 +2248,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, '刪除');
                 return;
             }
+        });
+        // 背號一邊打，姓名欄的提示（簡稱＋背號）就一邊跟著變
+        document.getElementById('sub-body')?.addEventListener('input', (e) => {
+            const jersey = (e.target as HTMLElement).closest('.mp-jersey') as HTMLInputElement;
+            if (!jersey || !myTeam) return;
+            const row = jersey.closest('.mp-row') as HTMLElement;
+            const name = row.querySelector('.mp-name') as HTMLInputElement;
+            const i = [...row.parentElement.children].indexOf(row);
+            name.placeholder = memberName({ name: '', jersey: jersey.value.trim() }, i);
         });
         document.getElementById('sub-body')?.addEventListener('change', async (e) => {
             const photo = (e.target as HTMLElement).closest('.mp-photo-input') as HTMLInputElement;
@@ -5097,7 +5122,9 @@ document.addEventListener('DOMContentLoaded', () => {
                      batterDestText = `上到${basesText[hitPower - 1]}壘，${extraWord}回本壘得分`;
                      if (errListForText.length) errorMentioned = true;
                 } else if (batterDestination.dest <= 3) {
-                     batterDestText = `上到${basesText[batterDestination.dest - 1]}壘`;
+                     // 野手選擇的前一句在講跑者被處理，這裡不寫「打者」會分不清是誰上壘
+                     const subject = play === '野手選擇' ? '打者' : '';
+                     batterDestText = `${subject}上到${basesText[batterDestination.dest - 1]}壘`;
                 } else if (play !== '本打') {
                      batterDestText = `回到本壘得分`;
                 }

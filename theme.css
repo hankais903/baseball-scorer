@@ -2251,3 +2251,7 @@ body.playing.sheet-open #event-log-container { transform: translateY(0); }
 }
 
 .ask-actions button:active { filter: brightness(1.2); }
+
+/* DH 關掉時的第九棒＝投手：標示出來，守位鎖成 P */
+.lu-spot.is-pitcher > span { color: #ffd2a1; }
+.lu-spot .lu-pos:disabled { opacity: 0.75; background: rgba(244, 124, 32, 0.18); border-color: rgba(244, 124, 32, 0.5); color: #ffd2a1; }

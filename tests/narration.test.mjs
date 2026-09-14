@@ -5,7 +5,7 @@ async function fresh() { const c = await boot(); c.window.alert = () => {}; c.wi
 // 只取敘述本身；比分小標是另一個元素，不算在敘述裡
 const last = q => (q('#event-log li .ev-body') || q('#event-log li')).textContent.replace(/\s+/g, ' ').trim();
 function field(w, q, zone, play, opts = {}) {
-  clickZone(w, zone); click(w, q(`#field-result-panel button[data-play="${play}"]`));
+  clickZone(w, zone, opts.ball || 'all'); click(w, q(`#field-result-panel button[data-play="${play}"]`));
   if (opts.fc) click(w, q(`#modal-advanced-options button[data-step="select-fc-out"][data-out-runner-base="${opts.fc}"]`));
   const pos = q('#modal-advanced-options button[data-step="select-error"]'); if (pos) click(w, pos);
   const err = [...w.document.querySelectorAll('#modal-advanced-options button[data-step="ask-error"]')].find(x => x.dataset.choice === (opts.err ? 'yes' : 'no')); if (err) click(w, err);
@@ -106,11 +106,20 @@ export default async function (t) {
     t.assert(/高飛犧牲打.*回到本壘得分。 一分打點。 1人出局。$/.test(s), s);
   });
 
-  await t('失誤：擊向誰、誰失誤、上到一壘', async () => {
+  // 失誤上壘的開頭要跟其他結果一致：落點方向＋球種，不寫「擊向○○手」
+  await t('失誤：落點方向＋球種開頭，誰失誤，上到一壘', async () => {
     const { window: w, q } = await fresh();
-    const s = field(w, q, 'infield', '失誤');
-    t.assert(/^擊向.+手，.+手失誤，上到一壘。$/.test(s), s);
+    const s = field(w, q, 'infield', '失誤', { ball: 'G' });
+    t.assert(/^.+滾地球，.+手失誤，上到一壘。$/.test(s), s);
+    t.assert(!s.includes('擊向'), '還是寫成「擊向○○手」：' + s);
     t.assert(!s.includes('並靠著'), '仍有舊句型');
+  });
+
+  await t('野手選擇：打者的去向要寫明是「打者」', async () => {
+    const { window: w, q } = await fresh();
+    quickPlay(w, '四壞');
+    const s = field(w, q, 'infield', '野手選擇', { fc: '0', batter: 1 });
+    t.assert(/打者上到一壘/.test(s), '沒有寫「打者上到一壘」：' + s);
   });
 
   await t('安打加失誤：失誤寫在去向之後', async () => {
