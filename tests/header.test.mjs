@@ -2,11 +2,12 @@
 import { boot, type, click, quickPlay } from './harness.mjs';
 
 export default async function (t) {
-  // 大比分列已移除（資訊與計分板重複），標題列只剩球場那一列
-  await t('標題列只有球場列', async () => {
+  // 大比分列已移除（資訊與計分板重複）；標題列是可輸入的那一列，
+  // 加上比賽中才顯示、不能改的固定顯示列
+  await t('標題列只有球場列與固定顯示列', async () => {
     const { q } = await boot();
     const rows = [...q('#game-info').children].map(c => c.id || c.tagName);
-    t.assert(rows.join(',') === 'game-meta-row', rows.join(' → '));
+    t.assert(rows.join(',') === 'game-meta-row,game-meta-static', rows.join(' → '));
     t.assert(!q('#game-info-center'), '大比分列應已移除');
   });
 

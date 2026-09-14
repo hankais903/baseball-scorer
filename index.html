@@ -113,6 +113,8 @@
                         </select>
                     </div>
                 </div>
+                <!-- 比賽中改成固定顯示，不能再改（資料在建立比賽時就填好了） -->
+                <div id="game-meta-static" aria-live="polite"></div>
             </header>
             <div id="scoreboard">
                 <table>
@@ -478,10 +480,6 @@
                         <input type="text" id="team-full-input" maxlength="15">
                     </label>
                     <label class="team-row">
-                        <span class="team-row-label">成立時間</span>
-                        <input type="date" id="team-founded-input">
-                    </label>
-                    <label class="team-row">
                         <span class="team-row-label">代表色</span>
                         <input type="color" id="team-color-input">
                     </label>
@@ -514,20 +512,29 @@
                 <!-- 1. 比賽資訊 -->
                 <div class="gs-step" data-gstep="1">
                     <div class="team-rows">
-                        <label class="team-row"><span class="team-row-label">日期</span>
-                            <input type="date" id="gs-date"></label>
-                        <label class="team-row"><span class="team-row-label">時間</span>
-                            <input type="time" id="gs-time"></label>
-                        <label class="team-row"><span class="team-row-label">球場</span>
-                            <input type="text" id="gs-stadium" maxlength="20" placeholder="例：新莊球場"></label>
-                        <label class="team-row"><span class="team-row-label">天氣</span>
-                            <select id="gs-weather">
-                                <option value="sunny">☀ 晴</option>
-                                <option value="cloudy">☁ 陰</option>
-                                <option value="rainy">☂ 雨</option>
-                            </select></label>
-                        <label class="team-row"><span class="team-row-label">對手隊名</span>
-                            <input type="text" id="gs-opp-name" maxlength="5" placeholder="最多 5 字"></label>
+                        <!-- 日期與時間一排、球場與天氣一排 -->
+                        <div class="gs-duo">
+                            <label class="team-row"><span class="team-row-label">日期</span>
+                                <input type="date" id="gs-date"></label>
+                            <label class="team-row"><span class="team-row-label">時間</span>
+                                <input type="time" id="gs-time"></label>
+                        </div>
+                        <div class="gs-duo">
+                            <label class="team-row"><span class="team-row-label">球場</span>
+                                <input type="text" id="gs-stadium" maxlength="20" placeholder="例：新莊球場"></label>
+                            <label class="team-row"><span class="team-row-label">天氣</span>
+                                <select id="gs-weather">
+                                    <option value="sunny">晴</option>
+                                    <option value="cloudy">陰</option>
+                                    <option value="rainy">雨</option>
+                                </select></label>
+                        </div>
+                        <div class="gs-duo">
+                            <label class="team-row"><span class="team-row-label">對手隊名</span>
+                                <input type="text" id="gs-opp-name" maxlength="5" placeholder="最多 5 字"></label>
+                            <label class="team-row"><span class="team-row-label">對手代表色</span>
+                                <input type="color" id="gs-opp-color" value="#d9534f"></label>
+                        </div>
                     </div>
                     <div class="gs-side">
                         <span class="gs-side-label">我方</span>
@@ -562,6 +569,7 @@
                     <div class="lu-spots" id="gs-spots"></div>
                     <label class="team-row" id="gs-pitcher-row"><span class="team-row-label">先發投手</span>
                         <select id="gs-pitcher"></select></label>
+                    <p class="gs-warn hidden" id="gs-warn"></p>
                     <button type="button" class="ob-primary" id="gs-create">建立比賽</button>
                 </div>
             </section>

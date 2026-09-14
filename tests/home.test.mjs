@@ -92,7 +92,7 @@ export default async function (t) {
     click(w, q('#shell-nav .shell-tab[data-page="team"]'));
     t.assert(q('#team-hero-name').textContent === '新莊社區棒球隊', '沒有顯示球隊名：' + q('#team-hero-name').textContent);
     t.assert(q('#team-short-input').value === '新莊', '簡稱沒帶出來');
-    t.assert(q('#team-founded-input').value === '2026-01-05', '成立時間沒帶出來');
+    t.assert(!q('#team-founded-input'), '成立時間欄應該已經移除');
     t.assert(q('#team-players-count').textContent === '9 人', '球員人數不對：' + q('#team-players-count').textContent);
     type(w, q('#team-short-input'), '新北');
     await sleep(100);

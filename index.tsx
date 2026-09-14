@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.8';
+const APP_VERSION = 'v2.9';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -680,6 +680,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const dt = new Date(y, m - 1, d);
         el.textContent = `${y}年${m}月${d}日 (${WEEKDAY_ZH[dt.getDay()]})`;
     }
+    // 比賽頁面的球場／日期時間／天氣改成固定顯示：這些在建立比賽時就填好了，
+    // 記錄當中不該再被改到（以前是三顆可以輸入的藥丸，很容易誤觸）
+    function renderGameMetaStatic() {
+        const box = document.getElementById('game-meta-static');
+        if (!box) return;
+        const v = (gameDateInput && gameDateInput.value) || '';
+        let dateText = '';
+        if (v) {
+            const [y, m, d] = v.split('-').map(Number);
+            dateText = `${y}年${m}月${d}日 (${WEEKDAY_ZH[new Date(y, m - 1, d).getDay()]})`;
+        }
+        const time = ((gameState as any).gameTime || '').trim();
+        const wx = { sunny: '晴', cloudy: '陰', rainy: '雨' }[(weatherInput && weatherInput.value) || ''] || '';
+        const parts = [
+            (stadiumInput && stadiumInput.value.trim()) || '未填球場',
+            dateText + (time ? ' ' + time : ''),
+            wx,
+        ].filter(Boolean);
+        box.innerHTML = parts.map(t => `<span>${t}</span>`).join('');
+    }
     function shiftGameDate(days: number) {
         const v = gameDateInput.value || new Date().toISOString().split('T')[0];
         const [y, m, d] = v.split('-').map(Number);
@@ -1014,16 +1034,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const box = document.getElementById('stats-body');
         if (!box) return;
         const s = collectStats();
-        if (!s.games) {
-            box.innerHTML = '<div class="shell-empty"><p>還沒有打完的比賽</p>'
-                + '<p class="shell-empty-sub">比賽結束後，成績會自動累加到這裡</p></div>';
-            return;
-        }
         const bt = s.batTotal, pt = s.pitTotal;
+        // 一場都還沒打完時也把版面顯示出來（數字都是 0），
+        // 第一次用的人才知道有這個功能、之後會看到什麼
+        const note = s.games ? '' : '<p class="st-note">還沒有打完的比賽。比賽結束後，成績會自動累加到這裡。</p>';
         const obpD = bt.ab + bt.bb + bt.hbp + bt.sf;
         const table = (head, rows) =>
             `<div class="table-scroll"><table class="st-table"><thead><tr>${head.map((h, i) =>
-                `<th${i === 0 ? ' class="st-name"' : ''}>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+                `<th${i === 0 ? ' class="st-name"' : ''}>${h}</th>`).join('')}</tr></thead><tbody>${rows
+                || `<tr class="st-blank"><td class="st-name">－</td><td colspan="${head.length - 1}">還沒有資料</td></tr>`}</tbody></table></div>`;
         const batRow = (x, cls = '') => `<tr class="${cls}"><td class="st-name">${x.name}</td>`
             + [x.pa, x.ab, x.h, x['2b'], x['3b'], x.hr, x.rbi, x.r, x.bb, x.so, x.sb,
                rate(x.h, x.ab), rate(x.tb, x.ab), rate(x.h + x.bb + x.hbp, x.ab + x.bb + x.hbp + x.sf)]
@@ -1033,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', () => {
                era(x.er, x.outsRecorded), x.outsRecorded ? ((x.h + x.bb) * 3 / x.outsRecorded).toFixed(2) : '－']
               .map(v => `<td>${v}</td>`).join('') + '</tr>';
 
-        box.innerHTML = `
+        box.innerHTML = note + `
             <div class="st-record">
                 <div class="st-rec-main"><b>${s.rec.win}</b> 勝 <b>${s.rec.lose}</b> 敗${s.rec.tie ? ` <b>${s.rec.tie}</b> 和` : ''}</div>
                 <div class="st-rec-sub">共 ${s.games} 場　勝率 ${rate(s.rec.win, s.rec.win + s.rec.lose)}</div>
@@ -1052,10 +1071,10 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <h3 class="shell-section">個人打擊</h3>
             ${table(['姓名', '打席', '打數', '安打', '二安', '三安', '全壘打', '打點', '得分', '四壞', '三振', '盜壘', '打擊率', '長打率', '上壘率'],
-                    s.batList.map(x => batRow(x)).join('') + batRow({ ...bt, name: '全隊' }, 'st-total'))}
+                    s.batList.map(x => batRow(x)).join('') + (s.batList.length ? batRow({ ...bt, name: '全隊' }, 'st-total') : ''))}
             <h3 class="shell-section">個人投球</h3>
             ${table(['姓名', '局數', '被安打', '失分', '責失', '四壞', '三振', '被全壘打', '防禦率', 'WHIP'],
-                    s.pitList.map(x => pitRow(x)).join('') + pitRow({ ...pt, name: '全隊' }, 'st-total'))}`;
+                    s.pitList.map(x => pitRow(x)).join('') + (s.pitList.length ? pitRow({ ...pt, name: '全隊' }, 'st-total') : ''))}`;
     }
 
     function renderTeamPage() {
@@ -1070,7 +1089,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const set = (id, v) => { const el = document.getElementById(id) as HTMLInputElement; if (el && el !== document.activeElement) el.value = v; };
         set('team-short-input', myTeam.shortName || '');
         set('team-full-input', myTeam.fullName || '');
-        set('team-founded-input', myTeam.foundedAt || '');
         set('team-color-input', myTeam.color || '#4a90e2');
         const pc = document.getElementById('team-players-count');
         if (pc) pc.textContent = `${(myTeam.players || []).length} 人`;
@@ -1104,10 +1122,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const readOpponents = () => { try { return JSON.parse(localStorage.getItem(OPPONENTS_KEY) || '[]'); } catch { return []; } };
     const oppName = (p, i) => (p && p.name || '').trim() || '對手' + String(i + 1).padStart(2, '0');
 
+    // 對手的守位先隨機排好，省得每次都要自己點；第 10 列固定是投手
+    const OPP_POS = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
+    function shuffled(list: string[]) {
+        const a = [...list];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
     function resetGameSetup() {
         gsStep = 1;
         gsSide = 'top';
         gsOpp = Array.from({ length: 10 }, () => blankMember());
+        const pos = shuffled(OPP_POS);
+        gsOpp.forEach((p, i) => { p.pos = i < 9 ? pos[i] : 'P'; });
         const lus = (myTeam && myTeam.lineups) || [];
         gsLineup = {
             useDH: lus[0] ? !!lus[0].useDH : !!appSettings.dh,
@@ -1160,11 +1190,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const box = document.getElementById('gs-opp-list');
         if (!box) return;
+        const allPos = gsOpp.map(x => x.pos);
         box.innerHTML = gsOpp.map((p, i) => `
-            <div class="mp-row" data-i="${i}">
+            <div class="mp-row op-row" data-i="${i}">
                 <input type="text" class="mp-jersey" value="${p.jersey || ''}" inputmode="numeric" maxlength="3" placeholder="${i + 1}" aria-label="背號">
                 <input type="text" class="mp-name" value="${p.name || ''}" maxlength="10" placeholder="${oppName(p, i)}" aria-label="姓名">
-                <select class="mp-pos" aria-label="守位">${POS_OPTIONS(p.pos)}</select>
+                <select class="mp-pos" aria-label="守位">${POS_OPTIONS_LEFT(p.pos, takenPos(allPos, i))}</select>
                 <button type="button" class="mp-del" aria-label="刪除">×</button>
             </div>`).join('');
     }
@@ -1176,7 +1207,15 @@ document.addEventListener('DOMContentLoaded', () => {
             gsOpp[i].pos = (row.querySelector('.mp-pos') as HTMLSelectElement).value;
         });
     }
+    // 建立比賽被擋下來的原因寫在畫面上（系統的 alert 在內嵌環境會被擋掉，按了沒反應）
+    function gsWarn(text: string) {
+        const el = document.getElementById('gs-warn');
+        if (!el) return;
+        el.textContent = text;
+        el.classList.toggle('hidden', !text);
+    }
     function renderStarters() {
+        gsWarn('');
         const players = (myTeam && myTeam.players) || [];
         const lus = (myTeam && myTeam.lineups) || [];
         const pick = document.getElementById('gs-lineup-pick') as HTMLSelectElement;
@@ -1187,19 +1226,29 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#gs-dh .dh-btn').forEach(b => {
             b.classList.toggle('active', ((b as HTMLElement).dataset.dh === '1') === !!gsLineup.useDH);
         });
-        const opt = (sel) => '<option value="">－</option>' + players.map((p, i) =>
-            `<option value="${p._id}"${p._id === sel ? ' selected' : ''}>${p.jersey ? p.jersey + '　' : ''}${memberName(p, i)}</option>`).join('');
+        // 同一個人不能排兩棒，同一個守位也不能有兩個人
+        const opt = (sel, taken?: Set<string>) => '<option value="">－</option>' + players
+            .filter(p => p._id === sel || !taken || !taken.has(p._id))
+            .map((p) => `<option value="${p._id}"${p._id === sel ? ' selected' : ''}>${p.jersey ? p.jersey + '　' : ''}${memberName(p, players.indexOf(p))}</option>`).join('');
         const spots = document.getElementById('gs-spots');
+        const pSpot = pitcherSpotOf(gsLineup);
         if (spots) {
             spots.innerHTML = Array.from({ length: 9 }, (_, i) => {
-                const isP = !gsLineup.useDH && i === 8;
+                const isP = !gsLineup.useDH && i === pSpot;
                 return `<div class="lu-spot${isP ? ' is-pitcher' : ''}"><span>${i + 1}棒${isP ? '（投）' : ''}</span>
-                    <select data-gspot="${i}">${opt(gsLineup.spots[i])}</select>
-                    <select class="lu-pos" data-gpos="${i}" aria-label="守位"${isP ? ' disabled' : ''}>${isP ? '<option value="P" selected>P</option>' : POS_OPTIONS((gsLineup.positions || [])[i])}</select></div>`;
+                    <select data-gspot="${i}">${opt(gsLineup.spots[i], takenIds(gsLineup, i))}</select>
+                    <select class="lu-pos" data-gpos="${i}" aria-label="守位"${isP ? ' disabled' : ''}>${isP ? '<option value="P" selected>P</option>' : POS_OPTIONS_LEFT((gsLineup.positions || [])[i], takenPos(gsLineup.positions, i))}</select></div>`;
             }).join('');
         }
         const pit = document.getElementById('gs-pitcher') as HTMLSelectElement;
-        if (pit) pit.innerHTML = opt(gsLineup.pitcherId);
+        if (pit) {
+            pit.innerHTML = opt(gsLineup.pitcherId, takenIds(gsLineup, 'P'));
+            // DH 制的投手不排進打線，人數不夠時要講清楚，不然選單空空的看不懂
+            if (gsLineup.useDH && pit.options.length <= 1) {
+                gsWarn('球員都排進打線了，沒有人可以當先發投手。'
+                    + '可以改成「投手打擊」，或到球隊分頁新增球員。');
+            }
+        }
         // DH 關掉時投手自己打擊，第 9 棒就是投手，不需要另一個欄位
         document.getElementById('gs-pitcher-row')?.classList.toggle('hidden', !gsLineup.useDH);
     }
@@ -1229,8 +1278,10 @@ document.addEventListener('DOMContentLoaded', () => {
             t.activePitcherId = pit._id;
         }
         else {
-            // 投手自己打擊：第 9 棒就是投手
-            const pit = t.roster[8];
+            // 投手自己打擊：守位排 P 的那一棒就是投手（沒有就退回第九棒）
+            let pIdx = order.findIndex(p => p && p.pos === 'P');
+            if (pIdx < 0) pIdx = 8;
+            const pit = t.roster[pIdx];
             pit.pos = 'P';
             t.roster[PITCHER_ROSTER_INDEX].name = '';
             t.roster[PITCHER_ROSTER_INDEX].jersey = '';
@@ -1257,11 +1308,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const p = byId(id);
             return p ? { ...p, pos: (gsLineup.positions || [])[i] || '' } : null;
         });
-        if (order.some(p => !p)) { alert('先發九棒還沒排完，每一棒都要指定球員。'); return false; }
-        if (gsLineup.useDH && !byId(gsLineup.pitcherId)) { alert('請選先發投手。'); return false; }
+        if (order.some(p => !p)) { gsWarn('先發九棒還沒排完，每一棒都要指定球員。'); return false; }
+        if (gsLineup.useDH && !byId(gsLineup.pitcherId)) {
+            gsWarn('還沒選先發投手。DH 制的投手不排進打線，所以要有第 10 個人；'
+                + '球員不夠的話可以先改成「投手打擊」，或到球隊分頁新增球員。');
+            return false;
+        }
         const used = new Set(gsLineup.spots.concat(gsLineup.useDH ? [gsLineup.pitcherId] : []));
         const bench = players.filter(p => !used.has(p._id));
-        const oppInfo = { name: (document.getElementById('gs-opp-name') as HTMLInputElement).value.trim() || '對手' };
+        const oppInfo = {
+            name: (document.getElementById('gs-opp-name') as HTMLInputElement).value.trim() || '對手',
+            color: (document.getElementById('gs-opp-color') as HTMLInputElement)?.value || '',
+        };
         const oppOrder = gsOpp.slice(0, 9).map((p, i) => ({ ...p, name: oppName(p, i) }));
         const oppPitcher = gsOpp[9] ? { ...gsOpp[9], name: oppName(gsOpp[9], 9) } : null;
         const oppBench = gsOpp.slice(10);
@@ -1275,6 +1333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.gameDate = (document.getElementById('gs-date') as HTMLInputElement).value || gameState.gameDate;
         gameState.stadium = (document.getElementById('gs-stadium') as HTMLInputElement).value.trim();
         gameState.weather = (document.getElementById('gs-weather') as HTMLSelectElement).value;
+        (gameState as any).gameTime = (document.getElementById('gs-time') as HTMLInputElement)?.value || '';
         (gameState as any).createdAt = Date.now();   // 「有一場還沒打完」的依據
         (gameState as any).mySide = gsSide === 'top' ? 'a' : 'b';   // 成績要知道哪一邊是我們
         // 常用對手：下次可以直接帶入
@@ -1396,6 +1455,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const POS_LIST = ['', 'P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
     const POS_OPTIONS = (cur) => POS_LIST.map(v => `<option value="${v}"${v === (cur || '') ? ' selected' : ''}>${v || '－'}</option>`).join('');
 
+    // 同一份打線裡，一個人只能排一棒、一個守位也只能有一個人。
+    // 選單裡把別人已經佔走的選項拿掉（自己目前選的那個要留著，不然會看不到）。
+    const POS_OPTIONS_LEFT = (cur, taken: Set<string>) => POS_LIST
+        .filter(v => !v || v === (cur || '') || !taken.has(v))
+        .map(v => `<option value="${v}"${v === (cur || '') ? ' selected' : ''}>${v || '－'}</option>`).join('');
+    const takenPos = (positions, skip) => new Set((positions || [])
+        .filter((v, i) => v && i !== skip));
+    const takenIds = (lu, skip) => new Set(((lu.spots || []) as string[])
+        .filter((v, i) => v && i !== skip).concat(skip === 'P' || !lu.useDH ? [] : [lu.pitcherId]).filter(Boolean));
+
+    // DH 關掉的那一棒：守位是 P 的那一格（沒有就用第九棒）
+    const pitcherSpotOf = (lu) => {
+        const i = (lu.positions || []).findIndex(v => v === 'P');
+        return i >= 0 ? i : 8;
+    };
+    // 打開／關閉 DH：關掉時先發投手直接排進原本 DH 的那一棒，打開時再換回來
+    function applyLineupDH(lu, on: boolean) {
+        if (!lu.positions) lu.positions = Array(9).fill('');
+        if (!on && lu.useDH !== false) {
+            let i = lu.positions.findIndex(v => v === 'DH');
+            if (i < 0) i = 8;
+            lu.dhBackup = { i, id: lu.spots[i] || '', pos: lu.positions[i] || '', pitcherId: lu.pitcherId || '' };
+            if (lu.pitcherId) lu.spots[i] = lu.pitcherId;
+            lu.positions[i] = 'P';
+        }
+        else if (on && lu.useDH === false) {
+            const b = lu.dhBackup;
+            const i = b ? b.i : pitcherSpotOf(lu);
+            if (b) {
+                lu.spots[i] = b.id;
+                lu.positions[i] = b.pos || 'DH';
+                if (b.pitcherId) lu.pitcherId = b.pitcherId;
+            }
+            else {
+                lu.pitcherId = lu.spots[i] || lu.pitcherId;   // 打線裡的投手移回投手欄
+                lu.spots[i] = '';
+                lu.positions[i] = 'DH';
+            }
+            lu.dhBackup = null;
+        }
+        lu.useDH = on;
+    }
+
     function renderSubLineups(body) {
         const lineups = myTeam.lineups || [];
         const editing = (document.getElementById('shell-sub') as HTMLElement).dataset.editing;
@@ -1413,9 +1515,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderLineupEditor(body, lu) {
         if (!lu) return;
         const players = myTeam.players || [];
-        const opt = (sel) => `<option value="">－</option>` + players.map((p, i) =>
-            `<option value="${p._id}"${p._id === sel ? ' selected' : ''}>${p.jersey ? p.jersey + '　' : ''}${memberName(p, i)}</option>`).join('');
+        const opt = (sel, taken?: Set<string>) => `<option value="">－</option>` + players
+            .filter(p => p._id === sel || !taken || !taken.has(p._id))
+            .map((p) => `<option value="${p._id}"${p._id === sel ? ' selected' : ''}>${p.jersey ? p.jersey + '　' : ''}${memberName(p, players.indexOf(p))}</option>`).join('');
         const pos = (lu.positions || []);
+        const pSpot = pitcherSpotOf(lu);
         body.innerHTML = `
             <label class="team-row"><span class="team-row-label">陣容名稱</span>
                 <input type="text" id="lu-name" maxlength="10" value="${lu.name || ''}" placeholder="例：主力"></label>
@@ -1424,16 +1528,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button type="button" class="dh-btn${lu.useDH ? ' active' : ''}" data-dh="1">DH 制</button>
                 <button type="button" class="dh-btn${lu.useDH ? '' : ' active'}" data-dh="0">投手打擊</button>
             </div>
-            <p class="sub-note" id="lu-dh-hint">${lu.useDH ? '第九棒是指定打擊，投手不排進打線' : '投手自己打擊，第九棒就是投手'}</p>
+            <p class="sub-note" id="lu-dh-hint">${lu.useDH ? '指定打擊上場打擊，投手不排進打線' : `投手自己打擊，排在第 ${pSpot + 1} 棒（原本 DH 的位置）`}</p>
             <div class="lu-spots">` + Array.from({ length: 9 }, (_, i) => {
-                // DH 關掉時第九棒就是投手，守位鎖成 P，不要再讓人自己選
-                const isP = !lu.useDH && i === 8;
+                // DH 關掉時投手就排在原本 DH 的那一棒，守位鎖成 P，不要再讓人自己選
+                const isP = !lu.useDH && i === pSpot;
                 return `<div class="lu-spot${isP ? ' is-pitcher' : ''}"><span>${i + 1}棒${isP ? '（投）' : ''}</span>
-                    <select data-spot="${i}">${opt((lu.spots || [])[i])}</select>
-                    <select class="lu-pos" data-pos="${i}" aria-label="守位"${isP ? ' disabled' : ''}>${isP ? '<option value="P" selected>P</option>' : POS_OPTIONS(pos[i])}</select></div>`;
+                    <select data-spot="${i}">${opt((lu.spots || [])[i], takenIds(lu, i))}</select>
+                    <select class="lu-pos" data-pos="${i}" aria-label="守位"${isP ? ' disabled' : ''}>${isP ? '<option value="P" selected>P</option>' : POS_OPTIONS_LEFT(pos[i], takenPos(pos, i))}</select></div>`;
             }).join('') + `</div>
             <label class="team-row${lu.useDH ? '' : ' hidden'}" id="lu-pitcher-row"><span class="team-row-label">先發投手</span>
-                <select id="lu-pitcher">${opt(lu.pitcherId)}</select></label>
+                <select id="lu-pitcher">${opt(lu.pitcherId, takenIds(lu, 'P'))}</select></label>
             <div class="lu-actions">
                 <button type="button" id="lu-delete" class="lu-del">刪除這套</button>
                 <button type="button" id="lu-done" class="ob-primary">完成</button>
@@ -1473,6 +1577,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 相機拍的照片存成 base64 動輒 1～2MB，瀏覽器的 localStorage 只有約 5MB。
     // 上傳時先縮到合理尺寸再存，容量通常能降到原本的百分之幾。
     function shrinkImage(dataUrl: string, maxSize: number, quality = 0.82): Promise<string> {
+        // 去背的圖（PNG／WebP／GIF）背景是透明的：底不能填白，也不能轉成 JPEG，
+        // 否則透明的地方會變成白色方塊
+        const keepAlpha = /^data:image\/(png|webp|gif)/i.test(dataUrl);
         // 已經夠小的圖不必再轉一次，省時也避免不必要的畫質損失
         if (dataUrl.length < 120000) return Promise.resolve(dataUrl);
         return new Promise<string>(resolve => {
@@ -1495,11 +1602,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         canvas.height = h;
                         const ctx = canvas.getContext('2d');
                         if (!ctx) return resolveOnce(dataUrl);
-                        // 透明底轉白，避免 PNG 轉 JPEG 後變黑
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(0, 0, w, h);
+                        if (!keepAlpha) {
+                            // 沒有透明資訊的圖轉 JPEG 前先鋪白底，避免變黑
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, w, h);
+                        }
                         ctx.drawImage(img, 0, 0, w, h);
-                        const out = canvas.toDataURL('image/jpeg', quality);
+                        const out = keepAlpha ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality);
                         resolveOnce(out && out.length < dataUrl.length ? out : dataUrl);
                     }
                     catch {
@@ -2227,6 +2336,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!gsOpp.length) gsOpp.push(blankMember());
             renderOppList();
         });
+        // 守位改了就重畫，別人的選單才會把被佔走的守位拿掉
+        document.getElementById('gs-opp-list')?.addEventListener('change', (e) => {
+            if (!(e.target as HTMLElement).classList.contains('mp-pos')) return;
+            collectOppList();
+            renderOppList();
+        });
         document.getElementById('gs-opp-load')?.addEventListener('change', (e) => {
             const id = (e.target as HTMLSelectElement).value;
             const o = readOpponents().find(x => x.id === id);
@@ -2252,9 +2367,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const b = (e.target as HTMLElement).closest('.dh-btn') as HTMLElement;
             if (!b) return;
             tapFeedback();
-            gsLineup.useDH = b.dataset.dh === '1';
-            gsLineup.positions = gsLineup.positions || Array(9).fill('');
-            if (!gsLineup.useDH) gsLineup.positions[8] = 'P';
+            applyLineupDH(gsLineup, b.dataset.dh === '1');
             renderStarters();
         });
         document.getElementById('gs-spots')?.addEventListener('change', (e) => {
@@ -2264,6 +2377,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 gsLineup.positions = gsLineup.positions || Array(9).fill('');
                 gsLineup.positions[Number(t.dataset.gpos)] = (t as HTMLSelectElement).value;
             }
+            else return;
+            renderStarters();   // 重畫一次，別棒才不會再選到同一個人或同一個守位
         });
         document.getElementById('gs-pitcher')?.addEventListener('change', (e) => {
             gsLineup.pitcherId = (e.target as HTMLSelectElement).value;
@@ -2306,7 +2421,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         teamField('team-short-input', 'shortName');
         teamField('team-full-input', 'fullName');
-        teamField('team-founded-input', 'foundedAt');
         teamField('team-color-input', 'color');
         document.getElementById('team-logo-input')?.addEventListener('change', async (e) => {
             const f = (e.target as HTMLInputElement).files?.[0];
@@ -2359,9 +2473,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dhBtn && t.closest('#lu-dh')) {
                 const lu2 = (myTeam.lineups || []).find(l => l.id === sub.dataset.editing);
                 if (lu2) {
-                    lu2.useDH = dhBtn.dataset.dh === '1';
-                    lu2.positions = lu2.positions || Array(9).fill('');
-                    if (!lu2.useDH) lu2.positions[8] = 'P';          // 第九棒就是投手
+                    // 關掉 DH：先發投手直接排進原本 DH 的那一棒；打開再換回來
+                    applyLineupDH(lu2, dhBtn.dataset.dh === '1');
                     saveMyTeam(); renderSub();
                 }
                 return;
@@ -2414,6 +2527,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 lu.spots[Number((t as HTMLElement).dataset.spot)] = (t as HTMLSelectElement).value;
             }
             saveMyTeam();
+            // 選完人或守位要重畫一次，別棒的選單才會把已經被佔走的拿掉
+            if (t.id === 'lu-pitcher' || (t as HTMLElement).dataset.pos !== undefined
+                || (t as HTMLElement).dataset.spot !== undefined) renderSub();
         });
 
         // === 設定 ===
@@ -3666,6 +3782,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderDateFace();
         if (weatherInput)
             weatherInput.value = gameState.weather || 'sunny';
+        renderGameMetaStatic();
     }
     function renderScoreboard() {
         const headerRow = document.getElementById('scoreboard-header-row');

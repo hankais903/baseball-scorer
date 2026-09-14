@@ -111,17 +111,19 @@ export default async function (t) {
     t.assert(gs.teams.a.name === '飛龍', '對手應該在客隊：' + gs.teams.a.name);
   });
 
-  await t('先發沒排完會擋下來', async () => {
+  // 擋下來的原因要寫在畫面上：系統的 alert 在內嵌（iframe）環境會被擋掉，按了完全沒反應
+  await t('先發沒排完會擋下來，而且說得出原因', async () => {
     const team = JSON.parse(JSON.stringify(TEAM));
     team.lineups = [];
     const { window: w, q } = await boot({ storage: { baseball_my_team: JSON.stringify(team) } });
-    let alerted = '';
-    w.alert = (m) => { alerted = m; };
     openGame(w, q);
     click(w, q('#gs-to-opp'));
     click(w, q('#gs-to-lineup'));
     click(w, q('#gs-create'));
-    t.assert(alerted.includes('先發九棒'), '沒有擋下來：' + alerted);
+    const warn = q('#gs-warn');
+    t.assert(warn && !warn.classList.contains('hidden'), '沒有把原因寫在畫面上');
+    t.assert(warn.textContent.includes('先發九棒'), '訊息不對：' + warn.textContent);
+    t.assert(!w.localStorage.getItem('baseball_current_game_id'), '沒排完卻把比賽建起來了');
   });
 
   await t('對手會存成常用對手，下次帶得回來', async () => {
