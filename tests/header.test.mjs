@@ -1,5 +1,5 @@
 // 上方標題列（球場 / 日期 / 天氣）與計分板上隊名比分的回歸測試
-import { boot, type, click } from './harness.mjs';
+import { boot, type, click, quickPlay } from './harness.mjs';
 
 export default async function (t) {
   // 大比分列已移除（資訊與計分板重複），標題列只剩球場那一列
@@ -185,21 +185,26 @@ export default async function (t) {
       '版號沒有放在標題列裡');
   });
 
-  // 反白的是分數（R 欄），不是隊名
-  await t('進攻中的那一隊反白的是分數', async () => {
+  // 反白的是「正在進行的那個半局」那一格，不是隊名、也不是 R 欄
+  await t('反白的是正在進行的那個半局的格子', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
     await new Promise(r => setTimeout(r, 150));
-    const rows = [...w.document.querySelectorAll('#scoreboard tbody tr')];
-    t.assert(rows[0].querySelector('td.total-col').classList.contains('team-batting'),
-      '上半局進攻方（客隊）的分數沒有反白');
-    t.assert(!rows[0].querySelector('td.team-col').classList.contains('team-batting'),
-      '隊名欄不該反白');
-    t.assert(!rows[1].querySelector('td.total-col').classList.contains('team-batting'),
-      '守備方的分數不該反白');
+    const lit = () => [...w.document.querySelectorAll('#scoreboard tbody tr')].map(tr => {
+      const cells = [...tr.querySelectorAll('td')];
+      return cells.findIndex(td => td.classList.contains('team-batting'));
+    });
+    // 1 局上：客隊（第一列）第 1 局那一格（第 0 欄是隊名，所以索引 1）
+    t.assert(lit().join() === '1,-1', '1局上反白的位置不對：' + lit().join());
+    t.assert(!q('#scoreboard td.team-col.team-batting'), '隊名欄不該反白');
+    t.assert(!q('#scoreboard td.total-col.team-batting'), 'R 欄不該反白');
+    // 換到 1 局下，反白要跟著換到主隊那一列
+    for (let i = 0; i < 3; i++) quickPlay(w, '三振');
+    await new Promise(r => setTimeout(r, 200));
+    t.assert(lit().join() === '-1,1', '換半局後反白沒有跟著走：' + lit().join());
     const fs = await import('node:fs');
     const css = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css')).map(f => fs.readFileSync('dist/assets/' + f, 'utf8')).join('\n');
-    t.assert(/td\.total-col\.team-batting\{/.test(css), '樣式沒有跟著搬到分數欄');
+    t.assert(/td\.inning-now\.team-batting\{/.test(css), '樣式沒有跟著搬到半局那一格');
   });
 
   // OUT／局數／計時搬到打者卡旁邊（原本 NEXT 的位置）：上排局數、下排 OUT 與計時

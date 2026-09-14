@@ -1206,10 +1206,12 @@ body {
 .ev-score b { font-weight: 800; }
 .ev-score i { font-style: normal; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
 
-/* 進攻中的那一隊，總分反白 */
-#scoreboard td.total-col.team-batting {
-    background: rgba(59, 130, 246, 0.28);
-    box-shadow: inset 3px 0 0 #60a5fa;
+/* 正在進行的那個半局：進攻方在那一局的那一格反白 */
+#scoreboard td.inning-now.team-batting {
+    background: rgba(59, 130, 246, 0.45);
+    box-shadow: inset 0 0 0 2px #60a5fa;
+    color: #fff;
+    font-weight: 800;
 }
 
 /* 落點之後先問球種：四顆大按鈕，比一次列十幾個結果好按 */

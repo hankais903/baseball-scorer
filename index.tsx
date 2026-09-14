@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v1.0';
+const APP_VERSION = 'v1.1';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -2590,11 +2590,16 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.innerHTML = ['a', 'b'].map(teamKey => {
             const team = gameState.teams[teamKey];
             const totalRuns = team.score.reduce((a, b) => a + (b || 0), 0);
+            // 進攻中的那一隊：正在進行的那個半局的那一格反白
+            const batting = gameState.started && !gameState.isGameOver
+                && ((gameState.isTop && teamKey === 'a') || (!gameState.isTop && teamKey === 'b'));
             let scoreCells = '';
             for (let i = 0; i < numInnings; i++) {
                 const score = team.score[i];
                 const hasPlayed = gameState.inning > i + 1 || (gameState.inning === i + 1 && (teamKey === 'a' || !gameState.isTop));
-                const nowCls = (i + 1 === activeInning) ? ' class="inning-now"' : '';
+                const now = i + 1 === activeInning;
+                const cls = [now ? 'inning-now' : '', now && batting ? 'team-batting' : ''].filter(Boolean).join(' ');
+                const nowCls = cls ? ` class="${cls}"` : '';
                 if (score != null) {
                     scoreCells += `<td${nowCls}>${score}</td>`;
                 }
@@ -2608,10 +2613,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const teamLogoHTML = `<img src="${team.logo || DEFAULT_TEAM_LOGO_BASE64}" alt="${team.name}" class="scoreboard-team-logo">`;
             const shortName = (team.name || '').slice(0, TEAM_NAME_MAX);
             const teamCellContent = `<div class="scoreboard-team-cell">${teamLogoHTML}<span>${shortName}</span></div>`;
-            // 進攻中的那一隊，總分（R 欄）反白
-            const batting = gameState.started && !gameState.isGameOver
-                && ((gameState.isTop && teamKey === 'a') || (!gameState.isTop && teamKey === 'b'));
-            return `<tr><td class="team-col">${teamCellContent}</td>${scoreCells}<td class="rhe rhe-first total-col${batting ? ' team-batting' : ''}">${totalRuns}</td><td class="rhe">${team.hits}</td><td class="rhe">${team.errors}</td></tr>`;
+            return `<tr><td class="team-col">${teamCellContent}</td>${scoreCells}<td class="rhe rhe-first total-col">${totalRuns}</td><td class="rhe">${team.hits}</td><td class="rhe">${team.errors}</td></tr>`;
         }).join('');
         // 比分不再另闢一列，直接由計分板的 R 欄呈現；領先方加重
         const runsA = gameState.teams.a.score.reduce((a, b) => a + (b || 0), 0);
