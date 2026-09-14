@@ -666,16 +666,54 @@
     <!-- 遊戲管理整合 -->
     <script src="./game-integration.js"></script>
     
+    <!-- 有新版本時才出現，點一下就換成新版 -->
+    <button type="button" id="update-bar" class="hidden">有新版本，點一下更新</button>
+
     <!-- PWA 安裝提示和 Service Worker 註冊 -->
     <script>
+        // === 有新版本時提醒一下 ===
+        // 加到主畫面的 APP 會把整包程式存在手機裡（離線也能用），
+        // 但 iPhone 幾乎不會自己重新載入，所以會一直停在舊版。
+        // 這裡每次打開／切回 APP 都去問一次伺服器，有新版就跳出一條可以點的提示。
+        // 不自動重新整理：記到一半被洗掉會很嘔，讓使用者自己挑時間點。
+        function showUpdateBar(reg) {
+            var bar = document.getElementById('update-bar');
+            if (!bar || !bar.classList.contains('hidden')) return;
+            bar.classList.remove('hidden');
+            bar.onclick = function () {
+                try { if (reg && reg.waiting) reg.waiting.postMessage('SKIP_WAITING'); } catch (e) { }
+                // 只有真的裝了 Service Worker 的環境才重新整理；
+                // 預覽檔是放在 iframe 裡的，重新整理會變成空白頁
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) window.location.reload();
+            };
+        }
+        function watchForUpdate(reg) {
+            if (reg.waiting && navigator.serviceWorker.controller) showUpdateBar(reg);
+            reg.addEventListener('updatefound', function () {
+                var sw = reg.installing;
+                if (!sw) return;
+                sw.addEventListener('statechange', function () {
+                    if (sw.state === 'installed' && navigator.serviceWorker.controller) showUpdateBar(reg);
+                });
+            });
+        }
         // 註冊 Service Worker
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(registration => {
-                        console.log('Service Worker 註冊成功:', registration.scope);
+            navigator.serviceWorker.addEventListener('controllerchange', function () {
+                showUpdateBar(null);
+            });
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' })
+                    .then(function (reg) {
+                        watchForUpdate(reg);
+                        var check = function () { try { reg.update(); } catch (e) { } };
+                        document.addEventListener('visibilitychange', function () {
+                            if (!document.hidden) check();
+                        });
+                        window.addEventListener('focus', check);
+                        setInterval(check, 30 * 60 * 1000);
                     })
-                    .catch(err => {
+                    .catch(function (err) {
                         console.log('Service Worker 註冊失敗:', err);
                     });
             });

@@ -3,6 +3,7 @@
 //   於是已經開過的手機永遠拿不到新版）
 import fs from 'fs';
 import path from 'path';
+import { boot } from './harness.mjs';
 
 const SW_PATH = path.join('dist', 'service-worker.js');
 const src = fs.readFileSync(SW_PATH, 'utf8');
@@ -101,5 +102,30 @@ export default async function (t) {
     const got = await e.response;
     t.assert(got.body === '快取裡的', '沒有優先用快取');
     t.assert(sw.calls.fetch === 0, '快取有東西還去問伺服器');
+  });
+
+  // 加到主畫面的 APP 會把整包程式存在手機裡，iPhone 幾乎不會自己重新載入，
+  // 所以會一直停在舊版（使用者回報過）。以下三道防線要一直在
+  await t('開啟頁面時會繞過手機自己的網頁快取', async () => {
+    const src = fs.readFileSync('dist/service-worker.js', 'utf8');
+    t.assert(/cache:\s*['"]reload['"]/.test(src), '首頁沒有繞過手機的網頁快取，會一直拿到舊版');
+    t.assert(/SKIP_WAITING/.test(src), '沒有辦法從畫面上叫它換成新版');
+  });
+
+  await t('每次打開 APP 都去問一次有沒有新版', async () => {
+    const html = fs.readFileSync('dist/index.html', 'utf8');
+    t.assert(/updateViaCache:\s*['"]none['"]/.test(html), '註冊時沒有要求不要用快取的 Service Worker 檔');
+    t.assert(/visibilitychange/.test(html) && /reg\.update\(\)/.test(html), '切回 APP 時沒有檢查新版');
+  });
+
+  await t('有新版時會跳出可以點的提示', async () => {
+    const { q } = await boot();
+    const bar = q('#update-bar');
+    t.assert(!!bar, '沒有「有新版本」的提示條');
+    t.assert(bar.classList.contains('hidden'), '一開始就顯示了，應該要先收起來');
+    t.assert(bar.textContent.includes('新版'), '提示文字不對：' + bar.textContent);
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    t.assert(/#update-bar\.hidden\{display:none/.test(css), '提示條沒有收起來的規則（這個專案沒有共用的 .hidden）');
   });
 }

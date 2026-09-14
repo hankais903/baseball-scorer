@@ -29,14 +29,20 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// 畫面上按了「更新」就立刻換成新版
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
-  // 開啟頁面：先問伺服器，才不會一直卡在舊版；沒網路才用手機裡的備份
+  // 開啟頁面：先問伺服器，才不會一直卡在舊版；沒網路才用手機裡的備份。
+  // cache: 'reload' 是繞過手機自己那一層網頁快取，否則 iPhone 會把舊的首頁再吐回來
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
+      fetch(new Request(req.url, { cache: 'reload', credentials: 'same-origin' }))
         .then((res) => {
           if (res && res.status === 200) {
             const copy = res.clone();
