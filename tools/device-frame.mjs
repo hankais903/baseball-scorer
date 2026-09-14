@@ -10,7 +10,7 @@ export const DEVICE = {
     width: 402,
     height: 874,
     safeTop: 62,
-    safeBottom: 34,
+    safeBottom: 15,
     island: { width: 125, height: 37, top: 14 },
 };
 

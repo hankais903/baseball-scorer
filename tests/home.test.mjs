@@ -106,8 +106,11 @@ export default async function (t) {
     t.assert(!q('#shell-sub').classList.contains('hidden'), '沒有進到子頁');
     t.assert(q('#sub-title').textContent === '球員', '子頁標題不對：' + q('#sub-title').textContent);
     t.assert(w.document.querySelectorAll('#sub-body .mp-row').length === 9, '球員列數不對');
-    t.assert(w.document.querySelectorAll('#sub-body .mp-row')[5].querySelector('.mp-name').placeholder === '新莊06',
-      '沒填名字的提示不是簡稱＋號碼');
+    // 沒填名字的用「簡稱＋背號」（第 6 列的背號是 6）
+    t.assert(w.document.querySelectorAll('#sub-body .mp-row')[5].querySelector('.mp-name').placeholder === '新莊6',
+      '沒填名字的提示不是簡稱＋背號：' + w.document.querySelectorAll('#sub-body .mp-row')[5].querySelector('.mp-name').placeholder);
+    t.assert(!!w.document.querySelector('#sub-body .mp-photo input[type="file"]'), '球員列少了頭像上傳');
+    t.assert(!w.document.querySelector('#sub-body .mp-pos'), '球員名單不該顯示守位');
     click(w, q('#mp-add'));
     t.assert(JSON.parse(w.localStorage.getItem('baseball_my_team')).players.length === 10, '新增球員沒有存起來');
     click(w, w.document.querySelector('#sub-body .mp-row .mp-del'));
@@ -187,24 +190,54 @@ export default async function (t) {
     t.assert(items.length === 1 && items[0].dataset.game === 'g_done',
       '只該列出已結束的比賽：' + items.map(b => b.dataset.game).join());
     t.assert(!!q('#home-game-list .gl-del'), '沒有刪除鍵');
-    w.confirm = () => true;
     click(w, q('#home-game-list .gl-del'));
+    t.assert(!q('#ask-modal').classList.contains('hidden'), '刪除前沒有先問');
+    click(w, q('#ask-yes'));
     t.assert(!w.document.querySelector('#home-game-list .gl-item'), '刪除後列表沒有更新');
     t.assert(!gm.loadGame('g_done'), '比賽沒有真的被刪掉');
   });
 
-  await t('常用陣容：關掉 DH 會收起先發投手欄位', async () => {
+  // DH 原本是小勾選框，按了看不出有沒有切換到。改成兩顆按鈕
+  await t('常用陣容：DH 是兩顆按鈕，切換看得出來', async () => {
     const { window: w, q } = await withTeam();
     click(w, q('#shell-nav .shell-tab[data-page="team"]'));
     click(w, q('#page-team .team-row-link[data-sub="lineups"]'));
     click(w, q('#lu-add'));
-    t.assert(!q('#lu-pitcher-row').classList.contains('hidden'), '預設 DH 開著時應該有投手欄位');
-    const dh = q('#lu-dh');
-    dh.checked = false;
-    dh.dispatchEvent(new w.Event('change', { bubbles: true }));
-    t.assert(q('#lu-pitcher-row').classList.contains('hidden'), '關掉 DH 沒有收起投手欄位（看起來像沒反應）');
-    t.assert(q('#lu-dh-hint').textContent.includes('投手自己打擊'), '沒有說明關掉 DH 的意思');
+    t.assert(w.document.querySelectorAll('#lu-dh .dh-btn').length === 2, 'DH 不是兩顆按鈕');
+    t.assert(q('#lu-dh .dh-btn[data-dh="1"]').classList.contains('active'), '預設應該是 DH 制');
+    t.assert(!q('#lu-pitcher-row').classList.contains('hidden'), 'DH 制時應該有投手欄位');
+    click(w, q('#lu-dh .dh-btn[data-dh="0"]'));
+    t.assert(q('#lu-dh .dh-btn[data-dh="0"]').classList.contains('active'), '切到投手打擊沒有變色');
+    t.assert(q('#lu-pitcher-row').classList.contains('hidden'), '投手打擊時應該收起投手欄位');
+    t.assert(q('#lu-dh-hint').textContent.includes('投手自己打擊'), '沒有說明投手打擊的意思');
     t.assert(JSON.parse(w.localStorage.getItem('baseball_my_team')).lineups[0].useDH === false, 'DH 設定沒有存起來');
+    click(w, q('#lu-dh .dh-btn[data-dh="1"]'));
+    t.assert(JSON.parse(w.localStorage.getItem('baseball_my_team')).lineups[0].useDH === true, '切回 DH 制沒有存起來');
+  });
+
+  await t('常用陣容：每一棒可以排守位', async () => {
+    const { window: w, q } = await withTeam();
+    click(w, q('#shell-nav .shell-tab[data-page="team"]'));
+    click(w, q('#page-team .team-row-link[data-sub="lineups"]'));
+    click(w, q('#lu-add'));
+    const pos = [...w.document.querySelectorAll('#sub-body .lu-pos')];
+    t.assert(pos.length === 9, '不是九個守位欄位：' + pos.length);
+    pos[0].value = 'SS';
+    pos[0].dispatchEvent(new w.Event('change', { bubbles: true }));
+    t.assert(JSON.parse(w.localStorage.getItem('baseball_my_team')).lineups[0].positions[0] === 'SS', '守位沒有存起來');
+  });
+
+  await t('刪除常用陣容會先問，確定後真的刪掉', async () => {
+    const { window: w, q } = await withTeam();
+    click(w, q('#shell-nav .shell-tab[data-page="team"]'));
+    click(w, q('#page-team .team-row-link[data-sub="lineups"]'));
+    click(w, q('#lu-add'));
+    t.assert(JSON.parse(w.localStorage.getItem('baseball_my_team')).lineups.length === 1, '沒有新增成功');
+    click(w, q('#lu-delete'));
+    t.assert(!q('#ask-modal').classList.contains('hidden'), '刪除前沒有先問');
+    click(w, q('#ask-yes'));
+    t.assert(JSON.parse(w.localStorage.getItem('baseball_my_team')).lineups.length === 0, '沒有真的刪掉');
+    t.assert(!!q('#lu-add'), '刪完沒有回到陣容列表');
   });
 
   await t('新增球員後回球隊分頁，人數馬上更新', async () => {

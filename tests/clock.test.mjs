@@ -9,16 +9,17 @@ export default async function (t) {
   await t('結束計時會先問，確定後比賽也跟著結束', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    let asked = '';
-    w.confirm = (msg) => { asked = msg; return false; };
+    // 系統的 confirm() 在內嵌環境會被擋掉，所以改用 APP 自己的詢問視窗
     click(w, q('#game-clock'));
     click(w, q('#clock-stop-btn'));
-    t.assert(/結束/.test(asked), '沒有先問過：' + asked);
+    t.assert(!q('#ask-modal').classList.contains('hidden'), '沒有先問過');
+    t.assert(/結束/.test(q('#ask-text').textContent), '問法不對：' + q('#ask-text').textContent);
+    click(w, q('#ask-no'));
     let gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
     t.assert(!gs.isGameOver && !gs.endTime, '按了取消卻還是結束了');
-    w.confirm = () => true;
     click(w, q('#game-clock'));
     click(w, q('#clock-stop-btn'));
+    click(w, q('#ask-yes'));
     gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
     t.assert(gs.isGameOver === true, '確定後比賽沒有結束');
     t.assert(typeof gs.endTime === 'number', '計時沒有停');

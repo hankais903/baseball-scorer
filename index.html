@@ -558,8 +558,11 @@
                     <p class="sub-note">從常用陣容帶入，這一場要調整就直接改，不會動到常用陣容。</p>
                     <label class="team-row"><span class="team-row-label">帶入陣容</span>
                         <select id="gs-lineup-pick"></select></label>
-                    <label class="team-row"><span class="team-row-label">啟用 DH</span>
-                        <input type="checkbox" id="gs-dh" class="set-switch"></label>
+                    <div class="dh-pick" id="gs-dh">
+                        <span class="dh-label">打線</span>
+                        <button type="button" class="dh-btn active" data-dh="1">DH 制</button>
+                        <button type="button" class="dh-btn" data-dh="0">投手打擊</button>
+                    </div>
                     <div class="lu-spots" id="gs-spots"></div>
                     <label class="team-row" id="gs-pitcher-row"><span class="team-row-label">先發投手</span>
                         <select id="gs-pitcher"></select></label>
@@ -644,6 +647,17 @@
             <button type="button" class="shell-tab" data-page="stats"><i></i>成績</button>
             <button type="button" class="shell-tab" data-page="settings"><i></i>設定</button>
         </nav>
+    </div>
+
+    <!-- APP 自己的詢問視窗：系統的 confirm() 在某些內嵌環境會被擋掉，靜靜失敗 -->
+    <div id="ask-modal" class="hidden" role="dialog" aria-modal="true">
+        <div class="ask-box">
+            <p id="ask-text"></p>
+            <div class="ask-actions">
+                <button type="button" id="ask-no">取消</button>
+                <button type="button" id="ask-yes">確定</button>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="./index.tsx"></script>

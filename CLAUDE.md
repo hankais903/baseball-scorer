@@ -8,7 +8,7 @@
 ```bash
 npm install                 # 第一次
 npm run build               # Vite 建置到 dist/（測試跑的是 dist/，改完一定要先 build）
-npm test                    # 314+ 項回歸測試（jsdom），約 3 分鐘
+npm test                    # 317+ 項回歸測試（jsdom），約 3 分鐘
 npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自動 build）
 ```
 交付前必須：`npm run build && npm test` 全綠。每修一個 bug 就在 `tests/` 加一條釘住它的測試，套件名稱在 `tests/run.mjs` 註冊。
@@ -119,7 +119,22 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
   每一列右邊有刪除鍵。
 - 常用陣容關掉 DH 要把「先發投手」那一列收起來並換說明文字，否則按了畫面沒變化，看起來像壞掉。
 - 子頁（球員／常用陣容）改完回球隊分頁要 `renderTeamPage()`，人數與陣容套數才會即時更新。
-- **還沒做（下一批）**：成績分頁。
+- **不要用系統的 `confirm()`／`alert()`**：在內嵌（iframe）環境會被擋掉，而且不報錯，
+  按了完全沒反應——刪除常用陣容、結束計時都踩過。改用 `askConfirm(text, onYes, yesLabel)`（`#ask-modal`）。
+- **DH 不要用勾選框**：太小、按了看不出有沒有切換到。用兩顆按鈕（`.dh-pick` / `.dh-btn[data-dh]`），
+  常用陣容與建立比賽都是。切到「投手打擊」時收起先發投手那一列（第九棒就是投手）。
+- 球員名單只放頭像（正方形）／背號／姓名（約 5 字寬），**不放守位**；守位排在常用陣容與先發名單裡
+  （`lu.positions[9]`／`gsLineup.positions`），`buildTeamState` 從那裡取。
+  沒填名字的顯示「簡稱＋背號」（`memberName`，沒背號才退回棒次）。
+- Home 指示條：使用者要求只留 15，所以 `--sab: min(env(safe-area-inset-bottom), 15px)`。
+- **還沒做**：成績分頁；英文／日文版（工程很大，見下）。
+
+## 多語言（還沒做）
+- 使用者要英文版與日文版，而且要用當地的棒球術語。難處不在介面文字，在**即時事件敘述是動態組出來的**
+  （`generateEventText` 那一整套：守備鏈、跑者句、打點句、失誤句⋯⋯數百個片語），
+  三種語言的語序完全不同，不是換字典就能解決。
+- 建議分兩段：先做介面文字（分頁、按鈕、設定、建立流程），敘述先維持中文；
+  之後再把敘述抽成各語言自己的產生器。
 
 ## 舊的首頁（啟動畫面，已被 #main-shell 取代）
 - `#home-screen`：大 LOGO ＋ 四塊（繼續比賽／開始新比賽／比賽紀錄／我的球隊）。

@@ -57,21 +57,36 @@ export default async function (t) {
     openGame(w, q);
     click(w, q('#gs-to-opp'));
     click(w, q('#gs-to-lineup'));
-    const picked = [...w.document.querySelectorAll('#gs-spots select')].map(s => s.value);
+    const picked = [...w.document.querySelectorAll('#gs-spots select[data-gspot]')].map(s => s.value);
     t.assert(picked.join() === Array.from({ length: 9 }, (_, i) => 'm' + i).join(), '沒有帶入常用陣容：' + picked.join());
     t.assert(q('#gs-pitcher').value === 'm9', '投手沒有帶入：' + q('#gs-pitcher').value);
-    t.assert(q('#gs-dh').checked, 'DH 沒有跟著陣容');
+    t.assert(q('#gs-dh .dh-btn[data-dh="1"]').classList.contains('active'), 'DH 沒有跟著陣容');
   });
 
-  await t('關掉 DH 時投手欄位收起來（第九棒就是投手）', async () => {
+  await t('切到投手打擊時投手欄位收起來（第九棒就是投手）', async () => {
     const { window: w, q } = await withTeam();
     openGame(w, q);
     click(w, q('#gs-to-opp'));
     click(w, q('#gs-to-lineup'));
-    const dh = q('#gs-dh');
-    dh.checked = false;
-    dh.dispatchEvent(new w.Event('change', { bubbles: true }));
-    t.assert(q('#gs-pitcher-row').classList.contains('hidden'), '關掉 DH 還留著投手欄位');
+    t.assert(w.document.querySelectorAll('#gs-dh .dh-btn').length === 2, 'DH 不是兩顆按鈕');
+    click(w, q('#gs-dh .dh-btn[data-dh="0"]'));
+    t.assert(q('#gs-pitcher-row').classList.contains('hidden'), '切到投手打擊還留著投手欄位');
+    t.assert(q('#gs-dh .dh-btn[data-dh="0"]').classList.contains('active'), '按鈕沒有變色');
+  });
+
+  await t('先發名單可以排守位，守位會跟著進比賽', async () => {
+    const { window: w, q } = await withTeam();
+    openGame(w, q);
+    setVal(w, q('#gs-opp-name'), '海盜');
+    click(w, q('#gs-to-opp'));
+    click(w, q('#gs-to-lineup'));
+    const pos = [...w.document.querySelectorAll('#gs-spots .lu-pos')];
+    t.assert(pos.length === 9, '先發名單沒有守位欄位：' + pos.length);
+    setVal(w, pos[0], 'SS');
+    click(w, q('#gs-create'));
+    await sleep(300);
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    t.assert(gs.teams.a.roster[0].pos === 'SS', '守位沒有帶進比賽：' + gs.teams.a.roster[0].pos);
   });
 
   await t('建立比賽：我方先攻時是客隊，資料都帶進去', async () => {

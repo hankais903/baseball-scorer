@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.4';
+const APP_VERSION = 'v2.5';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -757,7 +757,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const n = (p && p.name || '').trim();
         if (n) return n;
         const short = (myTeam && myTeam.shortName) || '球員';
-        return short + String(i + 1).padStart(2, '0');
+        const num = (p && p.jersey || '').trim();
+        return short + (num || String(i + 1).padStart(2, '0'));
     }
     const blankMember = () => ({ _id: 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), jersey: '', name: '', pos: '', photo: '' });
 
@@ -796,6 +797,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 自己的詢問視窗。系統的 confirm()／alert() 在內嵌（iframe）環境會被擋掉而且
+    // 不會報錯，按了完全沒反應——刪除陣容、結束計時都踩過這個坑。
+    let askYes: (() => void) | null = null;
+    function askConfirm(text: string, onYes: () => void, yesLabel = '確定') {
+        const box = document.getElementById('ask-modal');
+        const t = document.getElementById('ask-text');
+        const yes = document.getElementById('ask-yes');
+        if (!box || !t || !yes) { onYes(); return; }      // 真的找不到視窗就別擋著使用者
+        t.textContent = text;
+        yes.textContent = yesLabel;
+        askYes = onYes;
+        box.classList.remove('hidden');
+    }
+    function closeAsk() {
+        document.getElementById('ask-modal')?.classList.add('hidden');
+        askYes = null;
+    }
     function fileToDataUrl(file: File): Promise<string> {
         return new Promise(resolve => {
             const r = new FileReader();
@@ -813,7 +831,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!p) return;
             p.jersey = (row.querySelector('.mp-jersey') as HTMLInputElement).value.trim();
             p.name = (row.querySelector('.mp-name') as HTMLInputElement).value.trim();
-            p.pos = (row.querySelector('.mp-pos') as HTMLSelectElement).value;
         });
     }
 
@@ -966,6 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gsLineup = {
             useDH: lus[0] ? !!lus[0].useDH : !!appSettings.dh,
             spots: lus[0] ? [...(lus[0].spots || Array(9).fill(''))] : Array(9).fill(''),
+            positions: lus[0] ? [...(lus[0].positions || Array(9).fill(''))] : Array(9).fill(''),
             pitcherId: lus[0] ? lus[0].pitcherId : '',
             from: lus[0] ? lus[0].id : '',
         };
@@ -1037,15 +1055,17 @@ document.addEventListener('DOMContentLoaded', () => {
             pick.innerHTML = '<option value="">－ 自己排 －</option>'
                 + lus.map(l => `<option value="${l.id}"${l.id === gsLineup.from ? ' selected' : ''}>${l.name || '未命名'}</option>`).join('');
         }
-        const dh = document.getElementById('gs-dh') as HTMLInputElement;
-        if (dh) dh.checked = !!gsLineup.useDH;
+        document.querySelectorAll('#gs-dh .dh-btn').forEach(b => {
+            b.classList.toggle('active', ((b as HTMLElement).dataset.dh === '1') === !!gsLineup.useDH);
+        });
         const opt = (sel) => '<option value="">－</option>' + players.map((p, i) =>
             `<option value="${p._id}"${p._id === sel ? ' selected' : ''}>${p.jersey ? p.jersey + '　' : ''}${memberName(p, i)}</option>`).join('');
         const spots = document.getElementById('gs-spots');
         if (spots) {
             spots.innerHTML = Array.from({ length: 9 }, (_, i) => `
-                <label class="lu-spot"><span>${i + 1}棒</span>
-                    <select data-gspot="${i}">${opt(gsLineup.spots[i])}</select></label>`).join('');
+                <div class="lu-spot"><span>${i + 1}棒</span>
+                    <select data-gspot="${i}">${opt(gsLineup.spots[i])}</select>
+                    <select class="lu-pos" data-gpos="${i}" aria-label="守位">${POS_OPTIONS((gsLineup.positions || [])[i])}</select></div>`).join('');
         }
         const pit = document.getElementById('gs-pitcher') as HTMLSelectElement;
         if (pit) pit.innerHTML = opt(gsLineup.pitcherId);
@@ -1102,7 +1122,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!myTeam) return false;
         const players = myTeam.players || [];
         const byId = id => players.find(p => p._id === id);
-        const order = gsLineup.spots.map(id => byId(id));
+        const order = gsLineup.spots.map((id, i) => {
+            const p = byId(id);
+            return p ? { ...p, pos: (gsLineup.positions || [])[i] || '' } : null;
+        });
         if (order.some(p => !p)) { alert('先發九棒還沒排完，每一棒都要指定球員。'); return false; }
         if (gsLineup.useDH && !byId(gsLineup.pitcherId)) { alert('請選先發投手。'); return false; }
         const used = new Set(gsLineup.spots.concat(gsLineup.useDH ? [gsLineup.pitcherId] : []));
@@ -1224,12 +1247,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function renderSubPlayers(body) {
         const list = myTeam.players || [];
-        body.innerHTML = `<p class="sub-note">這裡放全部的球員，不分先發或替補。沒填名字的會自動用「簡稱＋號碼」。</p>`
+        body.innerHTML = `<p class="sub-note">這裡放全部的球員，不分先發或替補。沒填名字的會自動用「簡稱＋背號」。守位在「常用陣容」裡排。</p>`
             + `<div class="mp-list">` + list.map((p, i) => `
                 <div class="mp-row" data-id="${p._id}">
+                    <label class="mp-photo${p.photo ? ' has-photo' : ''}">
+                        <img src="${p.photo || ''}" alt="">
+                        <span class="mp-photo-hint">＋</span>
+                        <input type="file" class="mp-photo-input" accept="image/*">
+                    </label>
                     <input type="text" class="mp-jersey" value="${p.jersey || ''}" inputmode="numeric" maxlength="3" placeholder="－" aria-label="背號">
                     <input type="text" class="mp-name" value="${p.name || ''}" maxlength="10" placeholder="${memberName(p, i)}" aria-label="姓名">
-                    <select class="mp-pos" aria-label="守位">${POS_OPTIONS(p.pos)}</select>
                     <button type="button" class="mp-del" aria-label="刪除">×</button>
                 </div>`).join('') + `</div>`
             + `<button type="button" class="ob-add" id="mp-add">＋ 新增球員</button>`;
@@ -1256,15 +1283,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const players = myTeam.players || [];
         const opt = (sel) => `<option value="">－</option>` + players.map((p, i) =>
             `<option value="${p._id}"${p._id === sel ? ' selected' : ''}>${p.jersey ? p.jersey + '　' : ''}${memberName(p, i)}</option>`).join('');
+        const pos = (lu.positions || []);
         body.innerHTML = `
             <label class="team-row"><span class="team-row-label">陣容名稱</span>
                 <input type="text" id="lu-name" maxlength="10" value="${lu.name || ''}" placeholder="例：主力"></label>
-            <label class="team-row"><span class="team-row-label">啟用 DH</span>
-                <input type="checkbox" id="lu-dh" class="set-switch"${lu.useDH ? ' checked' : ''}></label>
-            <p class="sub-note" id="lu-dh-hint">${lu.useDH ? '第九棒是指定打擊，投手不打擊' : '投手自己打擊，第九棒就是投手'}</p>
+            <div class="dh-pick" id="lu-dh">
+                <span class="dh-label">打線</span>
+                <button type="button" class="dh-btn${lu.useDH ? ' active' : ''}" data-dh="1">DH 制</button>
+                <button type="button" class="dh-btn${lu.useDH ? '' : ' active'}" data-dh="0">投手打擊</button>
+            </div>
+            <p class="sub-note" id="lu-dh-hint">${lu.useDH ? '第九棒是指定打擊，投手不排進打線' : '投手自己打擊，第九棒就是投手'}</p>
             <div class="lu-spots">` + Array.from({ length: 9 }, (_, i) => `
-                <label class="lu-spot"><span>${i + 1}棒</span>
-                    <select data-spot="${i}">${opt((lu.spots || [])[i])}</select></label>`).join('') + `</div>
+                <div class="lu-spot"><span>${i + 1}棒</span>
+                    <select data-spot="${i}">${opt((lu.spots || [])[i])}</select>
+                    <select class="lu-pos" data-pos="${i}" aria-label="守位">${POS_OPTIONS(pos[i])}</select></div>`).join('') + `</div>
             <label class="team-row${lu.useDH ? '' : ' hidden'}" id="lu-pitcher-row"><span class="team-row-label">先發投手</span>
                 <select id="lu-pitcher">${opt(lu.pitcherId)}</select></label>
             <div class="lu-actions">
@@ -1952,6 +1984,13 @@ document.addEventListener('DOMContentLoaded', () => {
         newGameBtn.addEventListener('click', () => { openModal(confirmModal); });
         confirmResetBtn.addEventListener('click', () => { gameState = getInitialGameState(); gameStateHistory = []; resetReplayLog(); saveState(); createLineupInputs(); attachTeamSettingsListeners(); render(); closeModal(confirmModal); hideShell(); navigateToPanel(0); });
         // === 建立球隊（三步）===
+        document.getElementById('ask-yes')?.addEventListener('click', () => {
+            const fn = askYes; closeAsk(); tapFeedback(); fn && fn();
+        });
+        document.getElementById('ask-no')?.addEventListener('click', () => { tapFeedback(); closeAsk(); });
+        document.getElementById('ask-modal')?.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('ask-modal')) closeAsk();
+        });
         document.getElementById('ob-start')?.addEventListener('click', () => { tapFeedback(); gotoOnboardStep(1); });
         document.querySelectorAll('#onboard-screen .ob-back').forEach(b => {
             b.addEventListener('click', () => { collectOnboardPlayers(); gotoOnboardStep(Number((b as HTMLElement).dataset.goto)); });
@@ -2068,18 +2107,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if (lu) {
                 gsLineup.useDH = !!lu.useDH;
                 gsLineup.spots = [...(lu.spots || Array(9).fill(''))];
+                gsLineup.positions = [...(lu.positions || Array(9).fill(''))];
                 gsLineup.pitcherId = lu.pitcherId || '';
             }
             renderStarters();
         });
-        document.getElementById('gs-dh')?.addEventListener('change', (e) => {
-            gsLineup.useDH = (e.target as HTMLInputElement).checked;
+        document.getElementById('gs-dh')?.addEventListener('click', (e) => {
+            const b = (e.target as HTMLElement).closest('.dh-btn') as HTMLElement;
+            if (!b) return;
+            tapFeedback();
+            gsLineup.useDH = b.dataset.dh === '1';
             renderStarters();
         });
         document.getElementById('gs-spots')?.addEventListener('change', (e) => {
             const t = e.target as HTMLElement;
-            if (t.dataset.gspot === undefined) return;
-            gsLineup.spots[Number(t.dataset.gspot)] = (t as HTMLSelectElement).value;
+            if (t.dataset.gspot !== undefined) gsLineup.spots[Number(t.dataset.gspot)] = (t as HTMLSelectElement).value;
+            else if (t.dataset.gpos !== undefined) {
+                gsLineup.positions = gsLineup.positions || Array(9).fill('');
+                gsLineup.positions[Number(t.dataset.gpos)] = (t as HTMLSelectElement).value;
+            }
         });
         document.getElementById('gs-pitcher')?.addEventListener('change', (e) => {
             gsLineup.pitcherId = (e.target as HTMLSelectElement).value;
@@ -2097,9 +2143,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const del = (e.target as HTMLElement).closest('.gl-del') as HTMLElement;
             if (del) {
                 tapFeedback();
-                if (!confirm('確定要刪除這場比賽嗎？此操作無法復原。')) return;
-                (window as any).baseballGameManager?.deleteGame(del.dataset.del);
-                renderHomeGameList();
+                askConfirm('確定要刪除這場比賽嗎？此操作無法復原。', () => {
+                    (window as any).baseballGameManager?.deleteGame(del.dataset.del);
+                    renderHomeGameList();
+                }, '刪除');
                 return;
             }
             const item = (e.target as HTMLElement).closest('.gl-item') as HTMLElement;
@@ -2162,7 +2209,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (t.closest('#lu-add')) {
                 myTeam.lineups = myTeam.lineups || [];
-                const lu = { id: 'lu_' + Date.now(), name: '', useDH: !!appSettings.dh, spots: Array(9).fill(''), pitcherId: '' };
+                const lu = { id: 'lu_' + Date.now(), name: '', useDH: !!appSettings.dh, spots: Array(9).fill(''), positions: Array(9).fill(''), pitcherId: '' };
                 myTeam.lineups.push(lu);
                 saveMyTeam();
                 sub.dataset.editing = lu.id;
@@ -2170,14 +2217,34 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const item = t.closest('.lu-item') as HTMLElement;
             if (item) { sub.dataset.editing = item.dataset.lineup; renderSub(); return; }
+            const dhBtn = t.closest('.dh-btn') as HTMLElement;
+            if (dhBtn && t.closest('#lu-dh')) {
+                const lu2 = (myTeam.lineups || []).find(l => l.id === sub.dataset.editing);
+                if (lu2) { lu2.useDH = dhBtn.dataset.dh === '1'; saveMyTeam(); renderSub(); }
+                return;
+            }
             if (t.closest('#lu-done')) { delete sub.dataset.editing; renderSub(); renderTeamPage(); return; }
             if (t.closest('#lu-delete')) {
-                if (!confirm('確定要刪除這套陣容嗎？')) return;
-                myTeam.lineups = myTeam.lineups.filter(l => l.id !== sub.dataset.editing);
-                saveMyTeam(); delete sub.dataset.editing; renderSub(); renderTeamPage(); return;
+                const id = sub.dataset.editing;
+                askConfirm('確定要刪除這套陣容嗎？', () => {
+                    myTeam.lineups = myTeam.lineups.filter(l => l.id !== id);
+                    saveMyTeam(); delete sub.dataset.editing; renderSub(); renderTeamPage();
+                }, '刪除');
+                return;
             }
         });
-        document.getElementById('sub-body')?.addEventListener('change', (e) => {
+        document.getElementById('sub-body')?.addEventListener('change', async (e) => {
+            const photo = (e.target as HTMLElement).closest('.mp-photo-input') as HTMLInputElement;
+            if (photo) {
+                const f = photo.files?.[0];
+                const id = (photo.closest('.mp-row') as HTMLElement).dataset.id;
+                const p = myTeam && (myTeam.players || []).find(x => x._id === id);
+                if (!f || !p) return;
+                collectSubPlayers();
+                p.photo = await shrinkImage(await fileToDataUrl(f), 260);
+                saveMyTeam(); renderSub();
+                return;
+            }
             const t = e.target as HTMLElement;
             const sub = document.getElementById('shell-sub') as HTMLElement;
             if (!myTeam) return;
@@ -2185,17 +2252,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const lu = (myTeam.lineups || []).find(l => l.id === sub.dataset.editing);
             if (!lu) return;
             if (t.id === 'lu-name') lu.name = (t as HTMLInputElement).value.trim();
-            else if (t.id === 'lu-dh') {
-                lu.useDH = (t as HTMLInputElement).checked;
-                saveMyTeam();
-                // 關掉 DH 時第九棒就是投手，投手欄位要收起來，否則看起來像按了沒反應
-                const row = document.getElementById('lu-pitcher-row');
-                if (row) row.classList.toggle('hidden', !lu.useDH);
-                const hint = document.getElementById('lu-dh-hint');
-                if (hint) hint.textContent = lu.useDH ? '第九棒是指定打擊，投手不打擊' : '投手自己打擊，第九棒就是投手';
-                return;
-            }
             else if (t.id === 'lu-pitcher') lu.pitcherId = (t as HTMLSelectElement).value;
+            else if ((t as HTMLElement).dataset.pos !== undefined) {
+                lu.positions = lu.positions || Array(9).fill('');
+                lu.positions[Number((t as HTMLElement).dataset.pos)] = (t as HTMLSelectElement).value;
+            }
             else if ((t as HTMLElement).dataset.spot !== undefined) {
                 lu.spots = lu.spots || Array(9).fill('');
                 lu.spots[Number((t as HTMLElement).dataset.spot)] = (t as HTMLSelectElement).value;
@@ -2239,21 +2300,21 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const parsed = JSON.parse(await f.text());
                 if (!parsed || !parsed.data) throw new Error('格式不對');
-                if (!confirm('還原備份會覆蓋現在的球隊與比賽資料，確定嗎？')) return;
-                Object.entries(parsed.data).forEach(([k, v]) => localStorage.setItem(k, v as string));
-                restartApp();
-                alert('已還原備份。');
+                askConfirm('還原備份會覆蓋現在的球隊與比賽資料，確定嗎？', () => {
+                    Object.entries(parsed.data).forEach(([k, v]) => localStorage.setItem(k, v as string));
+                    restartApp();
+                }, '還原');
             }
             catch { alert('還原失敗：這個檔案不是 Diamond Log 的備份。'); }
         });
         document.getElementById('set-reset')?.addEventListener('click', () => {
-            if (!confirm('這會刪除球隊、名單與全部比賽紀錄，而且無法復原。確定嗎？')) return;
-            if (!confirm('真的要清除全部資料嗎？')) return;
+            askConfirm('這會刪除球隊、名單與全部比賽紀錄，而且無法復原。確定要清除嗎？', () => {
             Object.keys(localStorage).filter(k => k.startsWith('baseball') || k === SAVED_ROSTERS_KEY)
                 .forEach(k => localStorage.removeItem(k));
             myTeam = null;
             gameState = getInitialGameState();
             restartApp();
+            }, '全部清除');
         });
 
         cancelResetBtn.addEventListener('click', () => { closeModal(confirmModal); });
@@ -3549,17 +3610,22 @@ document.addEventListener('DOMContentLoaded', () => {
         renderGameClock();
         saveState();
     }
-    // 結束計時＝這場比賽打完了，所以順便把比賽結束掉；按下去先問一次
+    // 結束計時＝這場比賽打完了，所以順便把比賽結束掉；按下去先問一次。
+    // 用自己的視窗問，系統的 confirm() 在內嵌環境會被擋掉（按了完全沒反應）
     function stopClockAndEndGame() {
         if (gameState.endTime && gameState.isGameOver) return;
-        if (!confirm('結束計時會同時結束這場比賽，確定嗎？')) return;
-        stopClock();
-        if (!gameState.isGameOver) {
-            saveStateForUndo();
-            endGame();
-            saveState();
-        }
-        render();
+        askConfirm('要結束這場比賽嗎？結束後計時會停止，比賽紀錄也會收到首頁。', () => {
+            stopClock();
+            if (!gameState.isGameOver) {
+                saveStateForUndo();
+                endGame();
+                saveState();
+            }
+            pushToGameList();
+            render();
+            leaveGameView();
+            showShell('home');
+        }, '結束比賽');
     }
     function setupClockControls() {
         const clock = document.getElementById('game-clock');
