@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.6';
+const APP_VERSION = 'v2.7';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -870,6 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setShellPageClasses();
         renderHomePage();
         renderTeamPage();
+        renderStatsPage();
         renderSettingsPage();
     }
     function setShellPageClasses() {
@@ -913,24 +914,148 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // 只列已經結束的比賽：還沒打完的那一場由上面的「繼續比賽」負責，
         // 兩個地方都出現會讓人以為有兩場
-        const done = games.filter(g => g.isGameOver);
+        // 新的排前面：用比賽日期排，同一天才看最後存檔時間
+        const when = g => new Date(g.gameDate || g.lastModified || 0).getTime() || 0;
+        const done = games.filter(g => g.isGameOver).sort((x, y) => when(y) - when(x));
         if (!done.length) {
             box.innerHTML = '<div class="shell-empty"><p>還沒有打完的比賽</p><p class="shell-empty-sub">比賽結束後就會收在這裡</p></div>';
             return;
         }
-        const total = s => (s || []).reduce((a, b) => a + (b || 0), 0);
         box.innerHTML = done.map(g => {
             const a = g.teams?.a?.name || '客隊', b = g.teams?.b?.name || '主隊';
-            const d = new Date(g.lastModified || Date.now());
-            const date = `${d.getMonth() + 1}/${d.getDate()}`;
+            const sa = totalRuns(g.teams?.a?.score), sb = totalRuns(g.teams?.b?.score);
+            const mine = mySideOf(g);
+            const mark = mine ? ` <em class="gl-res gl-${resultOf(g)}">${RESULT_WORD[resultOf(g)]}</em>` : '';
             return `<div class="gl-row">
                 <button type="button" class="gl-item" data-game="${g.id}">
-                    <span class="gl-main"><b>${a}</b> <i>${total(g.teams?.a?.score)} : ${total(g.teams?.b?.score)}</i> <b>${b}</b></span>
-                    <span class="gl-sub">${date}　終場${g.stadium ? '　' + g.stadium : ''}</span>
+                    <span class="gl-main"><b>${a}</b> <i>${sa} : ${sb}</i> <b>${b}</b>${mark}</span>
+                    <span class="gl-sub">${fullDate(g.gameDate || g.lastModified)}</span>
+                    <span class="gl-sub">${g.stadium || '未填球場'}　${WEATHER_WORD[g.weather] || '－'}</span>
                 </button>
                 <button type="button" class="gl-del" data-del="${g.id}" aria-label="刪除這場比賽">×</button>
             </div>`;
         }).join('');
+    }
+
+    // ======================================================================
+    // 成績：把已經結束的比賽累加起來
+    // ======================================================================
+    // 天氣只用文字：預覽檔內嵌的字型沒有太陽／雲的符號，放符號會變成別的圖案
+    const WEATHER_WORD = { sunny: '晴', cloudy: '陰', rainy: '雨' };
+    const RESULT_WORD = { win: '勝', lose: '敗', tie: '和' };
+    const totalRuns = (s) => (s || []).reduce((a, b) => a + (b || 0), 0);
+    function fullDate(v) {
+        const d = new Date(v || Date.now());
+        if (isNaN(d.getTime())) return '';
+        const week = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+        return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 (${week})`;
+    }
+    // 哪一邊是我們？建立比賽時會記 mySide；舊資料就用隊名比對
+    function mySideOf(g) {
+        if (g && (g as any).mySide) return (g as any).mySide;
+        const short = myTeam && myTeam.shortName;
+        if (!short) return null;
+        if (g?.teams?.a?.name === short) return 'a';
+        if (g?.teams?.b?.name === short) return 'b';
+        return null;
+    }
+    function resultOf(g) {
+        const side = mySideOf(g);
+        if (!side) return 'tie';
+        const mine = totalRuns(g.teams[side].score);
+        const theirs = totalRuns(g.teams[side === 'a' ? 'b' : 'a'].score);
+        return mine > theirs ? 'win' : mine < theirs ? 'lose' : 'tie';
+    }
+    const BAT_SUM = ['pa', 'ab', 'r', 'h', 'rbi', 'tb', '2b', '3b', 'hr', 'bb', 'hbp', 'so', 'sf', 'sh', 'sb'];
+    const PIT_SUM = ['outsRecorded', 'h', 'r', 'er', 'bb', 'k', 'hbp', 'hr', 'bf'];
+    const rate = (n, d, digits = 3) => d > 0 ? (n / d).toFixed(digits).replace(/^0/, '') : '－';
+    const era = (er, outs) => outs > 0 ? (er * 27 / outs).toFixed(2) : '－';
+    const ipText = (outs) => `${Math.floor(outs / 3)}${outs % 3 ? '.' + (outs % 3) : ''}`;
+
+    function collectStats() {
+        let games = [];
+        try { games = (window as any).baseballGameManager?.getGamesList() || []; } catch { games = []; }
+        const done = games.filter(g => g.isGameOver && mySideOf(g));
+        const rec = { win: 0, lose: 0, tie: 0 };
+        const bat = {}, pit = {};
+        const blankBat = () => Object.fromEntries(BAT_SUM.map(k => [k, 0]));
+        const blankPit = () => Object.fromEntries(PIT_SUM.map(k => [k, 0]));
+        done.forEach(g => {
+            rec[resultOf(g)]++;
+            const team = g.teams[mySideOf(g)];
+            (team.roster || []).forEach(p => {
+                if (!p || !p.name) return;
+                const key = (p.jersey || '') + '|' + p.name;
+                bat[key] = bat[key] || { name: p.name, jersey: p.jersey || '', ...blankBat() };
+                BAT_SUM.forEach(k => { bat[key][k] += Number(p[k]) || 0; });
+            });
+            (team.pitchers || []).forEach(p => {
+                if (!p || !p.name) return;
+                pit[p.name] = pit[p.name] || { name: p.name, ...blankPit() };
+                PIT_SUM.forEach(k => { pit[p.name][k] += Number(p[k]) || 0; });
+            });
+        });
+        const sum = (list, keys) => {
+            const o = Object.fromEntries(keys.map(k => [k, 0]));
+            list.forEach(x => keys.forEach(k => { o[k] += x[k]; }));
+            return o;
+        };
+        const batList = Object.values(bat).filter((x: any) => x.pa > 0) as any[];
+        const pitList = Object.values(pit).filter((x: any) => x.bf > 0 || x.outsRecorded > 0) as any[];
+        return {
+            games: done.length, rec,
+            batList: batList.sort((a, b) => b.pa - a.pa),
+            pitList: pitList.sort((a, b) => b.outsRecorded - a.outsRecorded),
+            batTotal: sum(batList, BAT_SUM), pitTotal: sum(pitList, PIT_SUM),
+        };
+    }
+
+    function renderStatsPage() {
+        const box = document.getElementById('stats-body');
+        if (!box) return;
+        const s = collectStats();
+        if (!s.games) {
+            box.innerHTML = '<div class="shell-empty"><p>還沒有打完的比賽</p>'
+                + '<p class="shell-empty-sub">比賽結束後，成績會自動累加到這裡</p></div>';
+            return;
+        }
+        const bt = s.batTotal, pt = s.pitTotal;
+        const obpD = bt.ab + bt.bb + bt.hbp + bt.sf;
+        const table = (head, rows) =>
+            `<div class="table-scroll"><table class="st-table"><thead><tr>${head.map((h, i) =>
+                `<th${i === 0 ? ' class="st-name"' : ''}>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
+        const batRow = (x, cls = '') => `<tr class="${cls}"><td class="st-name">${x.name}</td>`
+            + [x.pa, x.ab, x.h, x['2b'], x['3b'], x.hr, x.rbi, x.r, x.bb, x.so, x.sb,
+               rate(x.h, x.ab), rate(x.tb, x.ab), rate(x.h + x.bb + x.hbp, x.ab + x.bb + x.hbp + x.sf)]
+              .map(v => `<td>${v}</td>`).join('') + '</tr>';
+        const pitRow = (x, cls = '') => `<tr class="${cls}"><td class="st-name">${x.name}</td>`
+            + [ipText(x.outsRecorded), x.h, x.r, x.er, x.bb, x.k, x.hr,
+               era(x.er, x.outsRecorded), x.outsRecorded ? ((x.h + x.bb) * 3 / x.outsRecorded).toFixed(2) : '－']
+              .map(v => `<td>${v}</td>`).join('') + '</tr>';
+
+        box.innerHTML = `
+            <div class="st-record">
+                <div class="st-rec-main"><b>${s.rec.win}</b> 勝 <b>${s.rec.lose}</b> 敗${s.rec.tie ? ` <b>${s.rec.tie}</b> 和` : ''}</div>
+                <div class="st-rec-sub">共 ${s.games} 場　勝率 ${rate(s.rec.win, s.rec.win + s.rec.lose)}</div>
+            </div>
+            <h3 class="shell-section">全隊打擊</h3>
+            <div class="st-cards">
+                ${[['打擊率', rate(bt.h, bt.ab)], ['上壘率', rate(bt.h + bt.bb + bt.hbp, obpD)],
+                   ['長打率', rate(bt.tb, bt.ab)], ['安打', bt.h], ['全壘打', bt.hr], ['打點', bt.rbi]]
+                  .map(([k, v]) => `<div class="st-card"><b>${v}</b><i>${k}</i></div>`).join('')}
+            </div>
+            <h3 class="shell-section">全隊投球</h3>
+            <div class="st-cards">
+                ${[['防禦率', era(pt.er, pt.outsRecorded)], ['投球局數', ipText(pt.outsRecorded)],
+                   ['三振', pt.k], ['四壞', pt.bb], ['被安打', pt.h], ['失分', pt.r]]
+                  .map(([k, v]) => `<div class="st-card"><b>${v}</b><i>${k}</i></div>`).join('')}
+            </div>
+            <h3 class="shell-section">個人打擊</h3>
+            ${table(['姓名', '打席', '打數', '安打', '二安', '三安', '全壘打', '打點', '得分', '四壞', '三振', '盜壘', '打擊率', '長打率', '上壘率'],
+                    s.batList.map(x => batRow(x)).join('') + batRow({ ...bt, name: '全隊' }, 'st-total'))}
+            <h3 class="shell-section">個人投球</h3>
+            ${table(['姓名', '局數', '被安打', '失分', '責失', '四壞', '三振', '被全壘打', '防禦率', 'WHIP'],
+                    s.pitList.map(x => pitRow(x)).join('') + pitRow({ ...pt, name: '全隊' }, 'st-total'))}`;
     }
 
     function renderTeamPage() {
@@ -1151,6 +1276,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.stadium = (document.getElementById('gs-stadium') as HTMLInputElement).value.trim();
         gameState.weather = (document.getElementById('gs-weather') as HTMLSelectElement).value;
         (gameState as any).createdAt = Date.now();   // 「有一場還沒打完」的依據
+        (gameState as any).mySide = gsSide === 'top' ? 'a' : 'b';   // 成績要知道哪一邊是我們
         // 常用對手：下次可以直接帶入
         if (oppInfo.name !== '對手') {
             const saved = readOpponents().filter(o => o.name !== oppInfo.name);
@@ -2056,6 +2182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // === 五分頁 ===
         // 回主畫面一律停在首頁：留在「比賽」分頁會看到已經用過的建立流程，很怪
         document.getElementById('home-btn')?.addEventListener('click', () => { tapFeedback(); leaveGameView(); showShell('home'); });
+        document.getElementById('team-btn')?.addEventListener('click', () => { tapFeedback(); leaveGameView(); showShell('team'); });
         document.getElementById('shell-nav')?.addEventListener('click', (e) => {
             const btn = (e.target as HTMLElement).closest('.shell-tab') as HTMLElement;
             if (!btn) return;

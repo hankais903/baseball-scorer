@@ -1,4 +1,4 @@
-// 多場比賽的保存規則：最多留 10 場、正在記錄的那一場不能刪
+// 多場比賽的保存規則：不再限制場數、正在記錄的那一場不能刪
 // （曾經刪掉正在記的比賽，畫面整個空掉）
 import { boot } from './harness.mjs';
 
@@ -12,7 +12,7 @@ const gm = async () => {
 const fakeGame = n => ({ inning: n, teams: { a: { score: [n] }, b: { score: [0] } } });
 
 export default async function (t) {
-  await t('最多只留 10 場比賽，最舊的先丟', async () => {
+  await t('比賽紀錄不再限制場數，全部留著', async () => {
     const { m } = await gm();
     for (let i = 1; i <= 13; i++) {
       m.currentGameId = null;
@@ -20,11 +20,11 @@ export default async function (t) {
       m.saveGame(id, { ...fakeGame(i), lastModified: new Date(2026, 0, i).toISOString() });
     }
     const list = m.getGamesList();
-    t.assert(list.length === 10, '應該只留 10 場，目前 ' + list.length);
-    t.assert(list.every(g => g.inning >= 4), '丟掉的不是最舊的：' + list.map(g => g.inning).join(','));
+    t.assert(list.length === 13, '應該 13 場全留，目前 ' + list.length);
+    t.assert(list.some(g => g.inning === 1), '最舊的那一場被丟掉了');
   });
 
-  await t('正在記錄的那一場不會被上限擠掉', async () => {
+  await t('存很多場之後，正在記錄的那一場還在', async () => {
     const { m } = await gm();
     m.currentGameId = null;
     const keep = m.createNewGame();

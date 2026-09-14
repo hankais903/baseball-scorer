@@ -81,13 +81,9 @@
             </div>
             <!-- 上方標題列：左邊點一下回首頁，右邊「紀錄」只有比賽中才出現 -->
             <div class="stadium-toolbar">
-                <button type="button" class="brand-btn" id="home-btn" aria-label="回首頁">
-                    <span class="brand-ball" aria-hidden="true">⚾</span>
-                    <span class="brand-text">
-                        <strong>棒球比賽紀錄<span id="app-version" class="brand-version"></span></strong>
-                        <small>Baseball Scoring Tool</small>
-                    </span>
-                </button>
+                <button type="button" class="nav-pill" id="home-btn">首頁</button>
+                <button type="button" class="nav-pill" id="team-btn">球隊</button>
+                <span id="app-version" class="brand-version"></span>
                 <button type="button" id="game-log-btn" class="hidden">紀錄</button>
             </div>
             <header id="game-info">
@@ -458,7 +454,7 @@
                         <span class="home-card-sub" id="home-continue-sub"></span>
                     </span>
                 </button>
-                <h3 class="shell-section">比賽紀錄</h3>
+                <h3 class="shell-section">近期比賽紀錄</h3>
                 <div id="home-game-list"></div>
             </section>
 
@@ -570,13 +566,10 @@
                 </div>
             </section>
 
-            <!-- 成績（預留） -->
+            <!-- 成績：把已結束的比賽累加起來 -->
             <section class="shell-page hidden" id="page-stats">
                 <h2 class="shell-title">成績</h2>
-                <div class="shell-empty">
-                    <p>這裡之後會放球員的累計成績</p>
-                    <p class="shell-empty-sub">打擊率、長打率、防禦率⋯⋯跨場次累加</p>
-                </div>
+                <div id="stats-body"></div>
             </section>
 
             <!-- 設定 -->

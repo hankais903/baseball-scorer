@@ -295,10 +295,11 @@ export default async function (t) {
     t.assert(JSON.parse(w.localStorage.getItem('baseball_settings')).dh === false, 'DH 設定沒有存起來');
   });
 
-  await t('成績頁先預留，不是空白一片', async () => {
+  await t('成績頁不是空白一片（還沒比賽時給說明）', async () => {
     const { window: w, q } = await withTeam();
     click(w, q('#shell-nav .shell-tab[data-page="stats"]'));
-    t.assert(q('#page-stats').textContent.includes('累計成績'), '成績頁沒有說明之後會放什麼');
+    t.assert(!!q('#stats-body'), '成績頁沒有內容區');
+    t.assert(q('#page-stats').textContent.includes('比賽'), '成績頁沒有任何說明');
   });
 
   // === 疊層規則（踩過兩次的坑）===

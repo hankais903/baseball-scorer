@@ -4,7 +4,9 @@ class GameManager {
         this.STORAGE_KEY = 'baseball_games_v2';
         this.CURRENT_GAME_KEY = 'baseball_current_game_id';
         this.AUTO_SAVE_INTERVAL = 10000; // 10秒自動儲存
-        this.MAX_GAMES = 10;             // 最多留 10 場，超過就把最舊的丟掉（不會丟正在記的那場）
+        // 比賽紀錄不限場數（使用者要求）。0 代表不限，只有在瀏覽器空間真的滿了
+        // 才會從最舊的開始丟——那是不得不，不是上限。
+        this.MAX_GAMES = 0;
         this.autoSaveTimer = null;
         this.currentGameId = null;
         
@@ -51,13 +53,29 @@ class GameManager {
                 version: 2
             };
             this.trimToLimit(games, gameId);
-            const payload = JSON.stringify(games);
+            let payload = JSON.stringify(games);
             // 判斷內容是否真的變動時要排除時間戳，否則每次都會被當成有變
             const { lastModified, timestamp, savedAt, ...compareData } = gameData || {};
             const fingerprint = JSON.stringify(compareData);
             const changed = fingerprint !== this._lastFingerprint;
             this._lastFingerprint = fingerprint;
-            localStorage.setItem(this.STORAGE_KEY, payload);
+            try {
+                localStorage.setItem(this.STORAGE_KEY, payload);
+            }
+            catch (quota) {
+                // 空間滿了才丟最舊的（不是上限，是不得不）；正在記的那場一定留著
+                const order = Object.keys(games)
+                    .filter(id => id !== gameId && id !== this.currentGameId)
+                    .sort((a, b) => new Date(games[a].lastModified || 0) - new Date(games[b].lastModified || 0));
+                let saved = false;
+                for (const id of order) {
+                    delete games[id];
+                    try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(games)); saved = true; break; }
+                    catch (e) { /* 還是不夠，再丟下一場 */ }
+                }
+                if (!saved) throw quota;
+                this.showNotification('空間不足，已刪除最舊的比賽紀錄', 'error');
+            }
 
             if (changed && !this.silent) {
                 this.showNotification('✓ 已自動儲存', 'success');
@@ -102,10 +120,11 @@ class GameManager {
         return this.loadGame(this.currentGameId);
     }
 
-    // 只留最近的 MAX_GAMES 場，最舊的先丟；正在記的那場一定留著
+    // 只留最近的 MAX_GAMES 場，最舊的先丟；正在記的那場一定留著。
+    // MAX_GAMES 為 0 代表不限場數
     trimToLimit(games, keepId) {
         const ids = Object.keys(games);
-        if (ids.length <= this.MAX_GAMES) return games;
+        if (!this.MAX_GAMES || ids.length <= this.MAX_GAMES) return games;
         ids
             .filter(id => id !== keepId && id !== this.currentGameId)
             .sort((a, b) => new Date(games[a].lastModified || 0) - new Date(games[b].lastModified || 0))
