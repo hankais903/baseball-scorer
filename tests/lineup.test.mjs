@@ -1,6 +1,6 @@
 // 名單套用相關的回歸測試
 // 這些情境都曾經真的壞掉過，每一項都對應一個修過的 bug
-import { boot, type, applyLineup, nameInput, batterText, uploadPhoto, recordAtBat, click, startGame, clickZone }
+import { boot, type, applyLineup, nameInput, batterText, uploadPhoto, recordAtBat, click, startGame, clickZone, quickPlay }
   from './harness.mjs';
 
 export default async function (t) {
@@ -186,13 +186,15 @@ export default async function (t) {
     t.assert(!q('#field-result-panel .frp-more'), '展開後按鈕應該消失');
   });
 
-  await t('未擊出的結果有常駐快捷按鈕', async () => {
+  await t('未擊出的結果在打席選單裡', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    for (const p of ['三振', '四壞', '觸身球']) {
-      t.assert(!!q(`#quick-plays button[data-play="${p}"]`), '缺少快捷按鈕：' + p);
+    click(w, q('#mf-batter'));
+    for (const p of ['三振', '四壞', '觸身球', '__more']) {
+      t.assert(!!q(`#field-result-panel button[data-play="${p}"]`), '打席選單缺少：' + p);
     }
-    click(w, q('#quick-plays button[data-play="三振"]'));
+    click(w, q('#field-result-panel .frp-cancel'));
+    quickPlay(w, '三振');
     t.assert(q('#event-log').textContent.includes('三振'), '三振未記錄');
   });
 

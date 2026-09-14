@@ -1,5 +1,5 @@
 // 名單頁 UX：板凳預設留空、新增板凳、自動套用
-import { boot, click, clickZone, waitFor } from './harness.mjs';
+import { boot, click, clickZone, waitFor, quickPlay } from './harness.mjs';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const visibleBench = (w, team) =>
   [...w.document.querySelectorAll(`#team-${team}-bench .lineup-player`)].filter(r => !r.classList.contains('bench-hidden'));
@@ -326,7 +326,7 @@ async function positionSwap(t) {
     clickZone(w, 'outfield');
     click(w, q('#field-result-panel button[data-play="二安"]'));
     click(w, q('#modal-advanced-done'));
-    click(w, q('#quick-plays button[data-play="三振"]'));
+    quickPlay(w, '三振');
     const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
     const r = gs.teams.a.roster;
     t.assert(r[0].abResults.join() === '二安@中#1', '第一棒成績不對：' + r[0].abResults.join());
@@ -343,7 +343,7 @@ async function positionSwap(t) {
   await t('投手成績表的死球緊接在四壞之後', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    click(w, q('#quick-plays button[data-play="觸身球"]'));
+    quickPlay(w, '觸身球');
     // 客隊先攻，被觸身的投手是主隊的，所以看主隊那一頁
     click(w, q('.panel-tab[data-tab="team-b"]'));
     const ths = [...q('#pane-team-b .box-pitching thead').querySelectorAll('th')].map(t => t.getAttribute('title') || t.textContent);

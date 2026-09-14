@@ -1,6 +1,6 @@
 // 重播引擎（第一步）：每個動作都記成紙條，整場可以照紙條重算出一模一樣的結果。
 // 這是「修改前面某一筆打席」的基礎——引擎算得跟實際一致，之後才敢開放修改。
-import { boot, click, startGame, clickZone } from './harness.mjs';
+import { boot, click, startGame, clickZone, quickPlay } from './harness.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -20,7 +20,7 @@ function makeCtx(w, q) {
     if (done.disabled) throw new Error('完成被鎖住：' + q('#modal-advanced-summary').textContent);
     click(w, done);
   };
-  const quick = play => click(w, q(`#quick-plays button[data-play="${play}"]`));
+  const quick = play => quickPlay(w, play);
   const runnerEvent = (type, choice) => {
     click(w, q('#runner-action-btn'));
     const pick = txt => {
@@ -247,7 +247,7 @@ export default async function (t) {
   await t('舊存檔沒有紙條也能正常開，只是不能改前面', async () => {
     const first = await boot();
     startGame(first.window);
-    click(first.window, first.q('#quick-plays button[data-play="三振"]'));
+    quickPlay(first.window, '三振');
     const saved = JSON.parse(first.window.localStorage.getItem('baseballGameState'));
     delete saved.replay;                      // 模擬舊版存檔
     const { window: w, errors, q } = await boot({ storage: { baseballGameState: JSON.stringify(saved) } });

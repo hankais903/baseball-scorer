@@ -1,5 +1,5 @@
 // 即時事件敘述的整體檢查（每種結果一句，釘住語句形式）
-import { boot, click, startGame, clickZone } from './harness.mjs';
+import { boot, click, startGame, clickZone, quickPlay } from './harness.mjs';
 
 async function fresh() { const c = await boot(); c.window.alert = () => {}; c.window.confirm = () => true; startGame(c.window); return c; }
 // 只取敘述本身；比分小標是另一個元素，不算在敘述裡
@@ -29,7 +29,7 @@ export default async function (t) {
   // 跑者被界內球打到：跑者出局，打者上一壘並記一壘安打（規則 5.09(b)(7)、9.05(a)(5)）
   await t('妨礙守備：跑者被球打到，跑者出局、打者記一壘安打', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="四壞"]'));          // 先讓一壘有人
+    quickPlay(w, '四壞');          // 先讓一壘有人
     clickZone(w, 'infield');
     click(w, q('#field-result-panel button[data-play="妨礙守備"]'));
     t.assert(/是誰妨礙/.test(q('#modal-advanced-title').textContent), '沒有先問是誰妨礙');
@@ -57,7 +57,7 @@ export default async function (t) {
   // 野手選擇上壘之後也可能跑過頭被觸殺
   await t('野手選擇：打者上一壘後趁傳被觸殺', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     clickZone(w, 'infield');
     click(w, q('#field-result-panel button[data-play="野手選擇"]'));
     click(w, q('#modal-advanced-options button[data-step="select-fc-out"][data-out-runner-base="0"]'));
@@ -73,7 +73,7 @@ export default async function (t) {
   // 妨礙跑壘要寫出是哪一位野手
   await t('妨礙跑壘：敘述寫出是哪一位野手', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     click(w, q('#runner-action-btn'));
     const byText = txt => [...w.document.querySelectorAll('#runner-action-modal button')].find(x => x.textContent.trim() === txt);
     click(w, byText('妨礙跑壘'));
@@ -94,7 +94,7 @@ export default async function (t) {
 
   await t('滿壘二安：跑者句在前、打點在後', async () => {
     const { window: w, q } = await fresh();
-    for (let i = 0; i < 3; i++) click(w, q('#quick-plays button[data-play="四壞"]'));
+    for (let i = 0; i < 3; i++) quickPlay(w, '四壞');
     const s = field(w, q, 'outfield', '二安');
     t.assert(/二壘安打，上到二壘。 在一壘的.* 上到三壘。 在二壘的.* 回到本壘得分。 在三壘的.* 回到本壘得分。 兩分打點。$/.test(s), s);
   });
@@ -115,21 +115,21 @@ export default async function (t) {
 
   await t('安打加失誤：失誤寫在去向之後', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="四壞"]'));   // 有跑者時才會問是否失誤
+    quickPlay(w, '四壞');   // 有跑者時才會問是否失誤
     const s = field(w, q, 'outfield', '一安', { err: true });
     t.assert(/一壘安打，上到一壘，.+發生失誤。/.test(s), s);
   });
 
   await t('野手選擇：寫傳到哪個壘，跑者於該壘被封殺', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     const s = field(w, q, 'infield', '野手選擇', { fc: '0', batter: 1 });
     t.assert(/選擇傳二壘處理跑者/.test(s) && /在一壘的.* 於二壘被封殺出局/.test(s), s);
   });
 
   await t('滾地雙殺：跑者於二壘被封殺', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     const s = field(w, q, 'infield', '雙殺');
     t.assert(/形成雙殺.* 在一壘的.* 於二壘被封殺出局。 2人出局。$/.test(s), s);
   });
@@ -138,7 +138,7 @@ export default async function (t) {
     const { window: w, q } = await fresh();
     const s = field(w, q, 'foul', '界飛');
     t.assert(/界外飛球，被.*接殺出局/.test(s), s);
-    click(w, q('#quick-plays button[data-play="__more"]'));
+    quickPlay(w, '__more');
     const pick = txt => { const b = [...w.document.querySelectorAll('#play-modal button')].filter(x => !x.closest('.modal-hidden')).find(x => x.textContent.trim() === txt); if (b) click(w, b); };
     pick('上壘'); pick('不死三振');
     const d = q('#modal-advanced-done'); if (d && !d.disabled) click(w, d);
@@ -148,7 +148,7 @@ export default async function (t) {
 
   await t('壘間事件寫明從哪個壘出發', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     t.assert(runner(w, q, '投手犯規', null, '二壘') === '投手犯規，一壘跑者客隊球員01推進到二壘。', '犯規句不對');
     t.assert(runner(w, q, '暴投', null, '三壘') === '暴投，二壘跑者客隊球員01推進到三壘。', '暴投句不對');
     t.assert(runner(w, q, '捕逸', null, '得分') === '捕逸，三壘跑者客隊球員01回到本壘得分。', '捕逸句不對');
@@ -156,7 +156,7 @@ export default async function (t) {
 
   await t('快捷打席的出局數格式與進階打席一致', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="三振"]'));
+    quickPlay(w, '三振');
     t.assert(q('#event-log li .ev-body').textContent.trim() === '三振出局。 1人出局。', q('#event-log li .ev-body').textContent);
   });
 }
@@ -167,7 +167,7 @@ async function errorRules(t) {
 
   await t('同一個 play 可記多次失誤，失誤數累計、可個別移除', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     clickZone(w, 'outfield'); click(w, q('#field-result-panel button[data-play="一安"]'));
     click(w, [...w.document.querySelectorAll('#modal-advanced-options button[data-step="ask-error"]')].find(x => x.dataset.choice === 'yes'));
     click(w, errBtn(q, 'CF'));
@@ -186,7 +186,7 @@ async function errorRules(t) {
 
   await t('靠失誤多進壘的得分：不算打點、算非責失', async () => {
     const { window: w, q } = await fresh();
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     clickZone(w, 'outfield'); click(w, q('#field-result-panel button[data-play="一安"]'));
     click(w, [...w.document.querySelectorAll('#modal-advanced-options button[data-step="ask-error"]')].find(x => x.dataset.choice === 'yes'));
     click(w, errBtn(q, 'CF'));

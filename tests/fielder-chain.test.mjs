@@ -1,11 +1,11 @@
 // 守備鏈：依序點野手、自動預設、敘述與記錄表代碼
-import { boot, click, startGame, clickZone } from './harness.mjs';
+import { boot, click, startGame, clickZone, quickPlay } from './harness.mjs';
 
 async function play(opts) {
   const { window: w, q } = await boot();
   w.alert = () => {};
   startGame(w);
-  if (opts.walk) click(w, q('#quick-plays button[data-play="四壞"]'));
+  if (opts.walk) quickPlay(w, '四壞');
   clickZone(w, opts.zone);
   click(w, q(`#field-result-panel button[data-play="${opts.play}"]`));
   const btn = d => [...q('#modal-advanced-options').querySelectorAll('button[data-step="set-fielder"]')]

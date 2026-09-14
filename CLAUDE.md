@@ -8,7 +8,7 @@
 ```bash
 npm install                 # 第一次
 npm run build               # Vite 建置到 dist/（測試跑的是 dist/，改完一定要先 build）
-npm test                    # 171+ 項回歸測試（jsdom），約 2 分鐘
+npm test                    # 270+ 項回歸測試（jsdom），約 2 分鐘
 npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自動 build）
 ```
 交付前必須：`npm run build && npm test` 全綠。每修一個 bug 就在 `tests/` 加一條釘住它的測試，套件名稱在 `tests/run.mjs` 註冊。
@@ -27,7 +27,9 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - `events[]`：`{ text, teamKey, bases[3], outs }`，`bases/outs` 是**該打者上場打擊時（事件發生前）**的狀況，由 `snapshotSituation()` 在處理前拍下。
 
 ## 記錄規則（已實作，不要改壞）
-- 落點：整片球場一個點擊區，內野／外野／界外由幾何判斷（`zoneOfPoint`）。**標好落點先問球種**（滾地球／平飛球／高飛球／短打，`ZONE_PLAYS.field` 每個結果標了 `balls`），選完才列結果；另有「直接看全部結果」與「← 換球種」。選過的球種會自動帶進雙殺／三殺的 `ballType`，不必再挑一次。測試的 `clickZone(w, zone, ball)` 預設傳 `'all'`（＝直接看全部結果），要測球種流程再傳 `'G'`／`'L'`／`'F'`／`'B'`，傳 `null` 則停在球種那一步。**可以按住拖曳**：`pointerdown` 就標出紅點並跟著手指走，`pointerup` 才跳出結果選單（沒有 pointer 事件的環境仍走 click）。球場上任何一點都能標，只有壘上跑者人像例外（那是代跑）。結果選單會蓋住球場，所以標題旁放了一張小球場（`.frp-map`）標出剛才的落點，選單最高 78vh，比球場高就往上長（蓋到上面幾列沒關係），確保一次看完。
+- **記錄一個打席的入口只有一個：本壘上的打者半身像**（`#mf-batter`，圖示＋姓名，只在開賽後顯示）。下面那排快捷鍵（`#quick-plays`）已經拿掉。點打者跳出「打席選單」：沒打到的是三振／四壞／觸身／其他（選完直接記完），打出去的先選球種（滾地球／平飛球／高飛球／短打），另有「不確定，直接標落點」與「取消」。
+- 選完球種：選單收起來、球場解鎖、上面出現提示條（`#field-hint`，附「取消」），**同時把打者鎖住**（`.mf-batter.locked`，`pointer-events:none`）避免標落點時誤觸。`awaitingPoint` 這個旗標是關鍵：`canMarkField` 只有在它為 true 時才收落點，否則球場的 `pointerdown` 會把打者那一下點擊吃掉（踩過一次，已有回歸測試）。`awaitingPoint` 與 `renderFieldBatter` 都放在外層，因為 `renderGameStateDisplay` 每次重繪都要叫（放進內層會直接壞掉，也有測試釘住）。
+- 落點：整片球場一個點擊區，內野／外野／界外由幾何判斷（`zoneOfPoint`）。標好落點才列結果（`ZONE_PLAYS.field` 每個結果標了 `balls`，依球種過濾）；結果選單裡有「← 換球種」回到打席選單。選過的球種會自動帶進雙殺／三殺的 `ballType`，不必再挑一次。測試的 `clickZone(w, zone, ball)` 會幫你走完「開選單→選球種→標落點」，`ball` 預設 `'all'`（＝不確定，直接標落點），要測球種過濾再傳 `'G'`／`'L'`／`'F'`／`'B'`，傳 `null` 則只開選單；只想標落點用 `markPoint(w, zone)`，只想開選單用 `openAtBatMenu(w)`，沒打到的結果用 `quickPlay(w, '三振')`。**可以按住拖曳**：`pointerdown` 就標出紅點並跟著手指走，`pointerup` 才跳出結果選單（沒有 pointer 事件的環境仍走 click）。球場上任何一點都能標，只有壘上跑者人像例外（那是代跑）。結果選單會蓋住球場，所以標題旁放了一張小球場（`.frp-map`）標出剛才的落點，選單最高 78vh，比球場高就往上長（蓋到上面幾列沒關係），確保一次看完。
 - 打者卡對應的球員先前打席的落點畫在球場上（`#mf-ghosts`，取 `player.hitPoints` 最後 3 筆，用 `miniPointToMain` 換算回主球場座標），最後一筆是黃色。點了落點之後的視窗不再顯示球場小圖。結果選項依落點分成「先顯示」與「其他結果」（`ZONE_PLAYS` 的 `zones`）：對得上的先列，其餘收起來但仍按得到。
 - 守備鏈 `fielders[]`：第一個接球，之後依序傳給誰；自動帶入的鏈一經手動點擊就從頭重建；同一人可重複（3-6-3）。代碼用 1–9。
 - 夾殺 `rundown`：`null` 時自動判斷「鏈裡有人重複」才算夾殺；單向接力（8-9-4-2）不是夾殺。

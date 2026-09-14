@@ -1,5 +1,5 @@
 // 擊球落點流程：主畫面點一次就定案，進階視窗不再重選
-import { boot, click, startGame, clickZone } from './harness.mjs';
+import { boot, click, startGame, clickZone, quickPlay, openAtBatMenu, markPoint } from './harness.mjs';
 
 const MINI = { hx: 100, hy: 170, rInfield: 59, rFence: 116 };
 
@@ -24,18 +24,59 @@ function clickFieldThen(w, zone, play) {
 }
 
 export default async function (t) {
-  // 先問球種再列結果：一次只看四顆大按鈕，比一次列十幾個結果好按
-  await t('點完落點先出現球種，選了才列結果', async () => {
+  // 新流程：點本壘的打者 → 先選球種 → 才去標落點 → 最後列結果
+  await t('先點打者選球種，標了落點才列結果', async () => {
     const { window: w, q } = await boot();
     startGame(w);
-    clickZone(w, 'infield', null);                 // 只點落點，不選球種
+    openAtBatMenu(w);
     const balls = [...w.document.querySelectorAll('#field-result-panel [data-ball]')].map(b => b.textContent.trim());
-    t.assert(balls.join(',') === '滾地球,平飛球,高飛球,短打,直接看全部結果', '球種選項不對：' + balls.join(','));
-    t.assert(!q('#field-result-panel button[data-play]'), '還沒選球種就列出結果了');
+    t.assert(balls.join(',') === '滾地球,平飛球,高飛球,短打,不確定，直接標落點', '球種選項不對：' + balls.join(','));
     click(w, q('#field-result-panel button[data-ball="G"]'));
+    t.assert(q('#field-result-panel').classList.contains('hidden'), '選完球種應該先收起選單去標落點');
+    t.assert(!q('#field-hint').classList.contains('hidden'), '沒有提示要標落點');
+    t.assert(q('#mf-batter').classList.contains('locked'), '等落點的時候打者沒有鎖住');
+    markPoint(w, 'infield');                       // 只標落點（球種已經選過了）
+    t.assert(!q('#mf-batter').classList.contains('locked'), '標完落點打者應該解鎖');
     const plays = mainPlays(w);
     t.assert(plays.includes('滾地') && plays.includes('內安') && plays.includes('雙殺'), '滾地球少了常用結果：' + plays.join(','));
     t.assert(!plays.includes('飛球') && !plays.includes('犧飛'), '滾地球不該列飛球類的結果：' + plays.join(','));
+  });
+
+  // 本壘的打者半身像是由主畫面重繪負責更新的（曾經因為函式放錯層，重繪就整個出錯）
+  await t('本壘的打者名字會跟著換人', async () => {
+    const { window: w, q } = await boot();
+    t.assert(q('#mf-batter').classList.contains('hidden'), '還沒開賽就顯示打者');
+    startGame(w);
+    const first = q('#mf-batter .mf-batter-name').textContent;
+    t.assert(first, '開賽後沒有寫上打者名字');
+    quickPlay(w, '三振');
+    await new Promise(r => setTimeout(r, 200));
+    const second = q('#mf-batter .mf-batter-name').textContent;
+    t.assert(second && second !== first, '換下一棒之後名字沒有跟著換：' + first + ' → ' + second);
+  });
+
+  // 球場沒解鎖就點下去，不但不該標落點，還會把本壘打者那一下點擊吃掉（踩過一次）
+  await t('沒先選球種，點球場不會標落點', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    markPoint(w, 'outfield');
+    t.assert(q('#mf-mark').style.display === 'none', '沒選球種就標了落點');
+    t.assert(q('#field-result-panel').classList.contains('hidden'), '沒選球種就跳出結果選單');
+    openAtBatMenu(w);                              // 打者仍然按得到
+    t.assert(!q('#field-result-panel').classList.contains('hidden'), '打者的點擊被球場吃掉了');
+  });
+
+  // 選了球種又反悔：按「取消」要把提示收掉、打者解鎖
+  await t('等落點時按取消會回到原狀', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    openAtBatMenu(w);
+    click(w, q('#field-result-panel button[data-ball="G"]'));
+    t.assert(q('#mf-batter').classList.contains('locked'), '沒有鎖住打者');
+    click(w, q('#field-hint-cancel'));
+    t.assert(q('#field-hint').classList.contains('hidden'), '提示沒有收起來');
+    t.assert(!q('#mf-batter').classList.contains('locked'), '取消後打者還鎖著');
+    t.assert(q('#field-result-panel').classList.contains('hidden'), '取消後不該有結果選單');
   });
 
   await t('外野高飛球會列出全壘打與高飛犧牲', async () => {
@@ -68,7 +109,7 @@ export default async function (t) {
   await t('落點選過滾地，雙殺就不用再挑一次球種', async () => {
     const { window: w, q } = await boot();
     startGame(w);
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     clickZone(w, 'infield', 'G');
     click(w, q('#field-result-panel button[data-play="雙殺"]'));
     const sel = q('#modal-advanced-options button[data-ball="G"]');
@@ -83,6 +124,8 @@ export default async function (t) {
     const mark = q('#mf-mark');
     const panel = q('#field-result-panel');
     const fire = (type, x, y) => field.dispatchEvent(new w.MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    openAtBatMenu(w);                              // 先選球種，球場才收落點
+    click(w, q('#field-result-panel button[data-ball="all"]'));
     fire('pointerdown', 202, 250);
     t.assert(mark.style.display !== 'none', '按下去沒有出現紅點');
     t.assert(mark.getAttribute('cx') === '202', '紅點位置不對：' + mark.getAttribute('cx'));
@@ -223,7 +266,7 @@ export default async function (t) {
   await t('未經球場點擊時，仍保留可點的落點圖', async () => {
     const { window: w, q } = await boot();
     startGame(w);
-    click(w, q('#quick-plays button[data-play="__more"]'));
+    quickPlay(w, '__more');
     const pick = txt => click(w, [...w.document.querySelectorAll('#play-modal button')]
       .filter(b => !b.closest('.modal-hidden'))
       .find(b => b.textContent.trim() === txt));
@@ -250,8 +293,8 @@ export default async function (t) {
     const { window: w, q } = await boot();
     startGame(w);
     // 先製造一二壘有人
-    click(w, q('#quick-plays button[data-play="四壞"]'));
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
+    quickPlay(w, '四壞');
     clickFieldThen(w, 'infield', '雙殺');
     t.assert(!q('#modal-step-advanced').classList.contains('modal-hidden'), '雙殺沒有進入進階視窗');
     const rows = q('#modal-advanced-options')
@@ -264,7 +307,7 @@ export default async function (t) {
   await t('雙殺結算後記為雙殺打且吃兩個出局', async () => {
     const { window: w, q } = await boot();
     startGame(w);
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     const outs = () => w.document.querySelectorAll('#sbo-display .sbo-light.o-on').length;
     const before = outs();
     clickFieldThen(w, 'infield', '雙殺');
@@ -279,7 +322,7 @@ export default async function (t) {
     const { window: w, q } = await boot();
     startGame(w);
     t.assert(!q('#mf-first').classList.contains('occupied'), '一開始就顯示跑者');
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     t.assert(q('#mf-first').classList.contains('occupied'), '一壘未顯示跑者');
     t.assert(!!q('#mf-first .mf-runner-head') && !!q('#mf-first .mf-runner-body'), '缺少半身人像');
     const name = q('#mf-first .mf-runner-name').textContent.trim();
@@ -291,8 +334,8 @@ export default async function (t) {
   await t('雙殺不會多算出局數，也不會提早結束半局', async () => {
     const { window: w, q } = await boot();
     startGame(w);
-    click(w, q('#quick-plays button[data-play="四壞"]'));
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
+    quickPlay(w, '四壞');
     clickFieldThen(w, 'infield', '雙殺');
     click(w, q('#modal-advanced-done'));
     t.assert(w.document.querySelectorAll('#sbo-display .sbo-light.o-on').length === 2,
@@ -303,7 +346,7 @@ export default async function (t) {
   await t('打者出局時會列出打者那一列', async () => {
     const { window: w, q } = await boot();
     startGame(w);
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     clickFieldThen(w, 'infield', '雙殺');
     const row = q('#modal-advanced-options .batter-out-row');
     t.assert(!!row, '沒有列出打者的出局');
@@ -313,10 +356,10 @@ export default async function (t) {
   await t('出局數超過半局剩餘時擋下完成', async () => {
     const { window: w, q } = await boot();
     startGame(w);
-    click(w, q('#quick-plays button[data-play="四壞"]'));
-    click(w, q('#quick-plays button[data-play="四壞"]'));
-    click(w, q('#quick-plays button[data-play="三振"]'));
-    click(w, q('#quick-plays button[data-play="三振"]'));   // 已 2 出局
+    quickPlay(w, '四壞');
+    quickPlay(w, '四壞');
+    quickPlay(w, '三振');
+    quickPlay(w, '三振');   // 已 2 出局
     clickFieldThen(w, 'infield', '雙殺');
     const done = q('#modal-advanced-done');
     t.assert(done.disabled, '兩出局後的雙殺仍可按完成');
@@ -327,7 +370,7 @@ export default async function (t) {
     const steal = async choice => {
       const { window: w, q } = await boot();
       startGame(w);
-      click(w, q('#quick-plays button[data-play="四壞"]'));
+      quickPlay(w, '四壞');
       click(w, q('#runner-action-btn'));
       const pick = txt => click(w, [...w.document.querySelectorAll('#runner-action-modal button')]
         .find(b => b.textContent.trim() === txt));

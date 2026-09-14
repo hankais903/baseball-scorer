@@ -1,5 +1,5 @@
 // 比賽中換人：主頁代打／代跑／換投、守位圖調度、名單頁鎖定
-import { boot, click, startGame } from './harness.mjs';
+import { boot, click, startGame, quickPlay, openAtBatMenu } from './harness.mjs';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function setup() {
@@ -56,7 +56,7 @@ export default async function (t) {
     const { w, q, state, pick } = await setup();
     startGame(w);
     click(w, q('#management-btn')); click(w, q('#pinch-hit-btn')); pick('客板一');
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     click(w, q('#management-btn'));
     t.assert(!!q('#pinch-run-btn') && !q('#pinch-run-btn').disabled, '壘上有人卻按不到代跑');
     click(w, q('#pinch-run-btn'));
@@ -79,7 +79,9 @@ export default async function (t) {
   await t('點跑者人像會被當成擊球落點（人像不再吃點擊）', async () => {
     const { w, q } = await setup();
     startGame(w);
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
+    openAtBatMenu(w);                              // 先選球種，球場才收落點
+    click(w, q('#field-result-panel button[data-ball="all"]'));
     q('#mf-first').dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
     t.assert(!q('#field-result-panel').classList.contains('hidden'), '點在跑者身上沒有標落點');
     t.assert(q('#picker-title') === null || !q('#picker-modal') || q('#picker-modal').classList.contains('modal-hidden'), '還是跳出了代跑視窗');

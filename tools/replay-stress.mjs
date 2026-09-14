@@ -21,11 +21,14 @@ const out = await p.evaluate(async (N) => {
   for (let i = 0; i < N; i++) {
     if (JSON.parse(localStorage.getItem('baseballGameState')).isGameOver) break;
     const r = rnd();
+    // 新流程：每個打席都先點本壘的打者叫出選單
+    clickEl($('#mf-batter'));
     if (r < 0.45) {
-      clickEl([...document.querySelectorAll('#quick-plays button')].find(b => b.textContent.trim() === pick(['三振', '四壞', '觸身'])));
+      clickEl([...document.querySelectorAll('#field-result-panel button[data-play]')].find(b => b.textContent.trim() === pick(['三振', '四壞', '觸身'])));
       done.push('quick');
     } else if (r < 0.92) {
-      // 在球場上隨機點一個位置
+      // 選個球種解鎖球場，再在球場上隨機點一個位置
+      clickEl($('#field-result-panel button[data-ball="all"]'));
       const svg = $('#main-field');
       const box = svg.getBoundingClientRect();
       const x = box.left + box.width * (0.2 + rnd() * 0.6);
@@ -50,7 +53,8 @@ const out = await p.evaluate(async (N) => {
       }
       done.push('field');
     } else {
-      // 壘間事件（沒人在壘上就跳過）
+      // 壘間事件（沒人在壘上就跳過）：先把打席選單關掉
+      clickEl($('#field-result-panel .frp-cancel'));
       const btn = $('#runner-action-btn');
       if (btn.disabled) continue;
       clickEl(btn);

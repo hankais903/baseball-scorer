@@ -1,12 +1,12 @@
 // 雙殺／三殺的球種：滾地、平飛、高飛
-import { boot, click, startGame, clickZone } from './harness.mjs';
+import { boot, click, startGame, clickZone, quickPlay } from './harness.mjs';
 
 async function run({ play, ball, taps = [], extraOut = [] }) {
   const { window: w, q } = await boot();
   w.alert = () => {};
   startGame(w);
-  click(w, q('#quick-plays button[data-play="四壞"]'));
-  click(w, q('#quick-plays button[data-play="四壞"]'));
+  quickPlay(w, '四壞');
+  quickPlay(w, '四壞');
   clickZone(w, 'infield');
   click(w, q(`#field-result-panel button[data-play="${play}"]`));
   if (ball) click(w, q(`#modal-advanced-options button[data-step="set-ball-type"][data-ball="${ball}"]`));
@@ -26,7 +26,7 @@ export default async function (t) {
     const { window: w, q } = await boot();
     w.alert = () => {};
     startGame(w);
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     clickZone(w, 'infield');
     click(w, q('#field-result-panel button[data-play="雙殺"]'));
     const sel = q('#modal-advanced-options button[data-step="set-ball-type"].selected');

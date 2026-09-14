@@ -278,35 +278,6 @@ body {
     box-shadow: 0 0 8px rgba(38, 222, 129, 0.7);
 }
 
-/* --- 下排快捷結果按鈕：橘、灰、紫，跟按鈕圖示 --- */
-#quick-plays button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
-    background: linear-gradient(180deg, #6f86ad, #4d6289);
-}
-
-#quick-plays button[data-play="三振"] {
-    background: linear-gradient(180deg, #f7b267, #e8873a);
-}
-
-#quick-plays button[data-play="四壞"] {
-    background: linear-gradient(180deg, #6f86ad, #4d6289);
-}
-
-#quick-plays button[data-play="觸身球"] {
-    background: linear-gradient(180deg, #9b7bff, #6d4ce0);
-}
-
-#quick-plays button[data-play="__more"] {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
-}
-
 /* --- 事件頁、名單頁的小元件跟著換色 --- */
 .panel-tab.active,
 .tab-button.active {
@@ -483,24 +454,6 @@ body {
     background: transparent;
 }
 
-/* --- 快捷結果按鈕：圖示在上、字在下 --- */
-#quick-plays button {
-    flex-direction: column;
-    gap: 3px;
-    min-height: 58px;
-}
-
-#quick-plays button::before {
-    content: '◇';
-    font-size: 21px;
-    line-height: 1;
-    font-weight: 700;
-}
-
-#quick-plays button[data-play="四壞"]::before { content: '✋'; }
-#quick-plays button[data-play="觸身球"]::before { content: '⚾'; }
-#quick-plays button[data-play="__more"]::before { content: '•••'; letter-spacing: 2px; }
-
 /* --- 多了標題列之後要省一點高度，主頁才不會被下緣切到 --- */
 @media (max-width: 768px), (orientation: portrait) {
     .stadium-toolbar { gap: 7px; }
@@ -520,8 +473,6 @@ body {
         height: 100%;
         max-height: 100%;
     }
-    #quick-plays button { min-height: 48px; }
-    #quick-plays button::before { font-size: 19px; }
 }
 
 /* 再擠出一點高度，讓最下面那排按鈕不會碰到頁面指示點 */
@@ -541,7 +492,6 @@ body {
     /* 各區之間不要再另外留白，統一用 row-gap，才擠得出高度 */
     #game-meta-row,
     #batter-row,
-    #quick-plays,
     .main-actions-container { margin: 0; }
 
     /* 指示點回到最底下（原本因為會擋到按鈕才往上抬） */
@@ -901,7 +851,6 @@ body {
 @media (max-width: 768px), (orientation: portrait) {
     #main-content > #status-bar { order: 2; }
     #main-content > #game-state-container { order: 3; }
-    #main-content > #quick-plays { order: 4; }
     #main-content > .main-actions-container { order: 5; }
 }
 
@@ -1073,12 +1022,6 @@ body {
     #status-bar .sbo-light { width: 14px; height: 14px; }
 
     /* 快捷結果按鈕改成圖示與字同一行，省下一整排的高度 */
-    #quick-plays button {
-        flex-direction: row;
-        gap: 5px;
-        min-height: 40px;
-    }
-    #quick-plays button::before { font-size: 16px; }
 
     .main-action-btn { min-height: 38px; padding: 0.3rem 0.15rem; }
 
@@ -1345,4 +1288,80 @@ body {
     border: 1px solid var(--th-line);
     border-radius: 10px;
     cursor: pointer;
+}
+
+/* ==========================================================================
+   本壘的打者：點一下開始記錄這個打席
+   ========================================================================== */
+.mf-batter { cursor: pointer; }
+.mf-batter.hidden { display: none; }
+
+.mf-batter-hit { fill: transparent; }        /* 手指的感應範圍（半徑 30） */
+
+.mf-batter .mf-runner-body,
+.mf-batter .mf-runner-head {
+    fill: #fbbf24;
+    stroke: rgba(31, 19, 0, 0.75);
+    stroke-width: 2;
+}
+
+.mf-batter-name {
+    fill: #10233b;
+    font-size: 17px;
+    font-weight: 800;
+    paint-order: stroke;
+    stroke: rgba(255, 255, 255, 0.9);
+    stroke-width: 3.5;
+}
+
+.mf-batter:active .mf-runner-body,
+.mf-batter:active .mf-runner-head { filter: brightness(1.3); }
+
+/* 等標落點的時候鎖住打者，免得點球場時誤觸 */
+.mf-batter.locked {
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+/* 選好球種後的提示條：叫你點落點 */
+#field-hint {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 6px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 94%;
+    padding: 5px 6px 5px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(251, 191, 36, 0.7);
+    background: rgba(10, 23, 41, 0.92);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    color: #ffe6bf;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+#field-hint.hidden { display: none; }
+
+#field-hint-cancel {
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.76rem;
+    cursor: pointer;
+}
+
+/* 等標落點時，球場整片亮一點，提示現在可以點 */
+/* 等落點的時候給一點提示就好，別把整片草皮變色 */
+#game-state-display.await-point #main-field { filter: brightness(1.05); }
+#game-state-display.await-point {
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.55), 0 0 18px rgba(251, 191, 36, 0.25);
+    border-radius: 14px;
 }

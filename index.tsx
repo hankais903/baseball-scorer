@@ -1762,7 +1762,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // === 主畫面球場：位置優先的記錄流程 ===
         const mainField = document.getElementById('main-field');
         const resultPanel = document.getElementById('field-result-panel');
-        const quickPlays = document.getElementById('quick-plays');
         let pendingPoint = null;   // 已標示但尚未選結果的落點
         let pendingZone = null;    // 該落點所屬的區域（internal/outfield/foul）
 
@@ -1790,11 +1789,59 @@ document.addEventListener('DOMContentLoaded', () => {
             pendingPoint = null;
             pendingZone = null;
             pendingBall = null;
+            awaitingPoint = false;
+            hideFieldHint();
+            renderFieldBatter();
             const mark = document.getElementById('mf-mark');
             if (mark) (mark as any).style.display = 'none';
             if (resultPanel) { resultPanel.classList.add('hidden'); resultPanel.innerHTML = ''; }
         }
 
+        // 打者鎖住與否由外層的 awaitingPoint 決定（renderFieldBatter 放在外層，主畫面重繪時要叫得到）
+        function showFieldHint(text) {
+            const hint = document.getElementById('field-hint');
+            const t = document.getElementById('field-hint-text');
+            if (!hint || !t) return;
+            t.textContent = text;
+            hint.classList.remove('hidden');
+        }
+        function hideFieldHint() {
+            document.getElementById('field-hint')?.classList.add('hidden');
+            document.getElementById('game-state-display')?.classList.remove('await-point');
+        }
+        // 打席選單：沒打到的直接記完，打出去的先選球種再標落點
+        function showAtBatMenu() {
+            if (!resultPanel || gameState.isGameOver || !gameState.started) return;
+            const batter = getCurrentBatter();
+            const idx = gameState.currentBatterIndex[gameState.isTop ? 'a' : 'b'];
+            const noContact = [
+                { play: '三振', label: '三振' },
+                { play: '四壞', label: '四壞' },
+                { play: '觸身球', label: '觸身' },
+                { play: '__more', label: '其他' },
+            ];
+            resultPanel.innerHTML =
+                `<div class="frp-title"><span>第${idx + 1}棒 ${batter ? batter.name : ''}　這球怎麼了？</span></div>`
+                + `<div class="frp-group"><span class="frp-group-label">沒打到</span><div class="frp-options">`
+                + noContact.map(o => `<button type="button" data-play="${o.play}">${o.label}</button>`).join('')
+                + `</div></div>`
+                + `<div class="frp-group"><span class="frp-group-label">打出去了</span><div class="frp-balls">`
+                + BALL_KINDS.map(b => `<button type="button" data-ball="${b.key}">${b.label}</button>`).join('')
+                + `</div></div>`
+                + `<button type="button" class="frp-all" data-ball="all">不確定，直接標落點</button>`
+                + `<button type="button" class="frp-cancel" data-cancel="1">取消</button>`;
+            resultPanel.classList.remove('hidden');
+        }
+        // 選好球種：把選單收起來，解鎖球場等使用者標落點
+        function startPointPending(ball: string | null) {
+            pendingBall = ball;
+            awaitingPoint = true;
+            if (resultPanel) { resultPanel.classList.add('hidden'); resultPanel.innerHTML = ''; }
+            const word = (BALL_KINDS.find(b => b.key === ball) || { label: '' }).label;
+            showFieldHint(`${word ? word + '：' : ''}點一下球落在哪裡（可按住拖曳）`);
+            document.getElementById('game-state-display')?.classList.add('await-point');
+            renderFieldBatter();
+        }
         // 落點標好之後先問球種：一次只看四顆大按鈕，比一次列十幾個結果好按
         const BALL_KINDS = [
             { key: 'G', label: '滾地球' },
@@ -1813,18 +1860,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         function zoneWordOf(zone) {
             return zone === 'foul' ? '界外' : zone === 'infield' ? '內野' : '外野';
-        }
-        function showBallOptions(zone) {
-            if (!resultPanel) return;
-            pendingBall = null;
-            resultPanel.innerHTML =
-                `<div class="frp-title">${fieldMiniMap()}<span>落點：${zoneWordOf(zone)}　打成什麼球？</span></div>`
-                + `<div class="frp-balls">`
-                + BALL_KINDS.map(b => `<button type="button" data-ball="${b.key}">${b.label}</button>`).join('')
-                + `</div>`
-                + `<button type="button" class="frp-all" data-ball="all">直接看全部結果</button>`
-                + `<button type="button" class="frp-cancel" data-cancel="1">取消</button>`;
-            resultPanel.classList.remove('hidden');
         }
         function showResultOptions(zone, ball: string | null = null) {
             const list = ZONE_PLAYS.field;
@@ -1919,8 +1954,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 點一下就標好，也可以按著拖到想要的位置再放開；放開才跳出結果選單
         function canMarkField(e) {
             if (gameState.isGameOver || !gameState.started) return false;               // 未開賽先按 PLAY BALL
-            // 球場圖上任何一點都可以標（連壘包上也行），區域一律由座標判斷
-            return true;
+            // 新流程：一定要先點本壘的打者、選過球種，球場才收落點。
+            // 沒解鎖就不能吃掉事件，否則本壘打者那一下點擊會被球場搶走。
+            return awaitingPoint;
         }
         function setPendingFromEvent(e) {
             pendingPoint = fieldPointFrom(e, mainField as any);
@@ -1952,7 +1988,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 try { (mainField as any).releasePointerCapture((e as PointerEvent).pointerId); } catch { /* 同上 */ }
                 setPendingFromEvent(e);
                 moveMarkTo(pendingPoint);
-                showBallOptions(pendingZone);
+                awaitingPoint = false;
+                hideFieldHint();
+                renderFieldBatter();
+                showResultOptions(pendingZone, pendingBall);
             };
             mainField.addEventListener('pointerup', finishDrag);
             mainField.addEventListener('pointercancel', () => { dragging = false; });
@@ -1963,10 +2002,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 setPendingFromEvent(e);
                 moveMarkTo(pendingPoint, true);
                 tapFeedback();
-                showBallOptions(pendingZone);
+                awaitingPoint = false;
+                hideFieldHint();
+                renderFieldBatter();
+                showResultOptions(pendingZone, pendingBall);
             });
         }
 
+        // 本壘的打者：點一下叫出打席選單（等標落點時鎖住，避免誤觸）
+        document.getElementById('mf-batter')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (awaitingPoint || !gameState.started || gameState.isGameOver) return;
+            tapFeedback();
+            showAtBatMenu();
+        });
+        document.getElementById('field-hint-cancel')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearPendingPoint();
+        });
         if (resultPanel) {
             resultPanel.addEventListener('click', (e) => {
                 const btn = (e.target as Element).closest('button') as HTMLButtonElement | null;
@@ -1981,27 +2034,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (btn.dataset.ball) {
                     tapFeedback();
-                    showResultOptions(pendingZone, btn.dataset.ball === 'all' ? null : btn.dataset.ball);
+                    startPointPending(btn.dataset.ball === 'all' ? null : btn.dataset.ball);
                     return;
                 }
-                if (btn.dataset.backBall) { tapFeedback(); showBallOptions(pendingZone); return; }
-                if (btn.dataset.play) { tapFeedback(); runPlay(btn.dataset.play); }
-            });
-        }
-
-        if (quickPlays) {
-            quickPlays.addEventListener('click', (e) => {
-                const btn = (e.target as Element).closest('button') as HTMLButtonElement | null;
-                if (!btn || gameState.isGameOver || !gameState.started) return;
-                const play = btn.dataset.play;
-                if (play === '__more') {
+                // 選錯球種：回到打席選單重選
+                if (btn.dataset.backBall) { tapFeedback(); clearPendingPoint(); showAtBatMenu(); return; }
+                if (btn.dataset.play === '__more') {
+                    tapFeedback();
                     clearPendingPoint();
                     showModalStep('step1');
                     openModal(modal, modalContent);
                     return;
                 }
-                clearPendingPoint();
-                runPlay(play);
+                if (btn.dataset.play) { tapFeedback(); runPlay(btn.dataset.play); }
             });
         }
 
@@ -2660,6 +2705,20 @@ document.addEventListener('DOMContentLoaded', () => {
     (window as any).__stopClock = stopClock;                 // 供測試
     (window as any).__stopClockAndEndGame = stopClockAndEndGame;   // 供測試
     (window as any).__formatElapsed = formatElapsed;   // 供測試
+    // 本壘上的打者半身像：主畫面唯一的記錄入口。
+    // 放在外層是因為 renderGameStateDisplay 每次重繪都要更新它（名字、鎖住與否）。
+    let awaitingPoint = false;      // 已選球種、正在等使用者標落點
+    function renderFieldBatter() {
+        const g = document.getElementById('mf-batter');
+        if (!g) return;
+        const live = gameState.started && !gameState.isGameOver;
+        g.classList.toggle('hidden', !live);
+        // 等標落點的時候把打者鎖住，免得點球場時誤觸
+        g.classList.toggle('locked', awaitingPoint);
+        const nameEl = g.querySelector('.mf-batter-name');
+        const batter = getCurrentBatter();
+        if (nameEl) nameEl.textContent = live && batter ? batter.name : '';
+    }
     function renderGameStateDisplay() {
         const { inning, isTop, outs } = gameState;
         // 比賽結束就顯示「終場」，取代原本大比分列上的狀態字
@@ -2724,6 +2783,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         renderNextBatters();
         renderPreviousHits(batter);
+        renderFieldBatter();
         document.querySelectorAll('#sbo-display .sbo-row:nth-child(1) .sbo-light').forEach((l, i) => l.classList.toggle('o-on', i < outs));
         // 壘包已改畫在球場 SVG 上（mf-first/second/third），由 render 統一更新
         playBallBtn.classList.remove('hidden');

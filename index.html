@@ -193,6 +193,13 @@
                                 <circle class="mf-runner-head" cx="0" cy="-6" r="8"/>
                             </g>
                         </g>
+                        <!-- 本壘的打者：點一下開始記錄這個打席 -->
+                        <g class="mf-batter" id="mf-batter" role="button" tabindex="0" aria-label="記錄這個打席">
+                            <circle class="mf-batter-hit" cx="202" cy="336" r="30"/>
+                            <text class="mf-batter-name" x="202" y="378" text-anchor="middle"></text>
+                            <path class="mf-runner-body" d="M189 350 A13 13 0 0 1 215 350 Z"/>
+                            <circle class="mf-runner-head" cx="202" cy="330" r="8"/>
+                        </g>
                         <!-- 這位打者先前打席的落點（淡色），由 JS 填入 -->
                         <g id="mf-ghosts"></g>
                         <circle id="mf-mark" class="mf-mark" r="14" style="display:none"/>
@@ -200,14 +207,12 @@
                     <div id="bases-container">
                         <div id="play-ball-btn" role="button" tabindex="0"><span class="pb-main">PLAY BALL</span><span class="pb-sub">點此開始比賽並開始計時</span></div>
                     </div>
+                    <div id="field-hint" class="hidden">
+                        <span id="field-hint-text"></span>
+                        <button type="button" id="field-hint-cancel">取消</button>
+                    </div>
                     <div id="field-result-panel" class="hidden"></div>
                 </div>
-            </div>
-            <div id="quick-plays">
-                <button type="button" data-play="三振">三振</button>
-                <button type="button" data-play="四壞">四壞</button>
-                <button type="button" data-play="觸身球">觸身</button>
-                <button type="button" data-play="__more">其他</button>
             </div>
         </main>
 

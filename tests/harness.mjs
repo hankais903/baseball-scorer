@@ -118,8 +118,9 @@ export function startGame(w) {
 
 export function recordAtBat(w, label = '三振') {
   startGame(w);
-  // 三振等未擊出的結果走常駐快捷按鈕
-  const quick = w.document.querySelector(`#quick-plays button[data-play="${label}"]`);
+  // 三振等未擊出的結果走本壘打者的打席選單
+  openAtBatMenu(w);
+  const quick = w.document.querySelector(`#field-result-panel button[data-play="${label}"]`);
   if (quick) { click(w, quick); return true; }
   click(w, w.document.querySelector('#play-ball-btn'));
   const pick = t => {
@@ -135,12 +136,30 @@ export function recordAtBat(w, label = '三振') {
 
 // 整片球場單一點擊區：用座標表達內野／外野／界外（測試環境把 clientX/Y 當 viewBox 座標）
 const ZONE_XY = { infield: [202, 250], outfield: [202, 90], foul: [60, 330], field: [202, 250], deepcf: [202, -20] };
-// 點落點之後會先問球種；測試大多直接指定結果，所以預設按「直接看全部結果」。
-// 要測球種流程的測試自己傳 ball（'G'／'L'／'F'／'B'）。
+// 新流程：先點本壘的打者叫出打席選單
+export function openAtBatMenu(w) {
+  click(w, w.document.getElementById('mf-batter'));
+}
+
+// 沒打到的結果（三振／四壞／觸身／其他）走打席選單
+export function quickPlay(w, play) {
+  openAtBatMenu(w);
+  click(w, w.document.querySelector(`#field-result-panel button[data-play="${play}"]`));
+}
+
+// 有打到的球：打席選單選球種 → 球場才解鎖 → 點落點 → 列結果。
+// 測試大多直接指定結果，所以 ball 預設 'all'（＝選單裡的「不確定，直接標落點」）。
+// 傳 'G'／'L'／'F'／'B' 可測球種過濾；傳 null 表示只開選單、不選球種。
 export function clickZone(w, zone, ball = 'all') {
+  openAtBatMenu(w);
+  if (!ball) return;
+  const pick = w.document.querySelector(`#field-result-panel button[data-ball="${ball}"]`);
+  if (pick) click(w, pick);
+  markPoint(w, zone);
+}
+
+// 只在球場上標落點（球種已經選過了才用得到）
+export function markPoint(w, zone) {
   const [x, y] = ZONE_XY[zone] || ZONE_XY.field;
   w.document.querySelector('[data-zone="field"]').dispatchEvent(new w.MouseEvent('click', { bubbles: true, clientX: x, clientY: y }));
-  if (!ball) return;
-  const btn = w.document.querySelector(`#field-result-panel button[data-ball="${ball}"]`);
-  if (btn) btn.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true }));
 }

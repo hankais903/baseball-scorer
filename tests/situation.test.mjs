@@ -1,5 +1,5 @@
 // 戰況表分頁、替補列標示、表頭中文與橫向滑動
-import { boot, click, startGame, clickZone } from './harness.mjs';
+import { boot, click, startGame, clickZone, quickPlay } from './harness.mjs';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function playGame() {
@@ -22,11 +22,11 @@ async function playGame() {
   field('outfield', '一安');
   field('outfield', '飛球', ['左']);
   field('infield', '滾地', ['捕', '一']);
-  click(w, q('#quick-plays button[data-play="三振"]'));         // 1局上結束（4棒）
-  click(w, q('#quick-plays button[data-play="三振"]'));         // 1局下 主隊
-  click(w, q('#quick-plays button[data-play="三振"]'));
-  click(w, q('#quick-plays button[data-play="三振"]'));
-  click(w, q('#quick-plays button[data-play="三振"]'));         // 2局上 5棒 K
+  quickPlay(w, '三振');         // 1局上結束（4棒）
+  quickPlay(w, '三振');         // 1局下 主隊
+  quickPlay(w, '三振');
+  quickPlay(w, '三振');
+  quickPlay(w, '三振');         // 2局上 5棒 K
   // 6棒代打
   click(w, q('#management-btn'));
   // 守位圖：先點板凳籌碼，再點第 6 棒的守位節點，立即完成換人
@@ -132,7 +132,7 @@ export default async function (t) {
     const { window: w, q } = await boot();
     w.alert = () => {};
     click(w, q('#play-ball-btn'));
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     clickZone(w, 'infield');
     click(w, q('#field-result-panel button[data-play="滾地"]'));
     click(w, q('#modal-advanced-done'));
@@ -144,7 +144,7 @@ export default async function (t) {
     const outs = [...li.querySelectorAll('.ev-outs i')].filter(i => i.classList.contains('on')).length;
     t.assert(outs === 0, `出局燈應為 0 顆（打席前），亮了 ${outs}`);
     // 再打一個：這次圖示應顯示 1 出局
-    click(w, q('#quick-plays button[data-play="三振"]'));
+    quickPlay(w, '三振');
     const li2 = q('#event-log li');
     const outs2 = [...li2.querySelectorAll('.ev-outs i')].filter(i => i.classList.contains('on')).length;
     t.assert(outs2 === 1, `第二個打席前應為 1 出局，亮了 ${outs2}`);

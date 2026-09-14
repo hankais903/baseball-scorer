@@ -1,11 +1,11 @@
 // 夾殺：壘間事件的守備鏈、三人以上寫成夾殺
-import { boot, click, startGame, clickZone } from './harness.mjs';
+import { boot, click, startGame, clickZone, quickPlay } from './harness.mjs';
 
 async function runnerAction({ type, mid, choice, taps }) {
   const { window: w, q } = await boot();
   w.alert = () => {};
   startGame(w);
-  click(w, q('#quick-plays button[data-play="四壞"]'));
+  quickPlay(w, '四壞');
   click(w, q('#runner-action-btn'));
   const pick = txt => {
     const b = [...w.document.querySelectorAll('#runner-action-modal button')].find(x => x.textContent.trim() === txt);
@@ -118,7 +118,7 @@ export default async function (t) {
     const { window: w, q } = await boot();
     w.alert = () => {};
     startGame(w);
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     click(w, q('#runner-action-btn'));
     const pick = txt => click(w, [...w.document.querySelectorAll('#runner-action-modal button')].find(x => x.textContent.trim() === txt));
     pick('投手牽制'); pick('成功'); pick('牽制出局');

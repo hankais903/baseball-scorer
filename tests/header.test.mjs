@@ -143,7 +143,7 @@ export default async function (t) {
     const fs = await import('node:fs');
     const css = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css')).map(f => fs.readFileSync('dist/assets/' + f, 'utf8')).join('\n');
     t.assert(/#game-state-display\{[^}]*aspect-ratio:370 ?\/ ?425/.test(css), '球場沒有改成滿版');
-    t.assert(/#main-content>#quick-plays\{order:3\}/.test(css) && /#main-content>\.main-actions-container\{order:4\}/.test(css), '底部順序不對');
+    t.assert(/#main-content>#game-state-container\{order:3\}/.test(css) && /#main-content>\.main-actions-container\{order:5\}/.test(css), '底部順序不對');
   });
 
   await t('PLAY BALL：開賽前球場壓暗、按鈕為黃色膠囊；開賽後恢復', async () => {

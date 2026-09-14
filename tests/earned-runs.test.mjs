@@ -1,5 +1,5 @@
 // 責失分（ER）判定
-import { boot, click, startGame, clickZone } from './harness.mjs';
+import { boot, click, startGame, clickZone, quickPlay } from './harness.mjs';
 
 function makeCtx(w, q) {
   const field = (zone, play) => {
@@ -57,7 +57,7 @@ export default async function (t) {
     { r: 3, er: 3 });
 
   await scene(t, '四壞後全壘打，兩分都是責失',
-    async ({ w, q, field }) => { click(w, q('#quick-plays button[data-play="四壞"]')); field('outfield', '本打'); },
+    async ({ w, q, field }) => { quickPlay(w, '四壞'); field('outfield', '本打'); },
     { r: 2, er: 2 });
 
   await scene(t, '靠失誤上壘者得分不算責失',
@@ -66,8 +66,8 @@ export default async function (t) {
 
   await scene(t, '兩出局後的失誤，之後的得分都不算責失',
     async ({ w, q, field }) => {
-      click(w, q('#quick-plays button[data-play="三振"]'));
-      click(w, q('#quick-plays button[data-play="三振"]'));
+      quickPlay(w, '三振');
+      quickPlay(w, '三振');
       field('infield', '失誤');
       field('outfield', '本打');
     },

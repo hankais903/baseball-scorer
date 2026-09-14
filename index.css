@@ -2492,27 +2492,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     cursor: pointer;
 }
 
-/* 沒被打出去的結果：常駐快捷按鈕 */
-#quick-plays {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: clamp(0.25rem, 1.2vw, 0.5rem);
-    margin-top: 0.4rem;
-    flex-shrink: 0;
-}
-
-#quick-plays button {
-    padding: 0.5rem 0.2rem;
-    min-height: 44px;
-    font-size: clamp(0.75rem, 3vw, 0.95rem);
-    font-weight: 700;
-    background: #3e3e3e;
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    cursor: pointer;
-}
-
 /* 淺色球場上的 PLAY BALL 需要深色字才清楚 */
 #play-ball-btn {
     color: #3d4a12;
@@ -3302,7 +3281,6 @@ button:active,
 }
 
 /* 記錄流程常按的大按鈕再加一點下壓感 */
-#quick-plays button:active,
 .main-action-btn:active,
 #field-result-panel button:active,
 .def-quick-btn:active,

@@ -1,5 +1,5 @@
 // 棒次拖曳、照片縮圖，以及「設定頁改了主頁要跟著變」的基本檢查
-import { boot, click, clickZone } from './harness.mjs';
+import { boot, click, clickZone, quickPlay } from './harness.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const setVal = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); };
@@ -208,7 +208,7 @@ export default async function (t) {
   await t('記完一個打席後 NEXT 會往下移一棒', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    click(w, q('#quick-plays button[data-play="三振"]'));
+    quickPlay(w, '三振');
     const rows = nextText(s => w.document.querySelectorAll(s));
     t.assert(rows.join(' / ') === '3棒客隊球員03 / 4棒客隊球員04', rows.join(' / '));
   });
@@ -216,7 +216,7 @@ export default async function (t) {
   await t('換半局後 NEXT 換成另一隊的打序', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    for (let i = 0; i < 3; i++) click(w, q('#quick-plays button[data-play="三振"]'));
+    for (let i = 0; i < 3; i++) quickPlay(w, '三振');
     t.assert(q('#inning-display').textContent.includes('下'),
       '沒有換到下半局：' + q('#inning-display').textContent);
     const rows = nextText(s => w.document.querySelectorAll(s));

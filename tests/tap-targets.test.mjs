@@ -1,6 +1,6 @@
 // 手指點得到：可點的東西至少 44×44（Apple 的建議值），
 // 以及幾個「按不動時要說原因」「復原不留雜訊」的介面規則
-import { boot, click, clickZone } from './harness.mjs';
+import { boot, click, clickZone, quickPlay } from './harness.mjs';
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const builtCss = async () => {
@@ -69,7 +69,7 @@ export default async function (t) {
   await t('有跑者之後「壘間事件」恢復正常字樣', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    click(w, q('#quick-plays button[data-play="四壞"]'));
+    quickPlay(w, '四壞');
     await sleep(300);
     const btn = q('#runner-action-btn');
     t.assert(!btn.disabled, '有跑者卻仍鎖住');
@@ -79,7 +79,7 @@ export default async function (t) {
   await t('復原不會在事件列表留下一行', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    click(w, q('#quick-plays button[data-play="三振"]'));
+    quickPlay(w, '三振');
     await sleep(200);
     const before = w.document.querySelectorAll('#event-log li').length;
     click(w, q('#undo-btn'));
@@ -188,7 +188,7 @@ export default async function (t) {
   await t('按鈕按下去會有回饋（手機關掉了系統預設的灰框）', async () => {
     const css = await builtCss();
     t.assert(/button:active[^{]*\{[^}]*brightness/.test(css), '按鈕按下去沒有變亮');
-    t.assert(/#quick-plays button:active[^{]*\{[^}]*scale/.test(css), '快捷鍵沒有下壓感');
+    t.assert(/\.frp-balls button:active[^{]*\{[^}]*scale/.test(css), '打席選單的球種鍵沒有下壓感');
   });
 
   await t('點到球場時落點標記會擴散一下', async () => {
