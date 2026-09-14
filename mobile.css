@@ -407,21 +407,21 @@
   #control-panel,
   #main-content,
   #event-log-container {
-    padding-top: max(0.75rem, env(safe-area-inset-top));
-    padding-left: max(0.75rem, env(safe-area-inset-left));
-    padding-right: max(0.75rem, env(safe-area-inset-right));
-    padding-bottom: max(60px, calc(env(safe-area-inset-bottom) + 52px));
+    padding-top: max(0.75rem, var(--sat));
+    padding-left: max(0.75rem, var(--sal));
+    padding-right: max(0.75rem, var(--sar));
+    padding-bottom: max(60px, calc(var(--sab) + 52px));
   }
 
   /* 底部指示點也要避開 Home 指示條 */
   #mobile-nav {
-    bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+    bottom: max(1rem, calc(var(--sab) + 0.5rem));
   }
 
   /* 只有主頁下方有快捷列與三顆功能鈕，小圓點在主頁時要往上讓位；
      名單頁與事件頁維持貼底，才不會擋到中間的內容 */
   #mobile-nav:has(.nav-dot[data-index="1"].active) {
-    bottom: max(7rem, calc(env(safe-area-inset-bottom) + 6.5rem));
+    bottom: max(7rem, calc(var(--sab) + 6.5rem));
   }
 }
 

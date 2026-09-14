@@ -144,6 +144,20 @@ export default async function (t) {
     t.assert(q('#home-game-list').textContent.includes('還沒有比賽紀錄'), '沒有說明還沒有紀錄');
   });
 
+  // 這個專案沒有共用的 .hidden 規則，每個要收起來的東西都得自己寫一條。
+  // v2.0 改版時 .home-card 那一組被刪掉，卡片因此收不起來、也沒有排版（踩過一次）
+  await t('沒有比賽時，繼續比賽的卡片真的收得起來', async () => {
+    const { window: w, q } = await withTeam();
+    const card = q('#home-continue');
+    t.assert(card.classList.contains('hidden'), '沒有加上收起來的標記');
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    t.assert(/\.home-card\.hidden\{[^}]*display:\s*none/.test(css), '.home-card.hidden 沒有真的收起來');
+    t.assert(/\.home-card\{[^}]*display:\s*flex/.test(css), '.home-card 的排版樣式不見了');
+    t.assert(/\.home-card::?after\{/.test(css), '卡片右邊的箭頭不見了');
+  });
+
   await t('首頁：繼續比賽要看得出來是「進行中」', async () => {
     const first = await withTeam();
     startGame(first.window);

@@ -1,3 +1,13 @@
+/* 安全區（動態島、Home 指示條）。寫成變數是為了讓機身外框版的預覽
+   可以塞入真實數值來模擬「加到主畫面」——原本預覽只畫參考線、env() 讀到 0，
+   看起來永遠是貼著邊的，等於驗不到這件事。實機仍然吃 env()。 */
+:root {
+    --sat: env(safe-area-inset-top);
+    --sab: env(safe-area-inset-bottom);
+    --sal: env(safe-area-inset-left);
+    --sar: env(safe-area-inset-right);
+}
+
 /* ==========================================================================
    美化主題（第一層：只換外觀，不動任何功能與文字）
    載入順序排在 index.css、mobile.css 之後，所以這裡的規則會蓋過前面。
@@ -484,13 +494,13 @@ body {
 /* 再擠出一點高度，讓最下面那排按鈕不會碰到頁面指示點 */
 @media (max-width: 768px), (orientation: portrait) {
     /* 上緣留白縮小，但仍要避開動態島（加到主畫面時 env() 才會有值） */
-    #main-content { padding-top: max(0.45rem, env(safe-area-inset-top)); row-gap: 6px; }
+    #main-content { padding-top: max(0.45rem, var(--sat)); row-gap: 6px; }
 
     /* 下緣要留得下整條換頁列（52 高）＋ Home 指示條，內容才不會被壓到 */
     #control-panel,
     #main-content,
     #event-log-container {
-        padding-bottom: max(74px, calc(env(safe-area-inset-bottom) + 68px));
+        padding-bottom: max(74px, calc(var(--sab) + 68px));
     }
     #game-info { margin-bottom: 0; }
     #scoreboard { margin: 0; }
@@ -502,7 +512,7 @@ body {
 
     /* 指示點回到最底下（原本因為會擋到按鈕才往上抬） */
     #mobile-nav:has(.nav-dot[data-index="1"].active) {
-        bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+        bottom: max(1rem, calc(var(--sab) + 0.5rem));
     }
 }
 
@@ -1347,7 +1357,7 @@ body.shell-open #app-container { visibility: hidden; }
 #onboard-screen {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 24px);
+    padding: calc(var(--sat) + 20px) 18px calc(var(--sab) + 24px);
 }
 
 .ob-inner {
@@ -1552,7 +1562,7 @@ body.shell-open #app-container { visibility: hidden; }
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: calc(env(safe-area-inset-top) + 14px) 16px 14px;
+    padding: calc(var(--sat) + 14px) 16px 14px;
 }
 
 .shell-page,
@@ -1755,7 +1765,7 @@ body.shell-open #app-container { visibility: hidden; }
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 2px;
-    padding: 5px 8px calc(env(safe-area-inset-bottom) + 6px);
+    padding: 5px 8px calc(var(--sab) + 6px);
     border-top: 1px solid rgba(255, 255, 255, 0.09);
     background: rgba(5, 15, 27, 0.94);
 }
@@ -1874,7 +1884,7 @@ body.playing #app-container {
 body.playing #control-panel { display: none !important; }
 
 /* 沒有換頁列了，下緣不用再留那麼多 */
-body.playing #main-content { padding-bottom: max(10px, env(safe-area-inset-bottom)) !important; }
+body.playing #main-content { padding-bottom: max(10px, var(--sab)) !important; }
 
 body.playing #event-log-container {
     position: fixed;
@@ -1886,7 +1896,7 @@ body.playing #event-log-container {
     height: min(76vh, 680px);
     margin: 0;
     padding-top: 26px;
-    padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
+    padding-bottom: calc(var(--sab) + 10px);
     border-radius: 18px 18px 0 0;
     border-top: 1px solid rgba(255, 255, 255, 0.14);
     background: #071322;
@@ -1946,6 +1956,67 @@ body.playing.sheet-open #event-log-container { transform: translateY(0); }
 
 /* 標題列不能換行，否則「紀錄」會掉到第二行、多吃一整列的高度 */
 .stadium-toolbar { flex-wrap: nowrap; }
+
+/* ==========================================================================
+   首頁的大卡片（繼續比賽）
+   註：這一組在 v2.0 改版時連同舊首頁一起被刪掉了，卡片因此沒有排版、
+   也沒有 .hidden 可以收起來（整個專案沒有共用的 .hidden 規則）。
+   ========================================================================== */
+.home-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 50px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--th-line);
+    background: rgba(13, 30, 51, 0.86);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    color: #eaf2ff;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.home-card.hidden { display: none; }
+
+/* 右邊的小箭頭，讓它看起來是「按了會進去」 */
+.home-card::after {
+    content: '';
+    flex: none;
+    width: 9px;
+    height: 9px;
+    margin-left: auto;
+    border-right: 2px solid rgba(255, 255, 255, 0.45);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.45);
+    transform: rotate(-45deg);
+}
+
+.home-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.home-card-label { font-size: 0.94rem; font-weight: 800; letter-spacing: 0.02em; }
+.home-card-sub { font-size: 0.72rem; line-height: 1.35; color: rgba(214, 230, 248, 0.68); }
+
+.home-card-main {
+    min-height: 62px;
+    border-color: rgba(244, 124, 32, 0.85);
+    background: linear-gradient(180deg, #f0762a, #d75d15);
+    box-shadow: 0 8px 22px rgba(215, 93, 21, 0.38);
+    color: #fff;
+}
+
+.home-card-main .home-card-label { font-size: 1.08rem; }
+.home-card-main .home-card-sub { color: rgba(255, 255, 255, 0.9); font-weight: 600; }
+.home-card-main::after { border-color: rgba(255, 255, 255, 0.8); }
+
+.home-card:active { filter: brightness(1.18); }
+.home-card-main:active { transform: scale(0.985); }
 
 /* ==========================================================================
    比賽進行中的提示（首頁的繼續比賽、比賽分頁的鎖住）

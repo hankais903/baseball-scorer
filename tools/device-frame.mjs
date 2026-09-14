@@ -17,20 +17,16 @@ export const DEVICE = {
 // APP 在 iframe 裡拿不到真機的安全區數值（env() 會回傳 0），
 // 這段樣式把 mobile.css 那組規則換成 iPhone 17 Pro 的實際數字。
 export function safeAreaCss(d = DEVICE) {
+    // 樣式表已經把 env(safe-area-inset-*) 收斂成 --sat/--sab/--sal/--sar 四個變數，
+    // 所以這裡只要覆蓋變數，整個 APP（含首頁、五分頁、比賽中畫面）就會一起套用。
+    // 以前是手動改幾條規則，新畫面根本沒被涵蓋，看起來永遠貼著邊。
     return `
-/* 預覽外框：模擬 ${d.name} 的安全區 */
-@media (max-width: 768px), (orientation: portrait) {
-  #control-panel, #event-log-container {
-    padding-top: max(0.75rem, ${d.safeTop}px);
-  }
-  /* 主頁的上緣留白比較小（theme.css），這裡也要跟著一致 */
-  #main-content { padding-top: max(0.45rem, ${d.safeTop}px); }
-  #control-panel, #main-content, #event-log-container {
-    padding-bottom: max(74px, calc(${d.safeBottom}px + 68px));
-  }
-  /* 與 mobile.css／theme.css 同一組規則，只是把 env() 換成真機數值 */
-  #mobile-nav,
-  #mobile-nav:has(.nav-dot[data-index="1"].active) { bottom: max(1rem, calc(${d.safeBottom}px + 0.5rem)); }
+/* 預覽外框：模擬 ${d.name} 加到主畫面時的安全區 */
+:root {
+  --sat: ${d.safeTop}px;
+  --sab: ${d.safeBottom}px;
+  --sal: 0px;
+  --sar: 0px;
 }`;
 }
 
