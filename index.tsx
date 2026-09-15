@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.10';
+const APP_VERSION = 'v2.11';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -544,6 +544,9 @@ document.addEventListener('DOMContentLoaded', () => {
     interface BaseRunner {
         runnerId: string;
         isUnearned: boolean;
+        // 是哪一位投手把他送上壘的。換投之後他回來得分，責失要算在這個人頭上，
+        // 跟當下誰在投球無關（記錄規則：繼承跑者）。舊存檔沒有這一欄，就算給場上的投手。
+        pitcherId?: string;
     }
     interface GameState {
         teams: {
@@ -4510,6 +4513,11 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.bases = [null, null, null];
         gameState.inningPotentialOuts = 0;
     }
+    // 現在守備方在投球的那一位（跑者上壘時蓋在身上，之後算責失要用）
+    function currentPitcherId() {
+        const d = gameState.teams[gameState.isTop ? 'b' : 'a'];
+        return d.activePitcherId;
+    }
     function addRuns(runnersScored, rbis) {
         const teamKey = gameState.isTop ? 'a' : 'b';
         const team = gameState.teams[teamKey];
@@ -4525,13 +4533,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const defendingTeamKey = gameState.isTop ? 'b' : 'a';
         const defendingTeam = gameState.teams[defendingTeamKey];
         const activePitcher = defendingTeam.pitchers.find(p => p._id === defendingTeam.activePitcherId);
+        // 失分與責失算在「把這位跑者送上壘的投手」頭上（繼承跑者）。
+        // 前一位投手放了人上壘才被換下來，那些人回來得分不該算接手投手的。
+        const blameFor = (runner) => (runner && runner.pitcherId
+            && defendingTeam.pitchers.find(p => p._id === runner.pitcherId)) || activePitcher;
         runnersScored.forEach(runner => {
             const runnerPlayer = getPlayerById(teamKey, runner.runnerId);
             if (runnerPlayer)
                 runnerPlayer.r++;
-            activePitcher.r++;
+            const blame = blameFor(runner);
+            blame.r++;
             if (!runner.isUnearned && gameState.inningPotentialOuts < 3) {
-                activePitcher.er++;
+                blame.er++;
             }
         });
     }
@@ -4555,7 +4568,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const batter = getCurrentBatter();
         if (batterDestination > 0 && batter) {
             const isUnearned = hitInfo.isError || (originalBases.some(r => r?.isUnearned) && batterDestination > 0);
-            newBases[batterDestination - 1] = { runnerId: batter._id, isUnearned };
+            newBases[batterDestination - 1] = { runnerId: batter._id, isUnearned, pitcherId: currentPitcherId() };
         }
         gameState.bases = newBases;
         return { runnersScored, outsOnBases };
@@ -4610,19 +4623,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     rbis = 1;
                     gameState.bases[2] = gameState.bases[1];
                     gameState.bases[1] = gameState.bases[0];
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false, pitcherId: currentPitcherId() };
                 }
                 else if (gameState.bases[0] && gameState.bases[1]) { // 1st and 2nd
                     gameState.bases[2] = gameState.bases[1];
                     gameState.bases[1] = gameState.bases[0];
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false, pitcherId: currentPitcherId() };
                 }
                 else if (gameState.bases[0]) { // 1st only
                     gameState.bases[1] = gameState.bases[0];
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false, pitcherId: currentPitcherId() };
                 }
                 else { // Bases empty
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false, pitcherId: currentPitcherId() };
                 }
                 break;
             case '觸身球':
@@ -4635,19 +4648,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     rbis = 1;
                     gameState.bases[2] = gameState.bases[1];
                     gameState.bases[1] = gameState.bases[0];
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false, pitcherId: currentPitcherId() };
                 }
                 else if (gameState.bases[0] && gameState.bases[1]) {
                     gameState.bases[2] = gameState.bases[1];
                     gameState.bases[1] = gameState.bases[0];
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false, pitcherId: currentPitcherId() };
                 }
                 else if (gameState.bases[0]) {
                     gameState.bases[1] = gameState.bases[0];
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false, pitcherId: currentPitcherId() };
                 }
                 else {
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: false, pitcherId: currentPitcherId() };
                 }
                 break;
             case '妨礙打擊':
@@ -4663,19 +4676,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     gameState.bases[2] = gameState.bases[1];
                     gameState.bases[1] = gameState.bases[0];
                     // Batter reaching on CI is also unearned.
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: true };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: true, pitcherId: currentPitcherId() };
                 }
                 else if (gameState.bases[0] && gameState.bases[1]) { // 1st and 2nd
                     gameState.bases[2] = gameState.bases[1];
                     gameState.bases[1] = gameState.bases[0];
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: true };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: true, pitcherId: currentPitcherId() };
                 }
                 else if (gameState.bases[0]) { // 1st only
                     gameState.bases[1] = gameState.bases[0];
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: true };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: true, pitcherId: currentPitcherId() };
                 }
                 else { // Bases empty
-                    gameState.bases[0] = { runnerId: batter._id, isUnearned: true };
+                    gameState.bases[0] = { runnerId: batter._id, isUnearned: true, pitcherId: currentPitcherId() };
                 }
                 break;
             default: // Other outs
@@ -5293,12 +5306,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (play === '本打') rbis++;       // 只有全壘打才給打者自己的打點
             }
             else if (batterDestination.dest > 0) {
-                newBases[batterDestination.dest - 1] = { runnerId: batter._id, isUnearned: isBatterUnearned };
+                newBases[batterDestination.dest - 1] = { runnerId: batter._id, isUnearned: isBatterUnearned, pitcherId: currentPitcherId() };
             }
         }
         else {
             outsOnPlay++;
         }
+        // 規則 9.04(b)：打者擊出的球造成雙殺或三殺，因此得的分不記打點
+        if (play === '雙殺' || play === '三殺') rbis = 0;
+
+        // 規則 5.08(a)：第三個出局如果是「封殺」，或是打者在上到一壘前就出局，
+        // 這個 play 的得分一律不算（就算跑者比出局早踩到本壘也一樣）。
+        // 飛球接殺與三振不適用——高飛犧牲打就是靠這個得分的。
+        const BATTER_OUT_BEFORE_FIRST = ['滾地', '雙殺', '三殺', '犧短', '妨礙守備', '野手選擇'];
+        const batterBecameRunner = !['三振', '飛球', '界飛', '犧飛'].includes(play);
+        // 後面有人擠著、非跑不可＝封殺。一壘跑者只要打者上壘就被封，
+        // 二壘跑者要一壘也有人，三壘跑者要一二壘都有人
+        const forcedAt = (i: number) => originalBases.slice(0, i).every(r => !!r);
+        const forcedRunnerOut = Object.entries(runnerDestinationsFinal).some(([key, val]) => {
+            const i = parseInt(key.split('-')[1]);
+            return !!originalBases[i] && !((val as any).dest > 0) && batterBecameRunner && forcedAt(i);
+        });
+        const batterOutBeforeFirst = batterIsOut && BATTER_OUT_BEFORE_FIRST.includes(play);
+        let forceThirdOut = false;
+        if (runnersScored.length && gameState.outs + outsOnPlay >= 3
+            && (batterOutBeforeFirst || forcedRunnerOut)) {
+            forceThirdOut = true;
+            runnersScored = [];
+            rbis = 0;
+        }
+
         addRuns(runnersScored, rbis);
         gameState.bases = newBases;
         gameState.outs += outsOnPlay;
@@ -5468,6 +5505,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const obsWho = ERROR_POSITIONS[(advancedPlayState as any).obstructionBy] || '';
             eventDesc += obsWho ? ` 過程中${obsWho}妨礙跑壘。` : ' 過程中發生妨礙跑壘。';
         }
+        if (forceThirdOut) eventDesc += ` 第三個出局是封殺，這個半局的得分不算。`;
         if (outsOnPlay > 0) eventDesc += ` ${Math.min(3, gameState.outs)}人出局。`;
 
         // 標題行後面接的第一個描述前不需要空白
