@@ -68,9 +68,9 @@ export default async function (t) {
     t.assert(body.querySelectorAll('.st-cards').length === 2, '全隊打擊／投球的數字卡不見了');
     t.assert(txt.includes('打擊率') && txt.includes('防禦率'), '沒有全隊打擊率與防禦率：' + txt.slice(0, 120));
     const tables = body.querySelectorAll('.st-table');
-    t.assert(tables.length === 2, '個人打擊與個人投球表應該各一張：' + tables.length);
+    t.assert(tables.length === 3, '個人打擊、守備、投球三張表：' + tables.length);
     t.assert(tables[0].textContent.includes('王小明'), '個人打擊沒有列出球員');
-    t.assert(tables[1].textContent.includes('林投手'), '個人投球沒有列出投手');
+    t.assert(tables[2].textContent.includes('林投手'), '個人投球沒有列出投手');
     // 兩場加起來：打數 6、安打 4
     const row = [...tables[0].querySelectorAll('tbody tr')][0];
     const cells = [...row.querySelectorAll('td')].map(td => td.textContent);
@@ -88,7 +88,7 @@ export default async function (t) {
     t.assert(!!body.querySelector('.st-note'), '沒有說明「還沒有打完的比賽」');
     t.assert(!!body.querySelector('.st-record'), '勝敗那一塊不見了');
     t.assert(body.querySelectorAll('.st-cards').length === 2, '全隊打擊／投球的數字卡不見了');
-    t.assert(body.querySelectorAll('.st-table').length === 2, '個人成績表不見了');
+    t.assert(body.querySelectorAll('.st-table').length === 3, '個人成績表不見了');
     t.assert(body.textContent.includes('還沒有資料'), '空的成績表沒有寫「還沒有資料」');
   });
 

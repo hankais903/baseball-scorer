@@ -5,23 +5,24 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const state = w => JSON.parse(w.localStorage.getItem('baseballGameState'));
 
 export default async function (t) {
-  // 結束計時＝比賽結束，按下去要先問過
-  await t('結束計時會先問，確定後比賽也跟著結束', async () => {
+  // 結束計時＝比賽結束，按下去要先問「怎麼結束的」
+  await t('結束計時會先問原因，選了才真的結束', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));
-    // 系統的 confirm() 在內嵌環境會被擋掉，所以改用 APP 自己的詢問視窗
+    // 系統的 confirm() 在內嵌環境會被擋掉，所以改用 APP 自己的視窗
     click(w, q('#game-clock'));
     click(w, q('#clock-stop-btn'));
-    t.assert(!q('#ask-modal').classList.contains('hidden'), '沒有先問過');
-    t.assert(/結束/.test(q('#ask-text').textContent), '問法不對：' + q('#ask-text').textContent);
-    click(w, q('#ask-no'));
+    t.assert(!q('#end-reason-modal').classList.contains('hidden'), '沒有先問過');
+    t.assert(w.document.querySelectorAll('#end-reason-modal .end-reason').length === 3,
+      '沒有列出三種結束原因');
+    click(w, q('#end-reason-cancel'));
     let gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
     t.assert(!gs.isGameOver && !gs.endTime, '按了取消卻還是結束了');
     click(w, q('#game-clock'));
     click(w, q('#clock-stop-btn'));
-    click(w, q('#ask-yes'));
+    click(w, q('#end-reason-modal .end-reason[data-reason="normal"]'));
     gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
-    t.assert(gs.isGameOver === true, '確定後比賽沒有結束');
+    t.assert(gs.isGameOver === true, '選了原因後比賽沒有結束');
     t.assert(typeof gs.endTime === 'number', '計時沒有停');
     t.assert(q('#game-clock').classList.contains('stopped'), '計時器沒有標成已停止');
     t.assert(/比賽結束/.test(q('#event-log').textContent), '事件沒有記比賽結束');

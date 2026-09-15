@@ -2599,3 +2599,57 @@ body.playing #game-meta-static span + span::before {
 }
 #update-bar.hidden { display: none; }
 #update-bar:active { filter: brightness(1.2); }
+
+/* 結束比賽時先問原因（正常結束／因故中止／保留續賽） */
+#end-reason-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(4, 13, 24, 0.72);
+}
+#end-reason-modal.hidden { display: none; }
+.end-reason-box {
+    width: var(--rec-win-w);
+    max-width: var(--rec-win-w);
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: var(--rec-win-pad);
+    border-radius: var(--rec-win-radius);
+    border: 1px solid var(--th-line);
+    background: linear-gradient(180deg, #12283f, #0a1729);
+}
+.end-reason-box h3 { margin: 0 0 2px; font-size: 1rem; color: #eaf2ff; }
+.end-reason {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: var(--rec-btn-h);
+    padding: 9px 12px;
+    border-radius: var(--rec-radius);
+    border: 1px solid var(--th-line);
+    background: rgba(255, 255, 255, 0.09);
+    color: #eaf2ff;
+    font-family: inherit;
+    font-size: var(--rec-btn-font);
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+.end-reason small { font-size: 0.72rem; font-weight: 400; color: rgba(198, 218, 240, 0.7); }
+.end-reason:active { filter: brightness(1.25); }
+.end-reason-cancel {
+    min-height: var(--rec-btn-h);
+    margin-top: 2px;
+    border-radius: var(--rec-radius);
+    border: 1px solid var(--th-line);
+    background: transparent;
+    color: #8fa4c2;
+    font-family: inherit;
+    font-size: var(--rec-btn-font);
+    cursor: pointer;
+}

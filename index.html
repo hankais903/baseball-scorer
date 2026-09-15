@@ -149,6 +149,16 @@
                         <button type="button" id="clock-pause-btn">暫停計時</button>
                         <button type="button" id="clock-stop-btn">結束計時</button>
                     </div>
+                    <!-- 結束比賽的原因：正常打完、因故中止、保留續賽 -->
+                    <div id="end-reason-modal" class="hidden">
+                        <div class="end-reason-box">
+                            <h3>這場比賽怎麼結束的？</h3>
+                            <button type="button" class="end-reason" data-reason="normal">正常結束<small>打完規定局數或提前結束</small></button>
+                            <button type="button" class="end-reason" data-reason="called">因故中止，比賽成立<small>下雨、天色暗了等；比數照算</small></button>
+                            <button type="button" class="end-reason" data-reason="suspended">保留，擇日續賽<small>紀錄留著，之後接著打</small></button>
+                            <button type="button" id="end-reason-cancel" class="end-reason-cancel">取消</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="main-actions-container">
