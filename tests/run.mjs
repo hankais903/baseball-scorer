@@ -47,6 +47,10 @@ const suites = [['名單套用', lineup], ['標題列', header], ['擊球落點'
 for (const [name, run] of suites) {
   console.log(`\n${name}`);
   await run(makeRunner(name));
+  // 每跑完一個套件就把 jsdom 視窗關掉。以前留到最後才關，套件一多
+  // 幾百個視窗同時佔著記憶體，CI 上會直接 heap out of memory。
+  closeAllWindows();
+  if (global.gc) global.gc();
 }
 
 // 關掉所有 jsdom 視窗，否則 game-manager 的自動儲存計時器會讓 node 跑完測試也不結束

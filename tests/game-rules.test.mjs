@@ -50,10 +50,11 @@ export default async function (t) {
   });
 
   await t('延長上限設成不限就一直打下去', async () => {
-    const { w, state } = await bootWithRules({ innings: 7, maxInnings: 0 });
-    for (let i = 0; i < 30 && state().inning < 14; i++) threeOuts(w);
+    // 三局制＋不限延長：打到第 13 局都不該自己結束（預設上限是 12）
+    const { w, state } = await bootWithRules({ innings: 3, maxInnings: 0 });
+    for (let i = 0; i < 30 && state().inning < 13; i++) threeOuts(w);
     t.assert(!state().isGameOver, '設成不限延長卻自己結束了（第 ' + state().inning + ' 局）');
-    t.assert(state().inning >= 14, '沒有打到第 14 局：' + state().inning);
+    t.assert(state().inning >= 13, '沒有打到第 13 局：' + state().inning);
   });
 
   // === 提前結束（扣倒）===
@@ -80,10 +81,11 @@ export default async function (t) {
 
   // === 突破僵局制 ===
   await t('第十局起二壘有人開始，而且那一分不算責失', async () => {
-    const { w, state } = await bootWithRules({ innings: 9, maxInnings: 0, tiebreakFrom: 10, tiebreakBases: '2' });
-    for (let i = 0; i < 24 && state().inning < 10; i++) threeOuts(w);
+    // 用三局制，第四局就是延長賽，不必空打十局
+    const { w, state } = await bootWithRules({ innings: 3, maxInnings: 0, tiebreakFrom: 4, tiebreakBases: '2' });
+    for (let i = 0; i < 10 && state().inning < 4; i++) threeOuts(w);
     const gs = state();
-    t.assert(gs.inning === 10, '沒有打到第十局：' + gs.inning);
+    t.assert(gs.inning === 4, '沒有打到第四局：' + gs.inning);
     t.assert(!!gs.bases[1] && !gs.bases[0] && !gs.bases[2], '第十局開始時二壘沒有人：' + JSON.stringify(gs.bases.map(b => !!b)));
     t.assert(gs.bases[1].isUnearned === true, '突破僵局的跑者得分應該不算責失');
     const ev = gs.events[gs.events.length - 1].text;
@@ -97,15 +99,15 @@ export default async function (t) {
   });
 
   await t('一二壘版本：前一棒在一壘、前兩棒在二壘', async () => {
-    const { w, state } = await bootWithRules({ innings: 9, maxInnings: 0, tiebreakFrom: 10, tiebreakBases: '12' });
-    for (let i = 0; i < 24 && state().inning < 10; i++) threeOuts(w);
+    const { w, state } = await bootWithRules({ innings: 3, maxInnings: 0, tiebreakFrom: 4, tiebreakBases: '12' });
+    for (let i = 0; i < 10 && state().inning < 4; i++) threeOuts(w);
     const gs = state();
     t.assert(!!gs.bases[0] && !!gs.bases[1] && !gs.bases[2], '一二壘沒有各放一位：' + JSON.stringify(gs.bases.map(b => !!b)));
   });
 
   await t('沒開突破僵局制，延長賽照樣從無人在壘開始', async () => {
-    const { w, state } = await bootWithRules({ innings: 9, maxInnings: 0, tiebreakFrom: 0 });
-    for (let i = 0; i < 24 && state().inning < 10; i++) threeOuts(w);
+    const { w, state } = await bootWithRules({ innings: 3, maxInnings: 0, tiebreakFrom: 0 });
+    for (let i = 0; i < 10 && state().inning < 4; i++) threeOuts(w);
     t.assert(state().bases.every(b => !b), '沒開卻自己放了跑者');
   });
 
