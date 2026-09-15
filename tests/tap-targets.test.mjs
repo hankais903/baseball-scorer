@@ -227,4 +227,21 @@ export default async function (t) {
       t.assert(winRule.includes(sel), '「' + sel + '」沒有被收進統一寬度');
     }
   });
+
+  // 記一個打席會經過「打席選單 → 結果選單 → 進階視窗」，
+  // v2.9 只把前兩個換成明亮底色，走到第三個會突然變深藍（像跳到另一個 APP）
+  await t('記錄流程的視窗都是同一種明亮風格', async () => {
+    const css = await builtCss();
+    const flat = css.replace(/\s+/g, '');
+    // 球場上的選單與後面的視窗用同一組亮色變數
+    t.assert(/--rec-paper:#f3f7fc/.test(flat), '沒有定義記錄流程的亮色底');
+    t.assert(/--rec-ink:#16324f/.test(flat), '沒有定義記錄流程的深色字');
+    // 進階視窗、壘間事件、選人、詢問視窗都要吃到
+    const rule = (css.match(/[^{}]*#modal-content[^{}]*\{[^}]*background:linear-gradient\(180deg,var\(--rec-paper\)[^}]*\}/g)
+      || css.match(/[^{}]*#modal-content[^{}]*\{[^}]*\}/g) || []).join(' ').replace(/\s+/g, '');
+    t.assert(/var\(--rec-paper\)/.test(rule), '進階視窗沒有換成亮色：' + rule.slice(0, 160));
+    for (const sel of ['#runner-action-modal-content', '.picker-content', '.confirm-modal-content', '.ask-box', '.end-reason-box']) {
+      t.assert(rule.includes(sel), '「' + sel + '」沒有一起換成亮色');
+    }
+  });
 }

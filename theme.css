@@ -2653,3 +2653,151 @@ body.playing #game-meta-static span + span::before {
     font-size: var(--rec-btn-font);
     cursor: pointer;
 }
+
+/* ==========================================================================
+   記錄流程的視窗統一成明亮風格
+   v2.9 把「打席選單／落點結果」換成明亮底色，但後面的進階視窗還是深藍的，
+   記一個打席會經歷「亮 → 亮 → 暗」，看起來像跳到另一個 APP。
+   這裡把同一條流程上的視窗全部換成同一種亮色。
+   （球員調度的守位圖與總表不在這條流程上，維持深色）
+   ========================================================================== */
+:root {
+    --rec-paper: #f3f7fc;
+    --rec-paper-2: #dce6f3;
+    --rec-card: #ffffff;
+    --rec-ink: #16324f;
+    --rec-ink-2: #40566f;
+    --rec-ink-3: #7c8ea3;
+    --rec-line: #b9c9dc;
+    --rec-blue: #2f6fed;
+    --rec-red: #b3402f;
+    --rec-red-bg: #fbe7e3;
+}
+
+:is(#modal-content, #runner-action-modal-content, .picker-content,
+    .confirm-modal-content, .ask-box, .end-reason-box) {
+    background: linear-gradient(180deg, var(--rec-paper), var(--rec-paper-2));
+    border: 1px solid var(--rec-line);
+    color: var(--rec-ink);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* 標題、說明文字 */
+:is(#modal-content, #runner-action-modal-content, .picker-content,
+    .confirm-modal-content, .ask-box, .end-reason-box)
+    :is(h3, p, .runner-name, .hit-direction-label, .frp-title, .ask-text) {
+    color: var(--rec-ink);
+}
+:is(#modal-content, #runner-action-modal-content, .picker-content, .confirm-modal-content)
+    :is(.frp-group-label, .picker-note, .sub-note, small) {
+    color: var(--rec-ink-2);
+}
+.hit-direction-label em { color: var(--rec-blue); }
+
+/* 關閉鍵與返回 */
+:is(#close-modal, #close-runner-action-modal, #close-picker, #picker-close) { color: var(--rec-ink-2); }
+:is(.back-button, .back-button-advanced, #back-button-runner-action, #back-button) {
+    color: var(--rec-blue);
+}
+
+/* 一般選項按鈕：白底深字 */
+:is(#modal-content, #runner-action-modal-content, .confirm-modal-content, .ask-box)
+    :is(.modal-options button, .runner-options button, .hit-direction .dir-btn, .hit-direction .dir-clear) {
+    background-color: var(--rec-card);
+    border: 1px solid var(--rec-line);
+    color: var(--rec-ink);
+}
+:is(#modal-content, #runner-action-modal-content, .confirm-modal-content)
+    :is(.modal-options button, .runner-options button, .hit-direction .dir-btn):hover {
+    background-color: #eaf1fa;
+}
+:is(#modal-content, #runner-action-modal-content, .confirm-modal-content)
+    :is(.modal-options button, .runner-options button, .hit-direction .dir-btn):active {
+    filter: brightness(0.94);
+}
+
+/* 選起來的：藍底白字 */
+:is(#modal-content, #runner-action-modal-content, .confirm-modal-content)
+    :is(.modal-options button.selected, .runner-options button.selected, .hit-direction .dir-btn.selected) {
+    background-color: var(--rec-blue);
+    border-color: var(--rec-blue);
+    color: #fff;
+    box-shadow: none;
+}
+
+/* 出局類的選項：淡紅底 */
+:is(#modal-content, #runner-action-modal-content) .runner-options button.out-option {
+    background-color: var(--rec-red-bg);
+    border-color: #e2b4aa;
+    color: var(--rec-red);
+}
+:is(#modal-content, #runner-action-modal-content) .runner-options button.out-option.selected {
+    background-color: var(--rec-red);
+    border-color: var(--rec-red);
+    color: #fff;
+}
+
+/* 按不動的 */
+:is(#modal-content, #runner-action-modal-content) .modal-options button:disabled,
+:is(#modal-content, #runner-action-modal-content) .modal-options button:disabled:hover {
+    background-color: #e6ecf4;
+    border-color: #d2dbe6;
+    color: #9fadbd;
+}
+.batter-out-row .static-out { color: var(--rec-ink-2); }
+
+/* 打席結果的顏色分類：在亮底上改用淡色塊，不要原本的濃彩 */
+#modal-content .modal-options button[class*="play-category-"] { color: var(--rec-ink); }
+#modal-content .modal-options button.play-category-strikeout,
+#modal-content .modal-options button.play-category-groundout,
+#modal-content .modal-options button.play-category-flyout,
+#modal-content .modal-options button.play-category-special-out { background-color: #eef2f7; }
+#modal-content .modal-options button.play-category-hit { background-color: #e3f1e6; }
+#modal-content .modal-options button.play-category-walk { background-color: #e6eefb; }
+#modal-content .modal-options button.play-category-error,
+#modal-content .modal-options button.play-category-fielder-choice { background-color: #fbf0e3; }
+#modal-content .modal-options button.play-category-sacrifice { background-color: #f0ecfa; }
+#modal-content .modal-options button.play-category-interference { background-color: #fbe7e3; }
+
+/* 進階修飾（加上妨礙跑壘、傳球出界） */
+.advanced-play-modifiers { border-top-color: var(--rec-line); }
+#modal-content .advanced-play-modifiers button {
+    background-color: #ece8fa;
+    border-color: #c8bff0;
+    color: #4b3ba8;
+}
+#modal-content .advanced-play-modifiers button.selected {
+    background-color: #6c5ce7;
+    border-color: #6c5ce7;
+    color: #fff;
+}
+
+/* 摘要提示 */
+#modal-advanced-summary { color: var(--rec-ink-2); }
+#modal-advanced-summary.summary-ok { background-color: #e6f4e9; border-left-color: #2f8f4e; color: #235c37; }
+#modal-advanced-summary.summary-conflict { background-color: #fbe7e3; border-left-color: #c0392b; color: #8f2c20; }
+
+/* 選人視窗 */
+.picker-content .picker-item {
+    background: var(--rec-card);
+    border: 1px solid var(--rec-line);
+    color: var(--rec-ink);
+}
+.picker-content .picker-item:hover { background: #eaf1fa; }
+.picker-content .picker-item img { background: #dfe7f1; }
+
+/* 詢問視窗與結束原因 */
+.ask-box .ask-actions button,
+.end-reason,
+.end-reason-cancel {
+    background: var(--rec-card);
+    border: 1px solid var(--rec-line);
+    color: var(--rec-ink);
+}
+.end-reason small { color: var(--rec-ink-2); }
+.ask-box .ask-actions #ask-yes { background: var(--rec-blue); border-color: var(--rec-blue); color: #fff; }
+
+/* 視窗裡的小球場：亮底上要看得出草皮與內野土 */
+:is(#modal-content, #runner-action-modal-content) .hf-hit { fill: #cfe0a8; }
+:is(#modal-content, #runner-action-modal-content) .hf-foul { fill: #e8e2d6; }
+:is(#modal-content, #runner-action-modal-content) .hf-base { fill: #fff; stroke: #9aa8b8; }
