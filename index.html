@@ -607,6 +607,25 @@
                         </select>
                     </label>
                     <label class="team-row">
+                        <span class="team-row-label">提前結束（扣倒）</span>
+                        <select id="set-mercy">
+                            <option value="">不使用</option>
+                            <option value="5:10">5 局後領先 10 分</option>
+                            <option value="7:7">7 局後領先 7 分</option>
+                            <option value="5:10,7:7">5 局 10 分／7 局 7 分</option>
+                            <option value="5:15,7:10">5 局 15 分／7 局 10 分</option>
+                        </select>
+                    </label>
+                    <label class="team-row">
+                        <span class="team-row-label">突破僵局制</span>
+                        <select id="set-tiebreak">
+                            <option value="">不使用</option>
+                            <option value="10:2">第 10 局起・二壘有人</option>
+                            <option value="10:12">第 10 局起・一二壘有人</option>
+                            <option value="8:12">第 8 局起・一二壘有人</option>
+                        </select>
+                    </label>
+                    <label class="team-row">
                         <span class="team-row-label">預設啟用 DH</span>
                         <input type="checkbox" id="set-dh" class="set-switch">
                     </label>

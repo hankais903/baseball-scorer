@@ -4,7 +4,7 @@ declare var XLSX: any; // Declare the XLSX global object from the CDN script
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.11';
+const APP_VERSION = 'v2.12';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -28,7 +28,9 @@ const MAX_INNINGS = 12;
             { play: '三殺', label: '三殺', out: true, group: '出局', zones: ['infield'], balls: ['G', 'L', 'F'] },
             { play: '失誤', label: '失誤上壘', group: '其他', zones: ['infield', 'outfield', 'foul'], balls: ['G', 'L', 'F', 'B'] },
             { play: '野手選擇', label: '野手選擇', group: '其他', zones: ['infield'], balls: ['G', 'B'] },
-            { play: '妨礙守備', label: '妨礙守備', out: true, group: '其他', zones: ['infield', 'foul'], balls: ['G', 'B'] }
+            { play: '妨礙守備', label: '妨礙守備', out: true, group: '其他', zones: ['infield', 'foul'], balls: ['G', 'B'] },
+            // 內野高飛必死球：只有「一二壘有人或滿壘、不到兩出局」才成立，用 when 擋掉其他情況
+            { play: '內飛', label: '內野高飛必死球', out: true, group: '出局', zones: ['infield'], balls: ['L', 'F'], when: 'infieldFly' }
         ]
     };
     ZONE_PLAYS.infield = ZONE_PLAYS.field;   // 相容舊呼叫
@@ -203,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // prettier-ignore
     const PLAY_TYPES = {
         // FIX: Quoted key 'out' to prevent parsing errors.
-        'out': ['三振', '滾地', '飛球', '界飛', '雙殺', '犧飛', '犧短', '三殺', '妨礙守備'],
+        'out': ['三振', '滾地', '飛球', '界飛', '雙殺', '犧飛', '犧短', '三殺', '妨礙守備', '內飛', '不死三振出局'],
         'on-base': ['一安', '四壞', '二安', '內安', '三安', '本打', '失誤', '觸身球', '野手選擇', '不死三振', '妨礙打擊']
     };
     const PLAY_DESCRIPTIONS = {
@@ -213,7 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
         '一安': '一壘安打', '二安': '二壘安打',
         '三安': '三壘安打', '本打': '全壘打', '失誤': '因失誤上壘',
         '犧短': '犧牲短打', '犧飛': '高飛犧牲打',
-        '妨礙守備': '因妨礙守備出局', '妨礙打擊': '因捕手妨礙打擊上壘'
+        '妨礙守備': '因妨礙守備出局', '妨礙打擊': '因捕手妨礙打擊上壘',
+        '內飛': '內野高飛必死球，打者出局', '不死三振出局': '揮空三振，捕手未接妥後傳一壘刺殺出局'
     };
     const HIT_BASES = { '內安': 1, '一安': 1, '二安': 2, '三安': 3, '本打': 4 };
     const PLAY_ABBREVIATIONS = {
@@ -221,7 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
         '界飛': '界飛', '雙殺': '雙殺', '三殺': '三殺',
         '四壞': '四壞', '觸身球': '觸身', '不死三振': '不死三振', '內安': '內安', '一安': '一安', '二安': '二安',
         '三安': '三安', '本打': '本打', '失誤': '失誤', '犧短': '犧短', '犧飛': '犧飛',
-        '妨礙守備': '妨礙守備', '妨礙打擊': '妨礙打擊'
+        '妨礙守備': '妨礙守備', '妨礙打擊': '妨礙打擊',
+        '內飛': '內飛', '不死三振出局': '不死三振'
     };
     const PLAY_TYPE_CATEGORIES = {
         '三振': 'strikeout',
@@ -234,7 +238,9 @@ document.addEventListener('DOMContentLoaded', () => {
         '失誤': 'error',
         '野手選擇': 'fielder-choice',
         '妨礙守備': 'interference',
-        '妨礙打擊': 'interference'
+        '妨礙打擊': 'interference',
+        '內飛': 'flyout',
+        '不死三振出局': 'strikeout'
     };
     // FIX: Quoted keys with hyphens, and all other keys for consistency.
     const BASE_NAME = (n: number) => ['一', '二', '三', '本'][n - 1] || String(n);
@@ -367,6 +373,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return bw ? `${area}${bw}` : `${area}的球`;
             }
             case '不死三振': return `揮空三振但${who}未能接妥`;
+            case '不死三振出局': return `揮空三振，捕手未接妥後傳一壘${tail ? '' : ''}，打者被刺殺出局`;
+            case '內飛': return `${area}內野高飛球，宣告內野高飛必死球，打者出局`;
             default: return `${PLAY_DESCRIPTIONS[play]}，由${who}處理`;
         }
     }
@@ -457,6 +465,16 @@ document.addEventListener('DOMContentLoaded', () => {
             positions: {}
         };
     };
+    // 一場比賽的規則。0 代表「不限／不用」
+    const defaultRules = () => ({
+        innings: 9,          // 正規局數
+        maxInnings: 12,      // 延長到第幾局判和局（0＝不限）
+        mercy: [],           // 提前結束（扣倒）：[{ inn, diff }]
+        tiebreakFrom: 0,     // 突破僵局制從第幾局開始（0＝不用）
+        tiebreakBases: '2',  // 放在二壘，或一二壘
+    });
+    // 讀這一場的規則（舊存檔沒有這一段就用預設值）
+    const rulesOf = () => Object.assign(defaultRules(), (gameState as any).rules || {});
     const getInitialGameState = () => {
         return {
             teams: {
@@ -481,6 +499,9 @@ document.addEventListener('DOMContentLoaded', () => {
             pausedAt: null,         // 目前這次暫停的起點；有值代表正在暫停
             weather: 'sunny',
             gameDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+            // 這一場的規則。建立比賽時從設定複製過來，
+            // 之後改設定也不會動到正在打的這一場
+            rules: defaultRules(),
         };
     };
     let gameState = getInitialGameState();
@@ -758,7 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ======================================================================
     const MY_TEAM_KEY = 'baseball_my_team';
     const SETTINGS_KEY = 'baseball_settings';
-    const DEFAULT_SETTINGS = { lang: 'zh-TW', innings: 9, maxInnings: 12, dh: true, haptic: true };
+    const DEFAULT_SETTINGS = { lang: 'zh-TW', innings: 9, maxInnings: 12, dh: true, haptic: true, mercy: '', tiebreak: '' };
     let myTeam: any = null;
     let appSettings: any = { ...DEFAULT_SETTINGS };
     let shellPage = 'home';
@@ -1105,6 +1126,8 @@ document.addEventListener('DOMContentLoaded', () => {
         set('set-lang', appSettings.lang);
         set('set-innings', appSettings.innings);
         set('set-max-innings', appSettings.maxInnings);
+        set('set-mercy', appSettings.mercy || '');
+        set('set-tiebreak', appSettings.tiebreak || '');
         const dh = document.getElementById('set-dh') as HTMLInputElement;
         if (dh) dh.checked = !!appSettings.dh;
         const hap = document.getElementById('set-haptic') as HTMLInputElement;
@@ -1303,6 +1326,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return t;
     }
 
+    // 把設定頁的選擇翻成這一場的規則
+    function rulesFromSettings() {
+        const r = defaultRules();
+        r.innings = Number(appSettings.innings) || 9;
+        r.maxInnings = Number(appSettings.maxInnings) || 0;
+        // 扣倒："5:10,7:7" → [{inn:5,diff:10},{inn:7,diff:7}]
+        r.mercy = String(appSettings.mercy || '').split(',').filter(Boolean).map(part => {
+            const [inn, diff] = part.split(':').map(Number);
+            return { inn, diff };
+        }).filter(m => m.inn > 0 && m.diff > 0);
+        // 突破僵局："10:12" → 第 10 局起、一二壘有人
+        const tb = String(appSettings.tiebreak || '').split(':');
+        r.tiebreakFrom = Number(tb[0]) || 0;
+        r.tiebreakBases = tb[1] === '12' ? '12' : '2';
+        return r;
+    }
     function createGameFromSetup() {
         if (!myTeam) return false;
         const players = myTeam.players || [];
@@ -1337,6 +1376,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.stadium = (document.getElementById('gs-stadium') as HTMLInputElement).value.trim();
         gameState.weather = (document.getElementById('gs-weather') as HTMLSelectElement).value;
         (gameState as any).gameTime = (document.getElementById('gs-time') as HTMLInputElement)?.value || '';
+        (gameState as any).rules = rulesFromSettings();   // 這一場用的規則（之後改設定不影響這場）
         (gameState as any).createdAt = Date.now();   // 「有一場還沒打完」的依據
         (gameState as any).mySide = gsSide === 'top' ? 'a' : 'b';   // 成績要知道哪一邊是我們
         // 常用對手：下次可以直接帶入
@@ -2548,6 +2588,8 @@ document.addEventListener('DOMContentLoaded', () => {
         settingField('set-max-innings', 'maxInnings', Number);
         settingField('set-dh', 'dh');
         settingField('set-haptic', 'haptic');
+        settingField('set-mercy', 'mercy');
+        settingField('set-tiebreak', 'tiebreak');
         document.getElementById('set-backup')?.addEventListener('click', () => {
             const dump = {};
             for (let i = 0; i < localStorage.length; i++) {
@@ -3068,11 +3110,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 + `<path class="frp-map-infield" d="M202 341 L127 271 L202 198 L275 272 Z"/>`
                 + dot + `</svg>`;
         }
+        // 內野高飛必死球成立的條件（規則 5.09(a)(5)）
+        function infieldFlyPossible() {
+            const b = gameState.bases;
+            return gameState.outs < 2 && !!b[0] && !!b[1];
+        }
         function zoneWordOf(zone) {
             return zone === 'foul' ? '界外' : zone === 'infield' ? '內野' : '外野';
         }
         function showResultOptions(zone, ball: string | null = null) {
-            const list = ZONE_PLAYS.field;
+            // 內野高飛必死球只有「一二壘有人或滿壘、而且不到兩出局」才成立，
+            // 其他情況不要列出來，免得誤選
+            const list = ZONE_PLAYS.field.filter((o: any) => o.when !== 'infieldFly' || infieldFlyPossible());
             if (!resultPanel) return;
             pendingBall = ball;
             const groups = ['安打', '出局', '其他'];
@@ -3790,7 +3839,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderScoreboard() {
         const headerRow = document.getElementById('scoreboard-header-row');
         const tbody = document.getElementById('scoreboard-body');
-        const numInnings = Math.max(9, gameState.inning);
+        const numInnings = Math.max(rulesOf().innings || 9, gameState.inning);
         // 目前進行中的局（用於高亮，取代原本的格線提示）
         const activeInning = gameState.isGameOver ? -1 : gameState.inning;
         headerRow.innerHTML = `<th class="team-col"></th>${Array.from({ length: numInnings }, (_, i) => `<th class="${i + 1 === activeInning ? 'inning-now' : ''}">${i + 1}</th>`).join('')}<th class="rhe rhe-first">R</th><th class="rhe">H</th><th class="rhe">E</th>`;
@@ -4061,7 +4110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById(containerId);
         if (!container) return;
         container.innerHTML = '';
-        const innings = Math.max(9, gameState.inning);
+        const innings = Math.max(rulesOf().innings || 9, gameState.inning);
         const avgStr = (h: number, ab: number) => ab > 0 ? (h / ab).toFixed(3) : '0.000';
         (['a', 'b'] as const).forEach(teamKey => {
             const team = gameState.teams[teamKey];
@@ -4469,33 +4518,51 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkAndEndGame() {
         if (gameState.isGameOver)
             return false;
+        const rules = rulesOf();
+        const reg = rules.innings || 9;                 // 正規局數（七局制的球賽就是 7）
+        const maxInn = rules.maxInnings || 0;           // 0＝不限延長
         const scoreA = gameState.teams.a.score.reduce((a, b) => a + (b || 0), 0);
         const scoreB = gameState.teams.b.score.reduce((a, b) => a + (b || 0), 0);
-        // Walk-off win (bottom 9th or later, home team takes lead, any number of outs)
-        if (gameState.inning >= 9 && !gameState.isTop && scoreB > scoreA) {
+        // 再見：最後一局（含延長）的下半，主隊超前就立刻結束
+        if (gameState.inning >= reg && !gameState.isTop && scoreB > scoreA) {
             endGame();
             return true;
         }
-        // Check for game end only if the half-inning is over
+        // 以下都要等這個半局結束才判斷
         if (gameState.outs < 3)
             return false;
         const isTopHalfJustEnded = gameState.isTop;
-        // Home team wins because they are ahead after top of 9th or extras
-        if (isTopHalfJustEnded && gameState.inning >= 9 && scoreB > scoreA) {
+        // 上半打完，主隊已經領先，不用再打下半
+        if (isTopHalfJustEnded && gameState.inning >= reg && scoreB > scoreA) {
             endGame();
             return true;
         }
-        // Visiting team wins after a full 9+ innings are played
-        if (!isTopHalfJustEnded && gameState.inning >= 9 && scoreA > scoreB) {
+        // 整局打完，客隊領先
+        if (!isTopHalfJustEnded && gameState.inning >= reg && scoreA > scoreB) {
             endGame();
             return true;
         }
-        // 平手時原本會無限延長；依延長局上限判定和局結束
-        if (!isTopHalfJustEnded && gameState.inning >= MAX_INNINGS && scoreA === scoreB) {
+        // 提前結束（扣倒）：分差夠大就不用打完
+        if (mercyReached(scoreA, scoreB, isTopHalfJustEnded)) {
+            endGame();
+            return true;
+        }
+        // 平手時依延長上限判和局；設成「不限」就一直打下去
+        if (!isTopHalfJustEnded && maxInn && gameState.inning >= maxInn && scoreA === scoreB) {
             endGame();
             return true;
         }
         return false;
+    }
+    // 提前結束（扣倒）：例如「5 局後領先 10 分」「7 局後領先 7 分」。
+    // 落後的那一隊要打完該局的進攻才算數，所以上半結束時只有主隊領先才適用。
+    function mercyReached(scoreA: number, scoreB: number, isTopHalfJustEnded: boolean) {
+        const list = (rulesOf().mercy || []).filter(m => m && m.inn > 0 && m.diff > 0);
+        if (!list.length) return false;
+        const lead = Math.abs(scoreA - scoreB);
+        const homeLeads = scoreB > scoreA;
+        if (isTopHalfJustEnded && !homeLeads) return false;   // 客隊領先要等主隊打完這一局
+        return list.some(m => gameState.inning >= m.inn && lead >= m.diff);
     }
     function endHalfInning() {
         const currentTeamKey = gameState.isTop ? 'a' : 'b';
@@ -4512,6 +4579,32 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.outs = 0;
         gameState.bases = [null, null, null];
         gameState.inningPotentialOuts = 0;
+        applyTiebreak();
+    }
+    // 突破僵局制：延長賽一開場就先把跑者放上壘。
+    // 放的是上一局最後出局的那幾棒——先出局的那位在前面（二壘），最後那位在一壘。
+    // 這種跑者回來得分不算投手責失。
+    function applyTiebreak() {
+        const rules = rulesOf();
+        const from = rules.tiebreakFrom || 0;
+        if (!from || gameState.isGameOver || gameState.inning < from) return;
+        const teamKey = gameState.isTop ? 'a' : 'b';
+        const team = gameState.teams[teamKey];
+        const prev = (n: number) => (n - 1 + LINEUP_SIZE) % LINEUP_SIZE;
+        const idx = gameState.currentBatterIndex[teamKey];
+        const idAt = (spot: number) => (team.lineupSpots && team.lineupSpots[spot] && team.lineupSpots[spot].activePlayerId)
+            || (team.roster[spot] && team.roster[spot]._id) || '';
+        const put = (baseIdx: number, spot: number) => {
+            const id = idAt(spot);
+            if (id) gameState.bases[baseIdx] = { runnerId: id, isUnearned: true };
+        };
+        const twoRunners = rules.tiebreakBases === '12';
+        if (twoRunners) { put(1, prev(prev(idx))); put(0, prev(idx)); }
+        else put(1, prev(idx));
+        const names = gameState.bases
+            .map((r, i) => r ? `${['一', '二', '三'][i]}壘 ${(getPlayerById(teamKey, r.runnerId) || { name: '' }).name}` : '')
+            .filter(Boolean).join('、');
+        logEvent(`突破僵局制：${names} 開始這一局。`, teamKey);
     }
     // 現在守備方在投球的那一位（跑者上壘時蓋在身上，之後算責失要用）
     function currentPitcherId() {
@@ -4593,6 +4686,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let runnersScored: BaseRunner[] = [];
         let rbis = 0;
         switch (play) {
+            case '不死三振出局':
+                // 捕手漏接後打者被傳殺：投手照記一次三振，打者也記三振與出局
+                outs = 1;
+                batter.so++;
+                activePitcher.k++;
+                break;
             case '三振':
                 outs = 1;
                 batter.so++;
@@ -5234,7 +5333,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const runnerInterfered = play === '妨礙守備'
             && (advancedPlayState as any).interferer && (advancedPlayState as any).interferer !== 'batter';
         const hitCredit = hitBases[play] || (runnerInterfered ? 1 : 0);
-        if (play === '不死三振') {
+        if (play === '不死三振' || play === '不死三振出局') {
+            // 不死三振不管有沒有上壘，投手都記一次三振
             batter.so++;
             activePitcher.k++;
         }
@@ -5318,8 +5418,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // 規則 5.08(a)：第三個出局如果是「封殺」，或是打者在上到一壘前就出局，
         // 這個 play 的得分一律不算（就算跑者比出局早踩到本壘也一樣）。
         // 飛球接殺與三振不適用——高飛犧牲打就是靠這個得分的。
-        const BATTER_OUT_BEFORE_FIRST = ['滾地', '雙殺', '三殺', '犧短', '妨礙守備', '野手選擇'];
-        const batterBecameRunner = !['三振', '飛球', '界飛', '犧飛'].includes(play);
+        const BATTER_OUT_BEFORE_FIRST = ['滾地', '雙殺', '三殺', '犧短', '妨礙守備', '野手選擇', '不死三振出局'];
+        // 打者有沒有變成跑者（＝跑者會不會被封殺）。飛球被接殺就沒有封殺，
+        // 內野高飛必死球也是（規則上跑者可以自行判斷要不要跑）
+        const batterBecameRunner = !['三振', '飛球', '界飛', '犧飛', '內飛'].includes(play);
         // 後面有人擠著、非跑不可＝封殺。一壘跑者只要打者上壘就被封，
         // 二壘跑者要一壘也有人，三壘跑者要一二壘都有人
         const forcedAt = (i: number) => originalBases.slice(0, i).every(r => !!r);
@@ -6124,6 +6226,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (type === 'pickoff-out' && error)
             prefix = '投手牽制失誤，';
+        // 兩位以上同時盜壘就是雙盜壘／三盜，敘述講一次就好
+        if (type === 'steal' && !error) {
+            const stole = eventParts.filter(t => t.includes('盜') && t.includes('成功')).length;
+            if (stole >= 2) prefix = (stole >= 3 ? '發動三盜壘，' : '發動雙盜壘，') + prefix;
+        }
         logEvent(prefix + eventParts.join(' '), teamKey);
         closeModal(runnerActionModal);
         if (checkAndEndGame()) {
