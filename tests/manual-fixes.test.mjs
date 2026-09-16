@@ -20,10 +20,16 @@ function play(w, q, zone, playName, opts = {}) {
   // 有些結果會先問「這個 play 有沒有失誤」，有些要自己按「加上失誤」
   const ask = (choice) => [...w.document.querySelectorAll('#modal-advanced-options button[data-step="ask-error"]')]
     .find(x => x.dataset.choice === choice);
-  const pickFielder = (code) => {
+  const pickChain = (code) => {          // 守備鏈：誰處理球
     const b = [...w.document.querySelectorAll('#modal-advanced-options .dir-btn')]
       .find(x => x.textContent.trim().startsWith(code));
-    if (!b) throw new Error('沒有野手鈕：' + code);
+    if (!b) throw new Error('沒有守備鏈的野手鈕：' + code);
+    click(w, b);
+  };
+  const pickErrorPos = (code) => {       // 失誤位置
+    const b = [...w.document.querySelectorAll('#modal-advanced-options button[data-step="select-error"]')]
+      .find(x => x.textContent.trim().startsWith(code));
+    if (!b) throw new Error('沒有失誤位置鈕：' + code);
     click(w, b);
   };
   if (err === 'no') {
@@ -36,13 +42,11 @@ function play(w, q, zone, playName, opts = {}) {
     const yes = ask('yes');
     if (yes) click(w, yes);
     else {
-      let add = q('#modal-advanced-options button[data-step="add-error"]');
-      // 有些結果（例如犧牲觸擊）要先點出處理球的野手，「加上失誤」才會出現
-      if (!add) { pickFielder(err); add = q('#modal-advanced-options button[data-step="add-error"]'); }
+      const add = q('#modal-advanced-options button[data-step="add-error"]');
       if (!add) throw new Error('這個結果沒有「加上失誤」可以按');
       click(w, add);
     }
-    pickFielder(err);
+    pickErrorPos(err);
   }
   if (tweak) tweak();
   const done = q('#modal-advanced-done');
@@ -229,5 +233,63 @@ export default async function (t) {
     t.assert(winner.name === '後援甲' || winner.name === '後援乙',
       '勝投應該給後援：' + winner.name);
     t.assert(gs.teams.a.pitchers[0].l === 1, '客隊先發應該記敗投');
+  });
+
+  // === A. 出局與犧牲類的結果也要能記失誤（手冊例 9、54、130）===
+  await t('犧牲觸擊也能記失誤：得分算、犧短照給、但不給打點', async () => {
+    const { window: w, q } = await boot();
+    w.alert = () => {};
+    startGame(w);
+    play(w, q, 'outfield', '二安');                       // 一棒上二壘
+    const before = state(w).teams.a.roster[1].rbi;
+    // 犧牲觸擊，投手傳一壘失手，二壘跑者一路跑回本壘（手冊例 130）
+    play(w, q, 'infield', '犧短', { ball: 'B', err: '投', tweak: () => setDest(w, q, 1, 4) });
+    const gs = state(w);
+    const b = gs.teams.a.roster[1];
+    t.assert(runsOf(w) === 1, '跑者應該得分：' + runsOf(w));
+    t.assert(b.sh === 1, '犧牲觸擊要照記：' + b.sh);
+    t.assert(b.ab === 0, '犧牲觸擊不計打數：' + b.ab);
+    t.assert(gs.teams.b.errors === 1, '守方要記一次失誤：' + gs.teams.b.errors);
+    t.assert(b.rbi === before, '這一分是失誤送的，不該給打點（多給了 ' + (b.rbi - before) + '）');
+  });
+
+  await t('打者已經出局的 play，失誤不再多算一次守備機會', async () => {
+    const { window: w, q } = await boot();
+    w.alert = () => {};
+    startGame(w);
+    play(w, q, 'outfield', '二安');
+    play(w, q, 'infield', '滾地', { ball: 'G', err: '游' });
+    const gs = state(w);
+    // 一個出局就是一次守備機會；那個失誤只是讓跑者多跑，不是決定性失誤
+    t.assert(gs.outs === 1, '打者應該出局：' + gs.outs);
+    t.assert(gs.inningPotentialOuts === 1,
+      '失誤讓跑者多跑不該再算一次守備機會，目前 ' + gs.inningPotentialOuts);
+    t.assert(gs.teams.b.errors === 1, '失誤還是要記：' + gs.teams.b.errors);
+  });
+
+  await t('內野高飛必死球沒接好也能記失誤，跑者跟著推進（手冊例 54）', async () => {
+    const { window: w, q } = await boot();
+    w.alert = () => {};
+    startGame(w);
+    quickPlay(w, '四壞');
+    quickPlay(w, '四壞');                                  // 一二壘有人、無人出局
+    clickZone(w, 'infield', 'F');
+    const btn = [...w.document.querySelectorAll('#field-result-panel button')]
+      .find(b => b.textContent.trim() === '內野高飛必死球');
+    t.assert(!!btn, '選不到內野高飛必死球');
+    click(w, btn);
+    const add = q('#modal-advanced-options button[data-step="add-error"]');
+    t.assert(!!add, '內野高飛必死球應該也能補記失誤');
+    click(w, add);
+    click(w, [...w.document.querySelectorAll('#modal-advanced-options button[data-step="select-error"]')]
+      .find(x => x.textContent.trim().startsWith('游')));
+    setDest(w, q, 1, 3);                                   // 二壘跑者趁亂上三壘
+    click(w, q('#modal-advanced-done'));
+    const gs = state(w);
+    t.assert(gs.outs === 1, '打者要出局：' + gs.outs);
+    t.assert(!!gs.bases[2], '二壘跑者應該推進到三壘：' + JSON.stringify(gs.bases.map(b => !!b)));
+    t.assert(gs.teams.b.errors === 1, '游擊手要記一次失誤：' + gs.teams.b.errors);
+    t.assert(gs.inningPotentialOuts === 1,
+      '打者已經出局，失誤不該再多算守備機會：' + gs.inningPotentialOuts);
   });
 }

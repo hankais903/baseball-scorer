@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.16';
+const APP_VERSION = 'v2.17';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -2792,6 +2792,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     advancedPlayState.step = 'ask-error';
                     renderAdvancedPlayOptions();
                 }
+                else if (advancedPlayState.batterIsOut) {
+                    // 出局類是從確認畫面按「加上失誤」進來的，返回就回確認畫面
+                    advancedPlayState.step = 'set-runners';
+                    renderAdvancedPlayOptions();
+                }
                 else {
                     showModalStep('step2');
                 }
@@ -5381,7 +5386,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let modifierHTML = '';
             const canHaveObstruction = ['內安', '一安', '二安', '三安', '失誤', '野手選擇', '不死三振'].includes(advancedPlayState.play);
             // 壘上無人時已跳過「是否失誤」，在這裡提供補記入口
-            const canAddError = ['內安', '一安', '二安', '三安', '場地二安', '不死三振'].includes(advancedPlayState.play);
+            // 可以補記失誤的結果。除了安打類，出局與犧牲類也要能記——
+            // 手冊裡有不少這種例子：犧牲觸擊傳一壘失手（例 9、130）、
+            // 內野高飛必死球沒接到讓跑者多推進一個壘（例 54）。
+            const canAddError = ['內安', '一安', '二安', '三安', '場地二安', '不死三振',
+                                 '滾地', '飛球', '界飛', '內飛', '犧短', '犧飛', '雙殺', '三殺']
+                .includes(advancedPlayState.play);
             let errorToggleHTML = '';
             const errList = advancedPlayState.errors || (advancedPlayState.error ? [advancedPlayState.error] : []);
             if (canAddError || errList.length) {
@@ -5471,7 +5481,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="hit-direction-row">${HIT_DIRECTIONS.infield.map(fBtn).join('')}</div>
                     </div>`;
             }
-            if (canHaveObstruction || canPickDirection) {
+            // 只要有一樣修飾（失誤、妨礙跑壘、擊球方向）就要把這一區畫出來，
+            // 否則像內野高飛必死球這種沒有方向可選的結果就補記不了失誤
+            if (canHaveObstruction || canPickDirection || canAddError || errList.length) {
                 modifierHTML = directionHTML + `
                     <div class="advanced-play-modifiers">
                         ${errorToggleHTML}
@@ -5774,7 +5786,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // 沒有安打價值的結果上出現失誤，代表守方本來抓得到一個出局 → 算一次守備機會。
             // **例外：妨礙打擊不算**（規則 9.16(a) 註解）——打者根本沒機會打完這個打席，
             // 不能假設他會出局；他得的分永遠不是責失，但也不佔守備機會。
-            if (!hitBases[play] && play !== '妨礙打擊') {
+            // 只有「決定性失誤」才算守備機會（本來抓得到出局卻沒抓到）。
+            // 打者已經出局的 play，那個失誤是讓跑者多跑的「多餘壘失誤」，
+            // 出局數本身已經算過一次機會了，不能重複算。
+            if (!hitBases[play] && play !== '妨礙打擊' && !batterIsOut) {
                 gameState.inningPotentialOuts += 1;
             }
         }
