@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.15';
+const APP_VERSION = 'v2.16';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -486,7 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
         maxInnings: 12,      // 延長到第幾局判和局（0＝不限）
         mercy: [],           // 提前結束（扣倒）：[{ inn, diff }]
         tiebreakFrom: 0,     // 突破僵局制從第幾局開始（0＝不用）
-        tiebreakBases: '2',  // 放在二壘，或一二壘
+        tiebreakBases: '12', // WBSC 標準是一二壘各一位；'2' 是中職日職的二壘版
     });
     // 讀這一場的規則（舊存檔沒有這一段就用預設值）
     const rulesOf = () => Object.assign(defaultRules(), (gameState as any).rules || {});
@@ -593,6 +593,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 是哪一位投手把他送上壘的。換投之後他回來得分，責失要算在這個人頭上，
         // 跟當下誰在投球無關（記錄規則：繼承跑者）。舊存檔沒有這一欄，就算給場上的投手。
         pitcherId?: string;
+        // 突破僵局制一開局就放上壘的那兩位。他們回來得分算球隊失分，
+        // 不算投手的失分，也永遠不是責失（WBSC 記錄員手冊附錄 2）。
+        fromTiebreak?: boolean;
     }
     interface GameState {
         teams: {
@@ -1038,8 +1041,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const BAT_SUM = ['pa', 'ab', 'r', 'h', 'rbi', 'tb', '2b', '3b', 'hr', 'bb', 'hbp', 'so', 'sf', 'sh', 'sb', 'cs', 'po', 'a', 'e'];
     const PIT_SUM = ['outsRecorded', 'h', 'r', 'er', 'bb', 'k', 'hbp', 'hr', 'bf', 'ibb', 'w', 'l', 'sv', 'hld'];
     const rate = (n, d, digits = 3) => d > 0 ? (n / d).toFixed(digits).replace(/^0/, '') : '－';
-    const era = (er, outs) => outs > 0 ? (er * 27 / outs).toFixed(2) : '－';
+    // 防禦率＝責失 × 規定局數 ÷ 投球局數（規則 9.21）。七局制的比賽要乘 7，不是 9。
+    const era = (er, outs) => outs > 0 ? (er * (rulesOf().innings || 9) * 3 / outs).toFixed(2) : '－';
     const ipText = (outs) => `${Math.floor(outs / 3)}${outs % 3 ? '.' + (outs % 3) : ''}`;
+    (window as any).__eraText = era;   // 測試用：驗防禦率有沒有跟著規定局數走
 
     function collectStats() {
         let games = [];
@@ -1372,7 +1377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 突破僵局："10:12" → 第 10 局起、一二壘有人
         const tb = String(appSettings.tiebreak || '').split(':');
         r.tiebreakFrom = Number(tb[0]) || 0;
-        r.tiebreakBases = tb[1] === '12' ? '12' : '2';
+        r.tiebreakBases = tb[1] === '2' ? '2' : '12';
         return r;
     }
     function createGameFromSetup() {
@@ -4705,7 +4710,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 每次有人得分就記一筆：當下的比分、兩邊各是誰在投球。
     // 勝敗投要靠這條時間軸找出「領先之後再也沒被追平的那一刻」。
-    function pushScoreTimeline() {
+    // blameId：這一分該算在哪一位投手頭上（繼承跑者時是前一位）。
+    // 敗投看的是「讓致勝分那位跑者上壘的投手」，不是當下在投的那位（規則 9.17(d)）。
+    function pushScoreTimeline(blameId?: string) {
         const gs: any = gameState;
         gs.scoreLog = gs.scoreLog || [];
         gs.scoreLog.push({
@@ -4715,10 +4722,27 @@ document.addEventListener('DOMContentLoaded', () => {
             b: totalOf('b'),
             pa: gameState.teams.a.activePitcherId,
             pb: gameState.teams.b.activePitcherId,
+            blame: blameId || '',
         });
     }
     // 勝投、敗投、救援（記錄規則 9.17、9.19）。
     // 自動判定＋在事件裡寫出來，記錄員看得到也改得掉（用修改前面某一筆）。
+    // 先發不夠局數時，勝投改給「最有效的後援」——不是投最久的那位（規則 9.17(b)）。
+    // 比的順序：失分少 → 責失少 → 被上壘的人少 → 投得久；都一樣就給比較早上場的。
+    // 規則 9.17(c)：投不到一局又丟兩分以上的「短暫又失敗」的後援，後面還有人接手時不列入。
+    function mostEffectiveRelief(pitchers: any[]) {
+        const relief = pitchers.slice(1).filter(p => p.outsRecorded > 0);
+        if (!relief.length) return null;
+        const ok = relief.filter((p, i) =>
+            !(p.outsRecorded < 3 && (p.er || 0) >= 2 && relief.slice(i + 1).length > 0));
+        const pool = ok.length ? ok : relief;
+        const onBase = (p: any) => (p.h || 0) + (p.bb || 0) + (p.hbp || 0);
+        return pool.slice().sort((x, y) =>
+            (x.r || 0) - (y.r || 0)
+            || (x.er || 0) - (y.er || 0)
+            || onBase(x) - onBase(y)
+            || (y.outsRecorded - x.outsRecorded))[0] || null;
+    }
     function decidePitcherRecords() {
         const gs: any = gameState;
         const A = totalOf('a'), B = totalOf('b');
@@ -4738,16 +4762,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const losers = gameState.teams[loseKey].pitchers;
         const byId = (list: any[], id: string) => list.find(p => p._id === id) || null;
 
-        const loser = byId(losers, pick(loseKey, at));
+        // 敗投：要為致勝分負責的投手＝「讓那位跑者上壘的人」，不一定是當下在投的那位（規則 9.17(d)）
+        const loser = (at && at.blame && byId(losers, at.blame)) || byId(losers, pick(loseKey, at));
         let winner = byId(winners, pick(winKey, at));
         // 先發投手要投滿規定局數才拿得到勝投（九局制五局、其他局制四局）
         const starter = winners[0];
         const needOuts = (rulesOf().innings || 9) >= 9 ? 15 : 12;
         if (winner && starter && winner._id === starter._id && starter.outsRecorded < needOuts) {
-            // 先發不夠格：改給後援裡投最多出局數的那一位
-            const relief = winners.slice(1).filter(p => p.outsRecorded > 0)
-                .sort((x, y) => y.outsRecorded - x.outsRecorded)[0];
-            winner = relief || winner;
+            winner = mostEffectiveRelief(winners) || winner;
         }
         if (winner) winner.w = 1;
         if (loser) loser.l = 1;
@@ -4862,7 +4884,8 @@ document.addEventListener('DOMContentLoaded', () => {
             || (team.roster[spot] && team.roster[spot]._id) || '';
         const put = (baseIdx: number, spot: number) => {
             const id = idAt(spot);
-            if (id) gameState.bases[baseIdx] = { runnerId: id, isUnearned: true };
+            // fromTiebreak：這兩位回來得分算球隊失分，不算投手的（WBSC 附錄 2）
+            if (id) gameState.bases[baseIdx] = { runnerId: id, isUnearned: true, fromTiebreak: true } as any;
         };
         const twoRunners = rules.tiebreakBases === '12';
         if (twoRunners) { put(1, prev(prev(idx))); put(0, prev(idx)); }
@@ -4884,7 +4907,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (team.score[inningIndex] === undefined) {
             team.score[inningIndex] = 0;
         }
-        team.score[inningIndex] += runnersScored.length;
         const batter = getCurrentBatter();
         if (batter) {
             batter.rbi += rbis;
@@ -4892,20 +4914,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const defendingTeamKey = gameState.isTop ? 'b' : 'a';
         const defendingTeam = gameState.teams[defendingTeamKey];
         const activePitcher = defendingTeam.pitchers.find(p => p._id === defendingTeam.activePitcherId);
-        if (runnersScored.length) pushScoreTimeline();   // 沒得分就不用記
         // 失分與責失算在「把這位跑者送上壘的投手」頭上（繼承跑者）。
         // 前一位投手放了人上壘才被換下來，那些人回來得分不該算接手投手的。
         const blameFor = (runner) => (runner && runner.pitcherId
             && defendingTeam.pitchers.find(p => p._id === runner.pitcherId)) || activePitcher;
+        // 一分一分記，得分時間軸才對得上（勝敗投要用）
         runnersScored.forEach(runner => {
             const runnerPlayer = getPlayerById(teamKey, runner.runnerId);
             if (runnerPlayer)
                 runnerPlayer.r++;
             const blame = blameFor(runner);
-            blame.r++;
-            if (!runner.isUnearned && gameState.inningPotentialOuts < 3) {
-                blame.er++;
+            // 突破僵局制放上壘的那兩位回來得分算球隊失分，不算投手的（WBSC 附錄 2）
+            if (!(runner as any).fromTiebreak) {
+                blame.r++;
+                if (!runner.isUnearned && gameState.inningPotentialOuts < 3) {
+                    blame.er++;
+                }
             }
+            team.score[inningIndex]++;
+            pushScoreTimeline(blame ? blame._id : '');
         });
     }
     function advanceRunners(baseAdvancements, outsOnBases = 0, hitInfo: { isHit: boolean; isSH: boolean; isSF: boolean; isBB: boolean; isError?: boolean; } = { isHit: false, isSH: false, isSF: false, isBB: false }) {
@@ -5036,7 +5063,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 isAB = false;
                 const defendingTeamKey = gameState.isTop ? 'b' : 'a';
                 gameState.teams[defendingTeamKey].errors++;
-                gameState.inningPotentialOuts++; // Catcher's interference should have been an out
+                // 妨礙打擊**不算**一次守備機會（規則 9.16(a) 註解）：
+                // 打者根本沒機會打完這個打席，不能假設他會出局。
+                // 他得的分永遠不是責失（下面上壘時已標 isUnearned），但也不佔守備機會。
                 // Runner advancement logic is the same as a walk
                 if (gameState.bases[0] && gameState.bases[1] && gameState.bases[2]) { // Bases loaded
                     // A run scored on Catcher's Interference is unearned.
@@ -5636,6 +5665,22 @@ document.addEventListener('DOMContentLoaded', () => {
         let runnersScored: BaseRunner[] = [];
         let rbis = 0;
         let outsOnPlay = 0;
+        // --- 打點的判斷（規則 9.04）---
+        // 給打點：安打、打出去造成出局但送回三壘跑者、犧牲打、滿壘保送擠回來，
+        //         以及「兩出局前，三壘跑者本來就會回來、只是過程中有失誤」。
+        // 不給打點：靠失誤才發生的得分。
+        const hasError = errorList.length > 0;
+        const outsBefore = gameState.outs;                       // 這個 play 之前的出局數
+        const batterOnError = hasError && !hitCredit && !batterIsOut;  // 打者是靠失誤才沒出局
+        const errorDrivenRun = (baseIndex: number, advancedBy: number) => {
+            if (!hasError) return false;
+            // 兩出局時打者靠失誤上壘：沒有那個失誤這個半局就結束了，之後的分永遠不是打點
+            if (batterOnError && outsBefore >= 2) return true;
+            // 打者的結果本身沒有安打價值（出局、犧牲）：只有三壘跑者算「本來就會回來」
+            if (hitPowerForRules === 0) return baseIndex < 2;
+            // 多跑的壘數超過這個結果應有的 → 是失誤送他回來的
+            return advancedBy > hitPowerForRules;
+        };
         const newBases: (BaseRunner | null)[] = [null, null, null];
         const originalBases = advancedPlayState.originalBases;
         const runnerDestinationsFinal = { ...runnerDestinations };
@@ -5660,8 +5705,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const nowUnearned = runner.isUnearned || beyondHit || (play === '失誤');
             if (val.dest >= 4) { // Runner scores
                 runnersScored.push({ ...runner, isUnearned: nowUnearned });
-                // 規則 9.04(b)：因失誤才得的分不給打點
-                if (!beyondHit) rbis++;
+                // 規則 9.04：靠失誤才發生的得分不給打點
+                if (!errorDrivenRun(baseIndex, advancedBy)) rbis++;
             }
             else if (val.dest > 0) { // Runner advances to a base
                 newBases[val.dest - 1] = { ...runner, isUnearned: nowUnearned };
@@ -5672,7 +5717,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         if (!batterIsOut) {
             const batterBeyond = errorList.length > 0 && hitPowerForRules > 0 && batterDestination.dest > hitPowerForRules;
-            const isBatterUnearned = batterDestination.isUnearned || batterBeyond || (play === '失誤');
+            // 妨礙打擊上壘的打者得分永遠不是責失（規則 9.16(a) 註解）
+            const isBatterUnearned = batterDestination.isUnearned || batterBeyond
+                || (play === '失誤') || (play === '妨礙打擊');
             if ((batterDestination as any).outAdvancing) {
                 // 安打後想多跑一個壘被觸殺：安打照算，打者出局
                 outsOnPlay++;
@@ -5724,8 +5771,10 @@ document.addEventListener('DOMContentLoaded', () => {
         activePitcher.outsRecorded += outsOnPlay;
         gameState.inningPotentialOuts += outsOnPlay;
         if (error) {
-            // An error on a play that isn't a hit implies an out should have been recorded.
-            if (!hitBases[play]) {
+            // 沒有安打價值的結果上出現失誤，代表守方本來抓得到一個出局 → 算一次守備機會。
+            // **例外：妨礙打擊不算**（規則 9.16(a) 註解）——打者根本沒機會打完這個打席，
+            // 不能假設他會出局；他得的分永遠不是責失，但也不佔守備機會。
+            if (!hitBases[play] && play !== '妨礙打擊') {
                 gameState.inningPotentialOuts += 1;
             }
         }

@@ -90,12 +90,14 @@ export default async function (t) {
     t.assert(gs.bases[1].isUnearned === true, '突破僵局的跑者得分應該不算責失');
     const ev = gs.events[gs.events.length - 1].text;
     t.assert(ev.includes('突破僵局制'), '沒有說明是突破僵局制：' + ev);
-    // 這位跑者回來得分，投手不記責失
+    // 這位跑者回來得分：算球隊失分，不算投手的（WBSC 附錄 2），所以投手只記全壘打那一分
     homer(w);
     const after = state();
     const p = after.teams.b.pitchers.find(x => x._id === after.teams.b.activePitcherId);
-    t.assert(p.r === 2, '應該記兩分失分，實際 ' + p.r);
-    t.assert(p.er === 1, '突破僵局的那一分不該算責失，實際責失 ' + p.er);
+    t.assert(p.r === 1, '突破僵局放上壘的那一分不該算投手失分，實際 ' + p.r);
+    t.assert(p.er === 1, '打者自己的全壘打那一分要算責失，實際責失 ' + p.er);
+    t.assert((after.teams.a.score || []).reduce((x, y) => x + (y || 0), 0) === 2,
+      '計分板上還是要有兩分');
   });
 
   await t('一二壘版本：前一棒在一壘、前兩棒在二壘', async () => {
