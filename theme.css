@@ -2801,3 +2801,92 @@ body.playing #game-meta-static span + span::before {
 :is(#modal-content, #runner-action-modal-content) .hf-hit { fill: #cfe0a8; }
 :is(#modal-content, #runner-action-modal-content) .hf-foul { fill: #e8e2d6; }
 :is(#modal-content, #runner-action-modal-content) .hf-base { fill: #fff; stroke: #9aa8b8; }
+
+/* ===== 記分規則速查（設定 → 記分規則）v2.15 =====
+   這個專案沒有共用的 .hidden，所以要藏東西得自己寫一條（.rq-hide）。
+   段落預設收起來，點標題才展開；搜尋時有結果的段落會自動展開。 */
+.rq-hide { display: none !important; }
+
+.rq-search { display: block; margin: 8px 0 10px; }
+.rq-search input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    box-sizing: border-box;
+    border: 1px solid rgba(150, 190, 235, 0.28);
+    border-radius: 10px;
+    background: rgba(12, 26, 44, 0.55);
+    color: #eaf2ff;
+    font-size: 0.92rem;
+}
+.rq-search input::placeholder { color: rgba(198, 218, 240, 0.42); }
+.rq-search input:focus { outline: none; border-color: #9fd0ff; }
+
+.rq-empty { margin: 14px 2px; font-size: 0.85rem; color: rgba(198, 218, 240, 0.6); }
+
+.rq-list { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; }
+
+.rq-sec {
+    border: 1px solid rgba(150, 190, 235, 0.2);
+    border-radius: 12px;
+    background: rgba(12, 26, 44, 0.45);
+    overflow: hidden;
+}
+.rq-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 14px;
+    border: 0;
+    background: transparent;
+    color: #eaf2ff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+.rq-head span { flex: 1; }
+.rq-head i {
+    flex: none;
+    font-style: normal;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: #9fd0ff;
+    transition: transform 0.18s ease;
+}
+.rq-head:active { background: rgba(159, 208, 255, 0.12); }
+.rq-sec.open .rq-head i { transform: rotate(45deg); }
+
+/* 收起來的段落：內容不顯示 */
+.rq-body { display: none; padding: 0 14px 12px; }
+.rq-sec.open .rq-body { display: block; }
+
+.rq-note {
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(159, 208, 255, 0.1);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: rgba(214, 231, 250, 0.82);
+}
+.rq-item { padding: 10px 0; border-top: 1px solid rgba(150, 190, 235, 0.14); }
+.rq-item:first-of-type { border-top: 0; padding-top: 2px; }
+.rq-item h4 { margin: 0 0 5px; font-size: 0.88rem; font-weight: 600; color: #ffd9a3; }
+.rq-item p { margin: 0; font-size: 0.83rem; line-height: 1.75; color: rgba(222, 236, 252, 0.88); }
+.rq-item p b { color: #fff; font-weight: 700; }
+.rq-ref {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(159, 208, 255, 0.14);
+    font-size: 0.7rem;
+    color: rgba(190, 216, 244, 0.78);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rq-head i { transition: none; }
+}

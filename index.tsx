@@ -1,10 +1,12 @@
 // prettier-ignore
 'use strict';
 declare var XLSX: any; // Declare the XLSX global object from the CDN script
+// 記分規則速查的內容（打包進 APP，離線也查得到）
+import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.14';
+const APP_VERSION = 'v2.15';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -1490,7 +1492,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = document.getElementById('sub-title');
         if (!sub || !title) return;
         sub.dataset.kind = kind;
-        title.textContent = kind === 'players' ? '球員' : '常用陣容';
+        title.textContent = kind === 'players' ? '球員' : kind === 'rules' ? '記分規則' : '常用陣容';
         document.querySelectorAll('#main-shell .shell-page').forEach(s => s.classList.add('hidden'));
         sub.classList.remove('hidden');
         renderSub();
@@ -1506,10 +1508,58 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSub() {
         const sub = document.getElementById('shell-sub');
         const body = document.getElementById('sub-body');
-        if (!sub || !body || !myTeam) return;
+        if (!sub || !body) return;
+        if (sub.dataset.kind === 'rules') { renderSubRules(body); return; }
+        if (!myTeam) return;
         if (sub.dataset.kind === 'players') renderSubPlayers(body);
         else renderSubLineups(body);
     }
+    // --- 子頁：記分規則速查 ---
+    // 內容來自 rules-data.ts，整段打包在 APP 裡，沒有網路也查得到。
+    // 搜尋是直接把不符合的條目藏起來（不重建欄位），這樣手機打中文選字才不會被打斷。
+    const rqBold = (t: string) => t.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    function renderSubRules(body) {
+        body.innerHTML = `<p class="sub-note">依 ${RULE_SOURCE} 整理。這一頁不需要網路。</p>`
+            + `<label class="rq-search"><input type="search" id="rq-q" placeholder="搜尋：例如 犧飛、責失、盜壘"></label>`
+            + `<p class="rq-empty rq-hide" id="rq-empty">找不到相符的條目，換個詞試試。</p>`
+            + `<div class="rq-list">` + RULE_BOOK.map(sec => `
+                <section class="rq-sec" data-sec="${sec.id}">
+                    <button type="button" class="rq-head"><span>${sec.title}</span><i>＋</i></button>
+                    <div class="rq-body">
+                        ${sec.note ? `<p class="rq-note">${rqBold(sec.note)}</p>` : ''}
+                        ${sec.items.map(it => `
+                            <div class="rq-item">
+                                <h4>${it.t}</h4>
+                                <p>${rqBold(it.a)}</p>
+                                ${it.ref ? `<span class="rq-ref">${it.ref}</span>` : ''}
+                            </div>`).join('')}
+                    </div>
+                </section>`).join('') + `</div>`;
+    }
+    // 搜尋：符合的留下、其餘藏起來；有結果的段落自動展開
+    function filterRules(q: string) {
+        const key = (q || '').trim().toLowerCase();
+        let hits = 0;
+        document.querySelectorAll('#sub-body .rq-sec').forEach(sec => {
+            let secHits = 0;
+            sec.querySelectorAll('.rq-item').forEach(item => {
+                const ok = !key || (item.textContent || '').toLowerCase().includes(key);
+                item.classList.toggle('rq-hide', !ok);
+                if (ok) secHits++;
+            });
+            const titleHit = !!key && ((sec.querySelector('.rq-head span') as HTMLElement)?.textContent || '')
+                .toLowerCase().includes(key);
+            if (titleHit) {
+                sec.querySelectorAll('.rq-item').forEach(item => item.classList.remove('rq-hide'));
+                secHits = sec.querySelectorAll('.rq-item').length;
+            }
+            sec.classList.toggle('rq-hide', secHits === 0);
+            if (key) sec.classList.toggle('open', secHits > 0);
+            hits += secHits;
+        });
+        document.getElementById('rq-empty')?.classList.toggle('rq-hide', hits > 0);
+    }
+
     function renderSubPlayers(body) {
         const list = myTeam.players || [];
         body.innerHTML = `<p class="sub-note">這裡放全部的球員，不分先發或替補。沒填名字的會自動用「簡稱＋背號」。守位在「常用陣容」裡排。</p>`
@@ -2505,6 +2555,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#page-team .team-row-link').forEach(b => {
             b.addEventListener('click', () => { tapFeedback(); openSub((b as HTMLElement).dataset.sub); });
         });
+        document.getElementById('sub-body')?.addEventListener('input', (e) => {
+            if ((e.target as HTMLElement).id === 'rq-q') filterRules((e.target as HTMLInputElement).value);
+        });
         document.getElementById('sub-back')?.addEventListener('click', () => {
             const sub = document.getElementById('shell-sub') as HTMLElement;
             if (sub.dataset.editing) { delete sub.dataset.editing; renderSub(); return; }   // 先退出編輯
@@ -2515,6 +2568,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('sub-body')?.addEventListener('click', (e) => {
             const t = e.target as HTMLElement;
             const sub = document.getElementById('shell-sub') as HTMLElement;
+            // 規則頁：點標題展開或收合那一段
+            const head = t.closest('.rq-head');
+            if (head) { tapFeedback(); head.parentElement?.classList.toggle('open'); return; }
             if (!myTeam) return;
             if (t.closest('#mp-add')) {
                 collectSubPlayers();
@@ -2621,6 +2677,7 @@ document.addEventListener('DOMContentLoaded', () => {
         settingField('set-haptic', 'haptic');
         settingField('set-mercy', 'mercy');
         settingField('set-tiebreak', 'tiebreak');
+        document.getElementById('set-rules')?.addEventListener('click', () => { tapFeedback(); openSub('rules'); });
         document.getElementById('set-backup')?.addEventListener('click', () => {
             const dump = {};
             for (let i = 0; i < localStorage.length; i++) {
