@@ -1524,7 +1524,7 @@ document.addEventListener('DOMContentLoaded', () => {
             + `<p class="rq-empty rq-hide" id="rq-empty">找不到相符的條目，換個詞試試。</p>`
             + `<div class="rq-list">` + RULE_BOOK.map(sec => `
                 <section class="rq-sec" data-sec="${sec.id}">
-                    <button type="button" class="rq-head"><span>${sec.title}</span><i>＋</i></button>
+                    <button type="button" class="rq-head"><span>${sec.title}</span><i>›</i></button>
                     <div class="rq-body">
                         ${sec.note ? `<p class="rq-note">${rqBold(sec.note)}</p>` : ''}
                         ${sec.items.map(it => `

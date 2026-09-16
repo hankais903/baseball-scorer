@@ -2848,16 +2848,19 @@ body.playing #game-meta-static span + span::before {
     cursor: pointer;
 }
 .rq-head span { flex: 1; }
+/* 收起來時箭頭朝右、展開時朝下（不用＋／×，避免看起來像刪除鍵） */
 .rq-head i {
     flex: none;
+    width: 18px;
     font-style: normal;
-    font-size: 1.1rem;
+    font-size: 1.35rem;
     line-height: 1;
+    text-align: center;
     color: #9fd0ff;
     transition: transform 0.18s ease;
 }
 .rq-head:active { background: rgba(159, 208, 255, 0.12); }
-.rq-sec.open .rq-head i { transform: rotate(45deg); }
+.rq-sec.open .rq-head i { transform: rotate(90deg); }
 
 /* 收起來的段落：內容不顯示 */
 .rq-body { display: none; padding: 0 14px 12px; }
