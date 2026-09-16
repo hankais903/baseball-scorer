@@ -271,8 +271,10 @@ export default async function (t) {
     const ev = gs.events[gs.events.length - 1].text;
     t.assert(ev.includes('平飛球'), '球種沒寫對：' + ev);
     t.assert(ev.includes('二壘手接殺出局'), '沒寫出被誰接殺：' + ev);
-    t.assert(ev.includes('離壘過遠') && ev.includes('靠二壘手失誤安全回到三壘'),
-      '跑者的過程沒有寫出來：' + ev);
+    t.assert(ev.includes('離壘過遠'), '跑者的過程沒有寫出來：' + ev);
+    // 守備鏈有第二個人，敘述要寫出那一傳；失誤是傳球的人犯的就寫「但傳球失誤」
+    t.assert(ev.includes('二壘手傳給三壘手想封殺'), '沒有寫出傳三壘想封殺：' + ev);
+    t.assert(ev.includes('但傳球失誤，安全回到三壘'), '沒有寫出傳球失誤與安全回壘：' + ev);
     t.assert(gs.outs === 1, '只該有一個出局：' + gs.outs);
     t.assert(!!gs.bases[2], '跑者要安全回到三壘：' + JSON.stringify(gs.bases.map(b => !!b)));
     // 決定性失誤＝守方本來抓得到那個出局，所以守備機會是 2（接殺 1 ＋ 失誤 1）
@@ -305,5 +307,26 @@ export default async function (t) {
     const gs = state(w);
     t.assert(gs.inningPotentialOuts === 1, '多餘壘失誤不該算守備機會：' + gs.inningPotentialOuts);
     t.assert(gs.teams.b.errors === 1, '失誤還是要記：' + gs.teams.b.errors);
+  });
+
+  await t('接殺後傳壘，漏接的是接球的人：敘述要寫「靠三壘手失誤」', async () => {
+    const { window: w, q } = await boot();
+    w.alert = () => {};
+    startGame(w);
+    play(w, q, 'outfield', '三壘安打');
+    clickZone(w, 'infield', 'L');
+    click(w, [...w.document.querySelectorAll('#field-result-panel button')]
+      .find(x => x.textContent.trim() === '飛球出局'));
+    const dir = c => [...w.document.querySelectorAll('#modal-advanced-options .dir-btn')]
+      .find(b => b.textContent.trim().startsWith(c));
+    click(w, dir('二')); click(w, dir('三'));
+    click(w, q('#modal-advanced-options button[data-step="add-error"]'));
+    click(w, [...w.document.querySelectorAll('#modal-advanced-options button[data-step="select-error"]')]
+      .find(x => x.textContent.trim().startsWith('三')));       // 三壘手漏接
+    click(w, q('#modal-advanced-options button[data-step="toggle-error-kind"]'));
+    click(w, q('#modal-advanced-done'));
+    const ev = state(w).events[state(w).events.length - 1].text;
+    t.assert(ev.includes('二壘手傳給三壘手想封殺'), '沒有寫出那一傳：' + ev);
+    t.assert(ev.includes('靠三壘手失誤安全回到三壘'), '失誤沒有算在漏接的人身上：' + ev);
   });
 }

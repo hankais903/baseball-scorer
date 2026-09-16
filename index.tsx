@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.19';
+const APP_VERSION = 'v2.20';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -6119,8 +6119,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dest === i + 1 && decisiveErrWho) {
                     const why = ['飛球', '界飛', '犧飛', '內飛', '雙殺', '三殺'].includes(play)
                         ? '離壘過遠' : '離壘後';
-                    runnerMoves.push(`在${basesText[i]}壘的${runnerPlayer.name} ${why}，`
-                        + `靠${decisiveErrWho}失誤安全回到${basesText[i]}壘。`);
+                    // 守備鏈有第二個人，代表球傳出去想封殺他，敘述要寫出來
+                    const throwPart = chainUsed.length >= 2 ? `${chainText(chainUsed)}想封殺，` : '';
+                    // 失誤是傳球的那位犯的就寫「但傳球失誤」，否則寫「靠○○失誤」
+                    const thrower = FIELDER_FULL[chainUsed[0]] || '';
+                    const errPart = (throwPart && decisiveErrWho === thrower)
+                        ? `但傳球失誤，安全回到${basesText[i]}壘。`
+                        : `靠${decisiveErrWho}失誤安全回到${basesText[i]}壘。`;
+                    runnerMoves.push(`在${basesText[i]}壘的${runnerPlayer.name} ${why}，${throwPart}${errPart}`);
                     errorMentioned = true;
                     return;
                 }
