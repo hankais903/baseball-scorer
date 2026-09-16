@@ -2893,3 +2893,24 @@ body.playing #game-meta-static span + span::before {
 @media (prefers-reduced-motion: reduce) {
     .rq-head i { transition: none; }
 }
+
+/* 記錄表結算檢查（戰況表最下面）v2.18 */
+.balance-check { margin: 14px 2px 4px; }
+.balance-check h4 { margin: 0 0 8px; font-size: 0.9rem; color: #eaf2ff; }
+.bc-row {
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(150, 190, 235, 0.22);
+    background: rgba(12, 26, 44, 0.45);
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: rgba(214, 231, 250, 0.85);
+}
+.bc-row .bc-team { font-weight: 600; color: #ffd9a3; margin-bottom: 2px; }
+.bc-row b { color: #fff; }
+.bc-verdict { margin-top: 4px; font-weight: 600; }
+.bc-ok .bc-verdict { color: #8fe0a8; }
+.bc-bad { border-color: rgba(255, 140, 120, 0.5); }
+.bc-bad .bc-verdict { color: #ff9c86; }
+.bc-note { margin: 0 0 8px; font-size: 0.74rem; line-height: 1.6; color: rgba(198, 218, 240, 0.6); }

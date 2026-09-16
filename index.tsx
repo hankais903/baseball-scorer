@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.17';
+const APP_VERSION = 'v2.18';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -235,7 +235,10 @@ document.addEventListener('DOMContentLoaded', () => {
         '四壞': '四壞', '故意四壞': '故四', '觸身球': '觸身', '不死三振': '不死三振', '內安': '內安', '一安': '一安', '二安': '二安',
         '三安': '三安', '本打': '本打', '失誤': '失誤', '場地二安': '場地二安', '犧短': '犧短', '犧飛': '犧飛',
         '妨礙守備': '妨礙守備', '妨礙打擊': '妨礙打擊',
-        '內飛': '內飛', '不死三振出局': '不死三振', '打序錯誤': '打序錯誤'
+        '內飛': '內飛', '不死三振出局': '不死三振', '打序錯誤': '打序錯誤',
+        // 界外高飛犧牲打（FSF）與場內全壘打（IHR）只是同一個結果的標記，
+        // 統計欄位跟犧飛／全壘打完全一樣，差別在記錄符號與敘述。
+        '界犧飛': '界犧飛', '場內全打': '場內全打'
     };
     const PLAY_TYPE_CATEGORIES = {
         '三振': 'strikeout',
@@ -341,7 +344,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `${area}滾地球，${chainText(c)}封殺出局${tail}`;
             case '飛球': return `${area}高飛球，被${who}接殺出局${tail}`;
             case '界飛': return `界外高飛球，被${who}接殺出局${tail}`;
-            case '犧飛': return `${area}高飛犧牲打${tail}`;
+            case '犧飛':
+                return (advancedPlayState as any).foulSF
+                    ? `界外高飛犧牲打${tail}`
+                    : `${area}高飛犧牲打${tail}`;
             case '犧短':
                 return c.length > 1
                     ? `犧牲觸擊，${chainText(c)}封殺出局${tail}`
@@ -378,7 +384,10 @@ document.addEventListener('DOMContentLoaded', () => {
             case '二安': return `${area}二壘安打`;
             case '場地二安': return `${area}的球彈出場外，形成場地二壘打`;
             case '三安': return `${area}三壘安打`;
-            case '本打': return `${area}全壘打`;
+            case '本打':
+                return (advancedPlayState as any).insideHR
+                    ? `${area}場內全壘打`
+                    : `${area}全壘打`;
             case '失誤': {
                 // 用「落點方向＋球種」開頭，跟其他結果一致（原本寫「擊向中外野手」很生硬）
                 const bw = { G: '滾地球', L: '平飛球', F: '高飛球', B: '短打' }[advancedPlayState.ballType] || '';
@@ -392,11 +401,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const RUNNER_ACTION_TYPES = {
         'steal': '盜壘',
+        // 守備冷漠（規則 9.07(g)）：守方明顯不去阻止跑者推進，
+        // 這種推進不算盜壘，記成野手選擇。
+        'indifference': '守方未防守',
         'wild-pitch': '暴投',
         'passed-ball': '捕逸',
         'balk': '投手犯規',
         'pickoff-out': '投手牽制',
-        'obstruction': '妨礙跑壘'
+        'obstruction': '妨礙跑壘',
+        // 申訴出局（規則 5.09(c)）：漏踩壘包、飛球被接到後沒有回壘再出發。
+        // 要守方自己提出，而且要在對下一棒投出第一球之前。
+        'appeal': '申訴出局'
     };
     const ROSTER_SIZE = 30;
     const BENCH_SIZE = 15;
@@ -462,6 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
             score: [],
             hits: 0,
             errors: 0,
+            lob: 0,      // 殘壘：每個半局結束時還留在壘上的人數（記錄表結算要用）
             roster: roster,
             pitchers: [{
                     _id: pitcherId,
@@ -2926,6 +2942,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     renderAdvancedPlayOptions();
                 }
+                else if (step === 'toggle-fsf') {
+                    (advancedPlayState as any).foulSF = !(advancedPlayState as any).foulSF;
+                    renderAdvancedPlayOptions();
+                }
+                else if (step === 'toggle-ihr') {
+                    (advancedPlayState as any).insideHR = !(advancedPlayState as any).insideHR;
+                    renderAdvancedPlayOptions();
+                }
                 else if (step === 'toggle-rundown') {
                     advancedPlayState.rundown = !isRundown(advancedPlayState.fielders || [], advancedPlayState.rundown);
                     renderAdvancedPlayOptions();
@@ -2998,10 +3022,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     else { // Batter
                         const outAdvancing = button.dataset.outAdvancing === '1';
+                        // 跑過頭（overrun）＝已經安全到達那個壘，安打壘數照算；
+                        // 滑過頭（overslide）＝沒有安全到達，只能算到前一個壘（規則 9.06(c)）
+                        const overslide = button.dataset.overslide === '1';
                         advancedPlayState.batterDestination = {
                             dest: outAdvancing ? 0 : Number(dest),
                             isUnearned: advancedPlayState.batterDestination?.isUnearned || false,
-                            ...(outAdvancing ? { outAdvancing: true } : {})
+                            ...(outAdvancing ? { outAdvancing: true } : {}),
+                            ...(overslide ? { overslide: true } : {})
                         } as any;
                     }
                     renderAdvancedPlayOptions(); // Re-render to show selection
@@ -4094,13 +4122,31 @@ document.addEventListener('DOMContentLoaded', () => {
         normal: '',
         called: '（因故中止，比賽成立）',
         suspended: '（保留，擇日續賽）',
+        forfeit: '（沒收比賽）',
     };
-    function finishGame(reason: string) {
+    // 沒收比賽（規則 7.03）：比數直接記成「規定局數：0」給獲勝的那一隊，
+    // 九局制就是 9：0、七局制就是 7：0。
+    // 個人成績：第五局還沒開始就全部不算；已經開始就全部要記（規則 9.03(e)(2)）。
+    // 勝敗投只有在「獲勝那一隊當時就領先」時才記。
+    function applyForfeit(winKey: 'a' | 'b') {
+        const reg = rulesOf().innings || 9;
+        const scoreA = gameState.teams.a.score.reduce((x, y) => x + (y || 0), 0);
+        const scoreB = gameState.teams.b.score.reduce((x, y) => x + (y || 0), 0);
+        const loseKey = winKey === 'a' ? 'b' : 'a';
+        const winnerWasAhead = winKey === 'a' ? scoreA > scoreB : scoreB > scoreA;
+        (gameState as any).forfeitWinner = winKey;
+        (gameState as any).forfeitKeepStats = gameState.inning >= 5;
+        (gameState as any).forfeitNoDecision = !winnerWasAhead;
+        gameState.teams[winKey].score = [reg];
+        gameState.teams[loseKey].score = [0];
+    }
+    function finishGame(reason: string, forfeitWinner?: 'a' | 'b') {
         document.getElementById('end-reason-modal')?.classList.add('hidden');
         stopClock();
         if (!gameState.isGameOver) {
             saveStateForUndo();
             (gameState as any).endReason = reason;
+            if (reason === 'forfeit' && forfeitWinner) applyForfeit(forfeitWinner);
             endGame();
             saveState();
         }
@@ -4116,7 +4162,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const t = e.target as HTMLElement;
             if (t.id === 'end-reason-cancel' || t === box) { box.classList.add('hidden'); return; }
             const btn = t.closest('.end-reason') as HTMLElement;
-            if (btn) { tapFeedback(); finishGame(btn.dataset.reason || 'normal'); }
+            if (!btn) return;
+            tapFeedback();
+            const reason = btn.dataset.reason || 'normal';
+            if (reason === 'forfeit') {
+                // 沒收比賽要先問是哪一隊獲勝，比數才知道要記給誰
+                box.classList.add('hidden');
+                openPicker({
+                    title: '沒收比賽：哪一隊獲勝？',
+                    teamKey: 'a',
+                    candidates: (['a', 'b'] as const).map(k => ({
+                        _id: k,
+                        name: gameState.teams[k].name || (k === 'a' ? '客隊' : '主隊'),
+                        jersey: '',
+                        pos: k === 'a' ? '先攻' : '後攻',
+                    })),
+                    note: `比數會直接記成 ${(rulesOf().innings || 9)}：0。第五局還沒開始的話，個人成績不列入統計。`,
+                    onPick: (k) => finishGame('forfeit', k as 'a' | 'b'),
+                });
+                return;
+            }
+            finishGame(reason);
         });
     }
     (window as any).__finishGame = finishGame;   // 供測試
@@ -4255,6 +4321,43 @@ document.addEventListener('DOMContentLoaded', () => {
         label('team-b', gameState.teams.b.name, '主隊');
     }
     // 打席結果 → 戰況表用的兩三字縮寫（左飛、游滾、一安…）
+    // 記錄表結算檢查（手冊附錄 3）：
+    // 打數＋犧短＋犧飛＋四壞＋觸身＋妨礙上壘＋得分＋殘壘＋突破僵局跑者
+    //   ＝ 對手守備記到的刺殺總數。兩邊對不起來就代表哪裡漏記了。
+    function balanceRowsFor(teamKey: 'a' | 'b') {
+        const team = gameState.teams[teamKey];
+        const foe = gameState.teams[teamKey === 'a' ? 'b' : 'a'];
+        const sum = (list: any[], key: string) => list.reduce((n, p) => n + (Number(p && p[key]) || 0), 0);
+        const bat = team.roster || [];
+        const pa = sum(bat, 'pa');
+        const tie = (team as any).tiebreakRunners || 0;
+        const r = (team.score || []).reduce((x, y) => x + (y || 0), 0);
+        const lob = (team as any).lob || 0;
+        // 對手守備記到的刺殺（守備球員加投手；DH 制的投手不在打線裡）
+        const po = sum(foe.roster || [], 'po') + sum(foe.pitchers || [], 'po');
+        // 每一位站上打擊區的人，最後只有三種去向：得分、留在壘上、被抓出局。
+        // 突破僵局制放上壘的跑者沒有打席，所以要另外加進左邊。
+        const left = pa + tie;
+        const right = r + lob + po;
+        return { pa, tie, r, lob, po, left, right, ok: left === right };
+    }
+    function renderBalanceCheck(container: HTMLElement) {
+        const wrap = document.createElement('div');
+        wrap.className = 'balance-check';
+        wrap.innerHTML = `<h4>記錄表結算檢查</h4>`
+            + `<p class="bc-note">每一位站上打擊區的人，最後只有三種去向：得分、留在壘上、被抓出局。兩邊對不起來就代表有地方漏記了。</p>`
+            + (['a', 'b'] as const).map(k => {
+                const b = balanceRowsFor(k);
+                return `<div class="bc-row ${b.ok ? 'bc-ok' : 'bc-bad'}">
+                    <div class="bc-team">${gameState.teams[k].name || (k === 'a' ? '客隊' : '主隊')}</div>
+                    <div class="bc-sum">打席 ${b.pa}${b.tie ? `＋突破僵局跑者 ${b.tie}` : ''} ＝ <b>${b.left}</b></div>
+                    <div class="bc-sum">得分 ${b.r}＋殘壘 ${b.lob}＋對手刺殺 ${b.po} ＝ <b>${b.right}</b></div>
+                    <div class="bc-verdict">${b.ok ? '✓ 對得起來' : '⚠ 差 ' + Math.abs(b.left - b.right) + '，有地方漏記了'}</div>
+                </div>`;
+            }).join('');
+        container.appendChild(wrap);
+    }
+    (window as any).__balance = balanceRowsFor;   // 供測試
     function situationLabel(raw: string) {
         const res = String(raw).split('#')[0];
         let [name, dir] = res.split('@');
@@ -4335,6 +4438,7 @@ document.addEventListener('DOMContentLoaded', () => {
             wrap.appendChild(table);
             container.appendChild(wrap);
         });
+        renderBalanceCheck(container);
     }
     // 壘包小圖示：左下三壘、上二壘、右下一壘；有人黃色、沒人灰色。下方兩顆出局燈。
     function situationIcon(bases: boolean[] = [false, false, false], outs = 0) {
@@ -4750,6 +4854,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function decidePitcherRecords() {
         const gs: any = gameState;
+        // 沒收比賽：獲勝的那一隊在被判沒收時如果沒有領先（平手或落後），
+        // 就沒有勝投也沒有敗投（規則 9.03(e)(2)）
+        if (gs.forfeitNoDecision) return null;
         const A = totalOf('a'), B = totalOf('b');
         if (A === B) return null;                       // 和局沒有勝敗投
         const winKey: 'a' | 'b' = A > B ? 'a' : 'b';
@@ -4800,12 +4907,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const scoreB = gameState.teams.b.score.reduce((a, b) => a + (b || 0), 0);
         const tie = scoreA === scoreB ? '（和局）' : '';
         const why = END_REASON_TEXT[(gameState as any).endReason] || '';
+        const forfeitNote = ((gameState as any).endReason === 'forfeit'
+            && (gameState as any).forfeitKeepStats === false)
+            ? '　第五局前沒收，個人成績不列入統計。' : '';
         const rec = decidePitcherRecords();
         const recText = rec
             ? `　勝投 ${rec.winner ? rec.winner.name : '－'}／敗投 ${rec.loser ? rec.loser.name : '－'}`
                 + (rec.save ? `／救援 ${rec.save.name}` : '')
             : '';
-        logEvent(`比賽結束${tie}${why}。 終場比數 ${gameState.teams.a.name} ${scoreA} : ${scoreB} ${gameState.teams.b.name}。${recText}`);
+        logEvent(`比賽結束${tie}${why}。 終場比數 ${gameState.teams.a.name} ${scoreA} : ${scoreB} ${gameState.teams.b.name}。${recText}${forfeitNote}`);
         render();
     }
     function checkAndEndGame() {
@@ -4869,6 +4979,9 @@ document.addEventListener('DOMContentLoaded', () => {
             gameState.isTop = true;
             gameState.inning++;
         }
+        // 殘壘：清空壘包之前先數還留在壘上的人（記錄表結算的平衡式要用）
+        const t = gameState.teams[currentTeamKey] as any;
+        t.lob = (t.lob || 0) + gameState.bases.filter(Boolean).length;
         gameState.outs = 0;
         gameState.bases = [null, null, null];
         gameState.inningPotentialOuts = 0;
@@ -4895,6 +5008,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const twoRunners = rules.tiebreakBases === '12';
         if (twoRunners) { put(1, prev(prev(idx))); put(0, prev(idx)); }
         else put(1, prev(idx));
+        // 這些跑者沒有打席也沒有打數，結算平衡式要另外算進去（手冊附錄 2）
+        (team as any).tiebreakRunners = ((team as any).tiebreakRunners || 0)
+            + gameState.bases.filter(Boolean).length;
         const names = gameState.bases
             .map((r, i) => r ? `${['一', '二', '三'][i]}壘 ${(getPlayerById(teamKey, r.runnerId) || { name: '' }).name}` : '')
             .filter(Boolean).join('、');
@@ -5359,7 +5475,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button data-step="set-runners" data-dest="3" class="${batterDest === 3 ? 'selected' : ''}">三壘</button>
                         <button data-step="set-runners" data-dest="4" class="${batterDest === 4 ? 'selected' : ''}">得分</button>
                         ${(HIT_BASES[advancedPlayState.play] || ['野手選擇', '失誤'].includes(advancedPlayState.play)) && advancedPlayState.play !== '本打'
-                            ? `<button data-step="set-runners" data-dest="0" data-out-advancing="1" class="out-option ${(advancedPlayState.batterDestination as any).outAdvancing ? 'selected' : ''}">趁傳進壘被觸殺</button>`
+                            ? `<button data-step="set-runners" data-dest="0" data-out-advancing="1" class="out-option ${((advancedPlayState.batterDestination as any).outAdvancing && !(advancedPlayState.batterDestination as any).overslide) ? 'selected' : ''}">跑過頭被觸殺<small>安打壘數照算</small></button>`
+                            : ''}
+                        ${HIT_BASES[advancedPlayState.play] && advancedPlayState.play !== '本打'
+                            ? `<button data-step="set-runners" data-dest="0" data-out-advancing="1" data-overslide="1" class="out-option ${(advancedPlayState.batterDestination as any).overslide ? 'selected' : ''}">滑過頭被觸殺<small>安打降一級</small></button>`
                             : ''}
                     </div>
                 </div>`;
@@ -5486,6 +5605,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (canHaveObstruction || canPickDirection || canAddError || errList.length) {
                 modifierHTML = directionHTML + `
                     <div class="advanced-play-modifiers">
+                        ${advancedPlayState.play === '犧飛' ? `<button
+                            data-step="toggle-fsf"
+                            class="${(advancedPlayState as any).foulSF ? 'selected' : ''}"
+                        >界外接殺（FSF）</button>` : ''}
+                        ${advancedPlayState.play === '本打' ? `<button
+                            data-step="toggle-ihr"
+                            class="${(advancedPlayState as any).insideHR ? 'selected' : ''}"
+                        >場內全壘打（IHR）</button>` : ''}
                         ${errorToggleHTML}
                         ${canHaveObstruction ? `<button
                             data-step="toggle-obstruction"
@@ -5600,6 +5727,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return parts.join('，');
     }
+    // 再見安打只算到「送回致勝分那位跑者推進的壘數」（規則 9.06(f)）。
+    // 三壘跑者回來就只算一壘安打、二壘跑者就算二壘安打、一壘跑者就算三壘安打。
+    // 唯一例外是把球打出場的再見全壘打，全部照算（規則 9.06(g)）。
+    function applyWalkOffHitLimit(batter, pitcher, play, hitCredit, winnerBaseIndex, batterReached) {
+        if (!batter || hitCredit <= 0 || winnerBaseIndex < 0) return null;
+        if (play === '本打' && !(advancedPlayState as any).insideHR) return null;  // 打出場的全壘打不縮
+        const cap = Math.min(4 - (winnerBaseIndex + 1), batterReached || 4);
+        if (cap >= hitCredit || cap <= 0) return null;
+        const bump = (n: number, d: number) => {
+            if (n === 2) batter['2b'] += d;
+            else if (n === 3) batter['3b'] += d;
+            else if (n === 4) { batter.hr += d; if (pitcher) pitcher.hr += d; }
+        };
+        bump(hitCredit, -1);
+        bump(cap, +1);
+        batter.tb += cap - hitCredit;
+        // 打席結果也要跟著改（記錄表上顯示的是縮減後的壘數）
+        const NAME = { 1: '一安', 2: '二安', 3: '三安' };
+        const last = batter.abResults.length - 1;
+        if (last >= 0 && NAME[cap]) {
+            batter.abResults[last] = String(batter.abResults[last])
+                .replace(/^[^@~#]+/, NAME[cap]);
+        }
+        return cap;
+    }
     function processAdvancedPlay() {
         const conflicts = findBaseConflicts();
         if (conflicts.length > 0) {
@@ -5633,7 +5785,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const btMark = (['雙殺', '三殺'].includes(play) && advancedPlayState.ballType && advancedPlayState.ballType !== 'G')
             ? `~${advancedPlayState.ballType}` : '';
         ensureOwnStatArrays(batter);
-        batter.abResults.push((chainStr ? `${play}@${chainStr}${btMark}` : play + btMark) + `#${gameState.inning}`);
+        // 界外犧飛與場內全壘打在記錄符號上另外標，統計欄位跟原本的一樣
+        const markName = (play === '犧飛' && (advancedPlayState as any).foulSF) ? '界犧飛'
+            : (play === '本打' && (advancedPlayState as any).insideHR) ? '場內全打' : play;
+        batter.abResults.push((chainStr ? `${markName}@${chainStr}${btMark}` : markName + btMark) + `#${gameState.inning}`);
         // 保留落點座標，供日後製作打擊分布圖
         if (advancedPlayState.hitPoint) {
             batter.hitPoints = batter.hitPoints || [];
@@ -5649,7 +5804,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // 跑者被界內球打到：跑者出局，打者上一壘並記一壘安打（記錄規則 9.05(a)(5)）
         const runnerInterfered = play === '妨礙守備'
             && (advancedPlayState as any).interferer && (advancedPlayState as any).interferer !== 'batter';
-        const hitCredit = hitBases[play] || (runnerInterfered ? 1 : 0);
+        // 滑過頭被觸殺：沒有安全到達那個壘，安打降一級（三安→二安、二安→一安、一安→沒有安打）
+        const overslid = !!(advancedPlayState.batterDestination as any)?.overslide;
+        const hitCreditRaw = hitBases[play] || (runnerInterfered ? 1 : 0);
+        const hitCredit = overslid ? Math.max(0, hitCreditRaw - 1) : hitCreditRaw;
         if (play === '不死三振' || play === '不死三振出局') {
             // 不死三振不管有沒有上壘，投手都記一次三振
             batter.so++;
@@ -5662,10 +5820,11 @@ document.addEventListener('DOMContentLoaded', () => {
             batter.h++;
             activePitcher.h++;
             team.hits++;
-            batter['2b'] += (play === '二安' || play === '場地二安' ? 1 : 0);
-            batter['3b'] += (play === '三安' ? 1 : 0);
-            batter.hr += (play === '本打' ? 1 : 0);
-            activePitcher.hr += (play === '本打' ? 1 : 0);
+            // 滑過頭降級之後，二安／三安的欄位也要跟著降（用實際算到的壘數判斷）
+            batter['2b'] += (hitCredit === 2 ? 1 : 0);
+            batter['3b'] += (hitCredit === 3 ? 1 : 0);
+            batter.hr += (hitCredit === 4 ? 1 : 0);
+            activePitcher.hr += (hitCredit === 4 ? 1 : 0);
             batter.tb += hitCredit;
         }
         const errorList: string[] = (advancedPlayState.errors && advancedPlayState.errors.length)
@@ -5777,6 +5936,26 @@ document.addEventListener('DOMContentLoaded', () => {
         creditFielding(advancedPlayState.fielders || [], outsOnPlay);
         creditErrors(errorList);
 
+        // 再見安打：先記下「致勝分是哪一位跑者送回來的」，比賽真的結束時才拿來縮壘數。
+        // 要在 addRuns 之前算，因為 addRuns 會把比分加上去。
+        let walkOffInfo: any = null;
+        if (!gameState.isTop && hitCredit > 0 && runnersScored.length) {
+            const need = (totalOf('a') - totalOf('b')) + 1;     // 主隊還要幾分才超前
+            if (need >= 1 && need <= runnersScored.length) {
+                // 離本壘近的跑者先回來，所以依壘包由大到小排
+                const order = Object.entries(runnerDestinationsFinal)
+                    .filter(([k, v]: any) => originalBases[parseInt(k.split('-')[1])] && v.dest >= 4)
+                    .map(([k]) => parseInt(k.split('-')[1]))
+                    .sort((x, y) => y - x);
+                const idx = order[need - 1];
+                if (idx !== undefined) {
+                    walkOffInfo = {
+                        batter, pitcher: activePitcher, play, hitCredit,
+                        winnerBaseIndex: idx, batterReached: batterDestination.dest,
+                    };
+                }
+            }
+        }
         addRuns(runnersScored, rbis);
         gameState.bases = newBases;
         gameState.outs += outsOnPlay;
@@ -5833,8 +6012,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!batterIsOut) {
             let batterDestText = '';
             // 野手選擇與失誤上壘也會有跑過頭被觸殺的情況（先站上一壘再被追觸殺）
-            const hitPower = hitBases[play] || (['野手選擇', '失誤'].includes(play) ? 1 : 0);
-            if ((batterDestination as any).outAdvancing && hitPower > 0) {
+            const hitPowerRaw = hitBases[play] || (['野手選擇', '失誤'].includes(play) ? 1 : 0);
+            const hitPower = hitCredit || hitPowerRaw;
+            if ((batterDestination as any).overslide && hitPowerRaw > 0) {
+                // 滑過頭：沒有安全到達，安打只算到前一個壘（規則 9.06(c)）
+                const c = chainUsed;
+                const tagger = c.length ? `被${relayText(c)}` : '';
+                const got = hitCredit > 0 ? `只算${basesText[hitCredit - 1]}壘安打` : '不算安打';
+                batterDestText = `衝${basesText[hitPowerRaw - 1]}壘時滑過頭，${tagger}觸殺出局，${got}`;
+            }
+            else if ((batterDestination as any).outAdvancing && hitPower > 0) {
                 const c = chainUsed;
                 const nextBase = basesText[hitPower] || '本';
                 const tagger = c.length ? `被${relayText(c)}` : '';
@@ -5971,6 +6158,16 @@ document.addEventListener('DOMContentLoaded', () => {
             obstruction: false
         };
         if (checkAndEndGame()) {
+            // 再見安打：比賽就在這一球結束，安打壘數要縮到致勝跑者推進的壘數
+            if (walkOffInfo && walkOffInfo.hitCredit > 0) {
+                const cut = applyWalkOffHitLimit(walkOffInfo.batter, walkOffInfo.pitcher,
+                    walkOffInfo.play, walkOffInfo.hitCredit, walkOffInfo.winnerBaseIndex,
+                    walkOffInfo.batterReached);
+                if (cut) {
+                    logEvent(`再見安打只算到致勝跑者推進的壘數，記為${['一', '二', '三'][cut - 1]}壘安打。`,
+                        gameState.isTop ? 'a' : 'b');
+                }
+            }
             saveState();
             render();
             return;
@@ -6284,6 +6481,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         runnerActionTitleStep2.textContent = RUNNER_ACTION_TYPES[type];
         let detailsHTML = '';
+        if (type === 'appeal') {
+            const reason = (runnerActionState as any).appealReason || 'miss-base';
+            detailsHTML += `
+                <div class="runner-placement-row">
+                    <div class="runner-name">申訴的理由</div>
+                    <div class="runner-options">
+                        <button data-step="set-appeal" data-reason="miss-base" class="${reason === 'miss-base' ? 'selected' : ''}">漏踩壘包</button>
+                        <button data-step="set-appeal" data-reason="left-early" class="${reason === 'left-early' ? 'selected' : ''}">飛球被接到前就離壘</button>
+                    </div>
+                </div>`;
+        }
         const teamKey = gameState.isTop ? 'a' : 'b';
         runnerActionState.originalBases.forEach((runner, i) => {
             if (runner) {
@@ -6298,6 +6506,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     const outOption = `<button data-step="set-dest" data-runner-id="${i}" data-dest="${i + 1}" data-out="true" class="out-option ${currentDest?.isOut ? 'selected' : ''}">盜壘失敗（出局）</button>`;
                     options = advanceOptions + outOption;
                 }
+                else if (type === 'appeal') {
+                    options = `<button data-step="set-dest" data-runner-id="${i}" data-dest="${i + 1}" data-out="true" class="out-option ${currentDest?.isOut ? 'selected' : ''}">申訴成立（出局）</button>`;
+                }
                 else if (type === 'pickoff-out') {
                     if (runnerActionState.error) { // Pickoff ERROR
                         options = [...Array(4 - (i + 1))].map((_, j) => {
@@ -6309,7 +6520,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         options = `<button data-step="set-dest" data-runner-id="${i}" data-dest="${i + 1}" data-out="true" class="out-option ${currentDest?.isOut ? 'selected' : ''}">牽制出局</button>`;
                     }
                 }
-                else { // WP, PB, Balk, Obstruction
+                else { // WP、PB、投手犯規、妨礙跑壘、守方未防守
                     options = [...Array(4 - (i + 1))].map((_, j) => {
                         const destBase = i + 2 + j;
                         return `<button data-step="set-dest" data-runner-id="${i}" data-dest="${destBase}" class="${currentDest?.dest === destBase ? 'selected' : ''}">${destBase > 3 ? '得分' : `${['一', '二', '三'][destBase - 1]}壘`}</button>`;
@@ -6464,6 +6675,10 @@ document.addEventListener('DOMContentLoaded', () => {
             runnerActionState.step = 'set-dest';
             renderRunnerActionOptions();
         }
+        else if (step === 'set-appeal') {
+            (runnerActionState as any).appealReason = target.dataset.reason;
+            renderRunnerActionOptions();
+        }
         else if (step === 'set-dest') {
             const key = `base-${runnerId}`;
             runnerActionState.destinations[key] = {
@@ -6514,6 +6729,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         const how = chain.length ? runnerOutText(chain, baseIndex + 1, baseIndex + 2, rd) : '遭阻殺出局';
                         eventParts.push(`${runnerPlayer.name}從${BASE_NAME(baseIndex + 1)}壘盜${target}失敗，${how}。`);
                     }
+                    else if (type === 'appeal') {
+                        // 申訴出局不記盜壘刺；刺殺與助殺照守備鏈記
+                        const why = (runnerActionState as any).appealReason === 'left-early'
+                            ? '在飛球被接到前就離壘' : `未踩${BASE_NAME(baseIndex + 1)}壘`;
+                        eventParts.push(`${runnerPlayer.name}${why}，申訴成立被判出局。`);
+                    }
                     else if (type === 'pickoff-out') {
                         const how = chain.length
                             ? (rd
@@ -6536,6 +6757,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         eventParts.push(dest >= 4
                             ? `${runnerPlayer.name}從三壘盜本壘成功，回到本壘得分。`
                             : `${runnerPlayer.name}從${BASE_NAME(baseIndex + 1)}壘盜${BASE_NAME(dest)}壘成功。`);
+                    }
+                    else if (type === 'indifference') {
+                        // 守備冷漠：推進照算，但**不記盜壘**（規則 9.07(g)）
+                        eventParts.push(dest >= 4
+                            ? `${BASE_NAME(baseIndex + 1)}壘跑者${runnerPlayer.name}回到本壘得分。`
+                            : `${BASE_NAME(baseIndex + 1)}壘跑者${runnerPlayer.name}推進到${BASE_NAME(dest)}壘。`);
                     }
                     else {
                         eventParts.push(dest >= 4
@@ -6563,6 +6790,10 @@ document.addEventListener('DOMContentLoaded', () => {
             prefix = '捕逸，';
         if (type === 'balk')
             prefix = '投手犯規，';
+        if (type === 'indifference')
+            prefix = '守方未做防守（不記盜壘），';
+        if (type === 'appeal')
+            prefix = '守方提出申訴，';
         if (type === 'obstruction') {
             const who = ERROR_POSITIONS[(runnerActionState as any).obstructionBy] || '';
             prefix = who ? `${who}妨礙跑壘，` : '妨礙跑壘，';

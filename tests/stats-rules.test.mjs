@@ -142,7 +142,7 @@ export default async function (t) {
     quickPlay(w, '三振');
     q('#clock-stop-btn').click();
     t.assert(!q('#end-reason-modal').classList.contains('hidden'), '沒有跳出詢問結束原因的視窗');
-    t.assert(w.document.querySelectorAll('#end-reason-modal .end-reason').length === 3, '三個原因沒有都列出來');
+    t.assert(w.document.querySelectorAll('#end-reason-modal .end-reason').length === 4, '四個原因沒有都列出來（正常／因故中止／保留／沒收）');
     click(w, q('#end-reason-modal .end-reason[data-reason="called"]'));
     const gs = state(w);
     t.assert(gs.isGameOver, '選了原因卻沒有結束比賽');

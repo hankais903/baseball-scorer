@@ -13,8 +13,8 @@ export default async function (t) {
     click(w, q('#game-clock'));
     click(w, q('#clock-stop-btn'));
     t.assert(!q('#end-reason-modal').classList.contains('hidden'), '沒有先問過');
-    t.assert(w.document.querySelectorAll('#end-reason-modal .end-reason').length === 3,
-      '沒有列出三種結束原因');
+    t.assert(w.document.querySelectorAll('#end-reason-modal .end-reason').length === 4,
+      '沒有列出四種結束原因（正常／因故中止／保留／沒收）');
     click(w, q('#end-reason-cancel'));
     let gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
     t.assert(!gs.isGameOver && !gs.endTime, '按了取消卻還是結束了');
