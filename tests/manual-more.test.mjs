@@ -233,4 +233,77 @@ export default async function (t) {
     t.assert(b.r === 2, '應該得兩分：' + b.r);
     t.assert(b.ok, '結算對不起來：' + JSON.stringify(b));
   });
+
+  // === 使用者實測回報的複雜情境（v2.19 修）===
+  // 三壘有人，打者擊出平飛球被二壘手接殺；三壘跑者離壘過遠，
+  // 二壘手傳三壘想封殺卻傳失誤，跑者安全回到三壘。
+  await t('平飛球接殺要寫成平飛球，不是高飛球', async () => {
+    const { window: w, q } = await boot();
+    w.alert = () => {};
+    startGame(w);
+    play(w, q, 'infield', '飛球出局', { ball: 'L' });
+    const ev = state(w).events[state(w).events.length - 1].text;
+    t.assert(ev.includes('平飛球'), '沒有寫成平飛球：' + ev);
+    t.assert(!ev.includes('高飛球'), '還是寫成高飛球：' + ev);
+  });
+
+  await t('接殺後傳壘失誤：跑者的過程要寫出來，刺殺記給接球的人', async () => {
+    const { window: w, q } = await boot();
+    w.alert = () => {};
+    startGame(w);
+    play(w, q, 'outfield', '三壘安打');                    // 三壘有人
+    // 平飛球被二壘手接殺，二壘手傳三壘失誤（決定性），跑者安全回三壘
+    clickZone(w, 'infield', 'L');
+    click(w, [...w.document.querySelectorAll('#field-result-panel button')]
+      .find(x => x.textContent.trim() === '飛球出局'));
+    const dir = c => [...w.document.querySelectorAll('#modal-advanced-options .dir-btn')]
+      .find(b => b.textContent.trim().startsWith(c));
+    click(w, dir('二')); click(w, dir('三'));              // 守備鏈：接球後傳三壘
+    click(w, q('#modal-advanced-options button[data-step="add-error"]'));
+    click(w, [...w.document.querySelectorAll('#modal-advanced-options button[data-step="select-error"]')]
+      .find(x => x.textContent.trim().startsWith('二')));
+    const kind = q('#modal-advanced-options button[data-step="toggle-error-kind"]');
+    t.assert(kind.textContent.includes('多餘壘'), '出局類的失誤預設應該是多餘壘：' + kind.textContent);
+    click(w, kind);                                        // 改成決定性（本來封殺得掉）
+    click(w, q('#modal-advanced-done'));
+
+    const gs = state(w);
+    const ev = gs.events[gs.events.length - 1].text;
+    t.assert(ev.includes('平飛球'), '球種沒寫對：' + ev);
+    t.assert(ev.includes('二壘手接殺出局'), '沒寫出被誰接殺：' + ev);
+    t.assert(ev.includes('離壘過遠') && ev.includes('靠二壘手失誤安全回到三壘'),
+      '跑者的過程沒有寫出來：' + ev);
+    t.assert(gs.outs === 1, '只該有一個出局：' + gs.outs);
+    t.assert(!!gs.bases[2], '跑者要安全回到三壘：' + JSON.stringify(gs.bases.map(b => !!b)));
+    // 決定性失誤＝守方本來抓得到那個出局，所以守備機會是 2（接殺 1 ＋ 失誤 1）
+    t.assert(gs.inningPotentialOuts === 2, '決定性失誤沒有算進守備機會：' + gs.inningPotentialOuts);
+    const at = pos => {
+      const b = gs.teams.b;
+      return b.lineupSpots.map(sp => b.roster.find(p => p._id === sp.activePlayerId))
+        .find(p => p && p.pos === pos) || {};
+    };
+    t.assert((at('2B').po || 0) === 1, '接到球的二壘手才該記刺殺：' + at('2B').po);
+    t.assert((at('3B').po || 0) === 0, '沒抓到人的三壘手不該記刺殺：' + at('3B').po);
+    t.assert((at('2B').e || 0) === 1, '二壘手要記一次失誤：' + at('2B').e);
+    t.assert((at('2B').a || 0) === 0, '那一傳沒抓到人，不該算助殺：' + at('2B').a);
+  });
+
+  await t('多餘壘失誤不算守備機會', async () => {
+    const { window: w, q } = await boot();
+    w.alert = () => {};
+    startGame(w);
+    play(w, q, 'outfield', '三壘安打');
+    clickZone(w, 'infield', 'L');
+    click(w, [...w.document.querySelectorAll('#field-result-panel button')]
+      .find(x => x.textContent.trim() === '飛球出局'));
+    click(w, [...w.document.querySelectorAll('#modal-advanced-options .dir-btn')]
+      .find(b => b.textContent.trim().startsWith('二')));
+    click(w, q('#modal-advanced-options button[data-step="add-error"]'));
+    click(w, [...w.document.querySelectorAll('#modal-advanced-options button[data-step="select-error"]')]
+      .find(x => x.textContent.trim().startsWith('二')));
+    click(w, q('#modal-advanced-done'));                   // 維持預設的多餘壘失誤
+    const gs = state(w);
+    t.assert(gs.inningPotentialOuts === 1, '多餘壘失誤不該算守備機會：' + gs.inningPotentialOuts);
+    t.assert(gs.teams.b.errors === 1, '失誤還是要記：' + gs.teams.b.errors);
+  });
 }

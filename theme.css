@@ -2914,3 +2914,13 @@ body.playing #game-meta-static span + span::before {
 .bc-bad { border-color: rgba(255, 140, 120, 0.5); }
 .bc-bad .bc-verdict { color: #ff9c86; }
 .bc-note { margin: 0 0 8px; font-size: 0.74rem; line-height: 1.6; color: rgba(198, 218, 240, 0.6); }
+
+/* 失誤籌碼：顯示是「決定性」還是「多餘壘」，點一下切換（v2.19） */
+.advanced-play-modifiers .err-kind {
+    display: inline-flex; flex-direction: column; align-items: flex-start;
+    line-height: 1.35; text-align: left;
+}
+.advanced-play-modifiers .err-kind small {
+    font-size: 0.7rem; opacity: 0.85; font-weight: 400;
+}
+.advanced-play-modifiers .err-del { min-width: 56px; }

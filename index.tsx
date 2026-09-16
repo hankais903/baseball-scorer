@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.18';
+const APP_VERSION = 'v2.19';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -342,8 +342,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         : `${area}滾地球出局，由${who}處理${tail}`;
                 }
                 return `${area}滾地球，${chainText(c)}封殺出局${tail}`;
-            case '飛球': return `${area}高飛球，被${who}接殺出局${tail}`;
-            case '界飛': return `界外高飛球，被${who}接殺出局${tail}`;
+            // 球種要跟著寫：平飛球接殺就不能寫成「高飛球」
+            case '飛球': {
+                const bw = { L: '平飛球', F: '高飛球', G: '滾地球', B: '短打' }[advancedPlayState.ballType] || '高飛球';
+                return `${area}${bw}，被${who}接殺出局${tail}`;
+            }
+            case '界飛': {
+                const bw = { L: '平飛球', F: '高飛球', B: '短打' }[advancedPlayState.ballType] || '高飛球';
+                return `界外${bw}，被${who}接殺出局${tail}`;
+            }
             case '犧飛':
                 return (advancedPlayState as any).foulSF
                     ? `界外高飛犧牲打${tail}`
@@ -2976,6 +2983,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     advancedPlayState.step = 'set-runners';
                     advancedPlayState.errors = [...(advancedPlayState.errors || []), errorPos];
                     advancedPlayState.error = advancedPlayState.errors[0];
+                    // 失誤分兩種（手冊 2-41）：
+                    //   決定性失誤 E＝本來抓得到出局卻沒抓到（算一次守備機會）
+                    //   多餘壘失誤 e＝抓不到出局，只是讓人多跑了壘（不算守備機會）
+                    // 預設用「打者是不是靠這個失誤才沒出局」判斷，不對的話點籌碼可以改。
+                    const auto = (!HIT_BASES[advancedPlayState.play]
+                        && advancedPlayState.play !== '妨礙打擊'
+                        && !advancedPlayState.batterIsOut) ? 'E' : 'e';
+                    (advancedPlayState as any).errorKinds = [
+                        ...((advancedPlayState as any).errorKinds || []), auto];
+                    renderAdvancedPlayOptions();
+                }
+                else if (step === 'toggle-error-kind') {
+                    const i = Number(button.dataset.idx);
+                    const kinds = [...((advancedPlayState as any).errorKinds || [])];
+                    kinds[i] = kinds[i] === 'E' ? 'e' : 'E';
+                    (advancedPlayState as any).errorKinds = kinds;
                     renderAdvancedPlayOptions();
                 }
                 else if (step === 'remove-error') {
@@ -2984,6 +3007,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     list.splice(idx, 1);
                     advancedPlayState.errors = list;
                     advancedPlayState.error = list[0] || null;
+                    const kinds = [...((advancedPlayState as any).errorKinds || [])];
+                    kinds.splice(idx, 1);
+                    (advancedPlayState as any).errorKinds = kinds;
                     renderAdvancedPlayOptions();
                 }
                 else if (step === 'select-interferer') {
@@ -3314,8 +3340,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const isSpecialOut = category === 'special-out';
             if (isHit || isAdvancedOut || isAdvancedOnBase || isGroundOrFlyOut || isSpecialOut) {
                 startAdvancedPlay(play, { batterIsOut: isAdvancedOut || isGroundOrFlyOut || isSpecialOut });
-                // 落點時已經選過球種，雙殺／三殺就不必再問一次
-                if (pendingBall && ['G', 'L', 'F'].includes(pendingBall) && ['雙殺', '三殺'].includes(play)) {
+                // 落點時已經選過球種，全部沿用（原本只有雙殺／三殺會帶，
+                // 導致平飛球接殺的敘述被寫成「高飛球」）。
+                // 'all'（不確定，直接標落點）不在清單裡，會留著預設值。
+                if (pendingBall && ['G', 'L', 'F', 'B'].includes(pendingBall)) {
                     advancedPlayState.ballType = pendingBall;
                 }
                 if (pendingPoint) {
@@ -4755,15 +4783,34 @@ document.addEventListener('DOMContentLoaded', () => {
     // 規則：最後接到球完成出局的人記刺殺，中間傳球的人記助殺。
     // 雙殺 6-4-3 就是 6 助殺、4 刺殺＋助殺、3 刺殺——也就是
     // 「最後 N 個人各記一次刺殺（N＝這個 play 的出局數），最後一個以外的人各記一次助殺」。
-    function creditFielding(chain: string[], outs: number) {
+    // catchFirst：飛球類的出局是「接到球的那一刻」完成的，所以第一位一定記一次刺殺，
+    // 剩下的出局數（例如接殺後再傳殺離壘跑者）才輪到鏈尾。
+    // 不這樣分的話，「接殺後傳三壘沒抓到」會把刺殺記到三壘手身上（他根本沒抓到人）。
+    function creditFielding(chain: string[], outs: number, catchFirst = false) {
         if (!chain || !chain.length || outs <= 0) return;
         const players = chain.map(c => fielderByPos(CHAIN_TO_POS[c] || c));
+        const poIdx = new Set<number>();
+        if (catchFirst) {
+            poIdx.add(0);
+            for (let k = 0; k < outs - 1; k++) poIdx.add(players.length - 1 - k);
+        }
+        else {
+            for (let k = 0; k < outs; k++) poIdx.add(players.length - 1 - k);
+        }
+        // 助殺只給「促成了那個刺殺」的傳球：鏈上最後一次刺殺之前的人才算。
+        // 接殺之後再傳出去卻沒抓到人的那一傳，不是助殺（規則 9.10(a)(1)）。
+        const lastPo = Math.max(...poIdx);
         players.forEach((p, i) => {
             if (!p) return;
-            if (i < players.length - 1) p.a = (p.a || 0) + 1;                 // 助殺
-            if (i >= players.length - outs) p.po = (p.po || 0) + 1;           // 刺殺
+            if (i < lastPo) p.a = (p.a || 0) + 1;                             // 助殺
+            if (poIdx.has(i)) p.po = (p.po || 0) + 1;                         // 刺殺
         });
     }
+    // 這個結果的出局是不是「接到球就完成」（飛球、平飛、界外飛球、內野高飛必死球，
+    // 以及非滾地的雙殺三殺）
+    const isCatchOut = (play: string, ballType?: string) =>
+        ['飛球', '界飛', '犧飛', '內飛'].includes(play)
+        || (['雙殺', '三殺'].includes(play) && !!ballType && ballType !== 'G');
     // 失誤記到那個位置的人身上（隊伍的失誤數本來就有累計）
     function creditErrors(list: string[]) {
         (list || []).forEach(pos => {
@@ -5515,8 +5562,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const errList = advancedPlayState.errors || (advancedPlayState.error ? [advancedPlayState.error] : []);
             if (canAddError || errList.length) {
                 // 同一個 play 可能有多次失誤：每筆一個籌碼可移除，並可再加一次
-                errorToggleHTML = errList.map((e, i) =>
-                    `<button data-step="remove-error" data-idx="${i}" class="selected">失誤：${ERROR_POSITIONS[e] || e} ×</button>`).join('')
+                const kinds = (advancedPlayState as any).errorKinds || [];
+                errorToggleHTML = errList.map((e, i) => {
+                    const decisive = (kinds[i] || 'e') === 'E';
+                    return `<button data-step="toggle-error-kind" data-idx="${i}" class="selected err-kind">`
+                        + `失誤：${ERROR_POSITIONS[e] || e}`
+                        + `<small>${decisive ? '決定性（本來抓得到出局）' : '多餘壘（只是多跑了壘）'}　點一下切換</small>`
+                        + `</button>`
+                        + `<button data-step="remove-error" data-idx="${i}" class="err-del">移除</button>`;
+                }).join('')
                     + `<button data-step="add-error">${errList.length ? '再加一次失誤' : '加上失誤'}</button>`;
             }
             // 擊球方向：安打與上壘類結果才需要（滾地／飛球出局的名稱本身已含位置）
@@ -5933,7 +5987,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 守備成績：刺殺／助殺依守備鏈換算，失誤記到那位野手身上
-        creditFielding(advancedPlayState.fielders || [], outsOnPlay);
+        creditFielding(advancedPlayState.fielders || [], outsOnPlay,
+            isCatchOut(play, advancedPlayState.ballType));
         creditErrors(errorList);
 
         // 再見安打：先記下「致勝分是哪一位跑者送回來的」，比賽真的結束時才拿來縮壘數。
@@ -5961,16 +6016,13 @@ document.addEventListener('DOMContentLoaded', () => {
         gameState.outs += outsOnPlay;
         activePitcher.outsRecorded += outsOnPlay;
         gameState.inningPotentialOuts += outsOnPlay;
-        if (error) {
-            // 沒有安打價值的結果上出現失誤，代表守方本來抓得到一個出局 → 算一次守備機會。
-            // **例外：妨礙打擊不算**（規則 9.16(a) 註解）——打者根本沒機會打完這個打席，
-            // 不能假設他會出局；他得的分永遠不是責失，但也不佔守備機會。
-            // 只有「決定性失誤」才算守備機會（本來抓得到出局卻沒抓到）。
-            // 打者已經出局的 play，那個失誤是讓跑者多跑的「多餘壘失誤」，
-            // 出局數本身已經算過一次機會了，不能重複算。
-            if (!hitBases[play] && play !== '妨礙打擊' && !batterIsOut) {
-                gameState.inningPotentialOuts += 1;
-            }
+        // 守備機會＝出局數 ＋ 決定性失誤（手冊 5-4）。
+        // 決定性失誤＝本來抓得到出局卻沒抓到；多餘壘失誤只是讓人多跑了壘，不算。
+        // 例外：妨礙打擊不算（規則 9.16(a) 註解）——打者根本沒機會打完這個打席。
+        if (play !== '妨礙打擊') {
+            const kinds = (advancedPlayState as any).errorKinds || [];
+            const decisive = errorList.filter((_, i) => (kinds[i] || 'e') === 'E').length;
+            gameState.inningPotentialOuts += decisive;
         }
         // Part 1: Build the initial event description for the batter's action
         let eventDesc = `${batterTitle(batter, gameState.currentBatterIndex[teamKey])}\n`;
@@ -6005,6 +6057,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 hitErrorTail = `，${errWhoText}發生失誤`;   // 若沒有人因此多進壘才會用到
             }
         }
+        // 這個 play 的決定性失誤是誰犯的（敘述要寫「靠○○失誤安全回壘」）
+        const errKinds = (advancedPlayState as any).errorKinds || [];
+        const decisiveErrWho = errListForText
+            .map((e, i) => ((errKinds[i] || 'e') === 'E') ? (ERROR_POSITIONS[e] || e) : '')
+            .filter(Boolean)[0] || '';
         let errorMentioned = false;   // 失誤已寫進「靠○○失誤進壘」時，就不再另外補一句
         let batterSentenceOpen = false;
         const basesText = ['一', '二', '三', '本'];
@@ -6058,6 +6115,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (runner) {
                 const runnerPlayer = getPlayerById(teamKey, runner.runnerId);
                 const dest = runnerDestinationsFinal[`base-${i}`]?.dest;
+                // 留在原壘但這個 play 有決定性失誤：代表守方想抓他卻沒抓到，要寫出來
+                if (dest === i + 1 && decisiveErrWho) {
+                    const why = ['飛球', '界飛', '犧飛', '內飛', '雙殺', '三殺'].includes(play)
+                        ? '離壘過遠' : '離壘後';
+                    runnerMoves.push(`在${basesText[i]}壘的${runnerPlayer.name} ${why}，`
+                        + `靠${decisiveErrWho}失誤安全回到${basesText[i]}壘。`);
+                    errorMentioned = true;
+                    return;
+                }
                 // Only describe if runner moved or was out
                 if (dest !== undefined && dest !== i + 1) {
                     const fromBaseText = basesText[i];

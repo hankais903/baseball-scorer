@@ -182,8 +182,17 @@ async function errorRules(t) {
     click(w, errBtn(q, 'CF'));
     click(w, q('#modal-advanced-options button[data-step="add-error"]'));
     click(w, errBtn(q, 'SS'));
-    const chips = [...q('#modal-advanced-options').querySelectorAll('button[data-step="remove-error"]')].map(b => b.textContent);
+    // 籌碼拆成兩顆：一顆顯示野手與失誤種類（點了切換決定性／多餘壘），一顆移除
+    const chips = [...q('#modal-advanced-options').querySelectorAll('button[data-step="toggle-error-kind"]')].map(b => b.textContent);
     t.assert(chips.length === 2 && chips[0].includes('中外野手') && chips[1].includes('游擊手'), '失誤籌碼不對：' + chips.join('|'));
+    t.assert(chips[0].includes('多餘壘'), '安打上的失誤預設應該是多餘壘失誤：' + chips[0]);
+    const kindBtn = q('#modal-advanced-options button[data-step="toggle-error-kind"]');
+    click(w, kindBtn);
+    t.assert(q('#modal-advanced-options button[data-step="toggle-error-kind"]').textContent.includes('決定性'),
+      '點了籌碼沒有切成決定性失誤');
+    click(w, q('#modal-advanced-options button[data-step="toggle-error-kind"]'));   // 切回來
+    t.assert([...q('#modal-advanced-options').querySelectorAll('button[data-step="remove-error"]')].length === 2,
+      '移除鍵沒有兩顆');
     click(w, q('#modal-advanced-options button[data-step="remove-error"][data-idx="0"]'));
     t.assert(q('#modal-advanced-options').querySelectorAll('button[data-step="remove-error"]').length === 1, '移除單筆失誤沒生效');
     click(w, q('#modal-advanced-options button[data-step="add-error"]'));
