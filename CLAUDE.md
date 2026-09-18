@@ -95,7 +95,9 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - LOGO 的高度：第 0 步時 `#onboard-screen` 會帶上 `launch` 記號，`.ob-inner` 改成 `margin:0 auto` ＋ `padding-top:10vh`，
   LOGO 就落在畫面上緣約兩成的位置（使用者指定）。建立球隊那兩步是長表單，不加這個記號。
 - 版號（`#ob-version`）釘在歡迎頁最下面（`.ob-ver` 用 `position:fixed`，因為 `#onboard-screen` 本身就是 fixed），
-  跟主畫面首頁的 `#shell-version` 同一個值。
+  跟主畫面首頁的 `#shell-version` 同一個值。**只在第 0 步顯示**（靠 `#onboard-screen.launch .ob-ver`）：
+  建立球隊那兩步是會捲動的長表單，版號浮著會蓋住名單與按鈕（踩過一次，已有測試釘住）。
+- 建立球隊最後一顆鍵寫「完成，進入球隊頁面」，按了 `closeLaunch()` ＋ `showShell('team')`（不是首頁）。
 - 「比賽進行中」那個綠點標記（`.live-badge`）原本是 `position:absolute`（首頁那張卡用的），
   放進 `#ob-resume` 一定要給按鈕 `position:relative` 並把標記改回 `position:static`，
   否則它會飄到整個畫面的左上角（踩過一次，已有測試釘住）。

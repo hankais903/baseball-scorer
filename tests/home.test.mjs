@@ -358,6 +358,25 @@ export default async function (t) {
     t.assert(!scr.classList.contains('dl-leaving'), '淡出播完沒有把記號拿掉');
   });
 
+  await t('創建球隊最後一顆鍵寫「完成，進入球隊頁面」，按了就到球隊分頁', async () => {
+    const { window: w, q } = await boot({});
+    click(w, q('#ob-start'));
+    const finish = q('#ob-finish');
+    t.assert(finish.textContent.trim() === '完成，進入球隊頁面',
+      '按鈕文字不對：' + finish.textContent);
+    // 填最少的資料再按完成
+    const set = (id, v) => { const e = q('#' + id); e.value = v;
+      ['input', 'change'].forEach(t2 => e.dispatchEvent(new w.Event(t2, { bubbles: true }))); };
+    set('ob-fullname', '新莊社區棒球隊');
+    set('ob-shortname', '新莊');
+    click(w, q('#ob-to-players'));
+    click(w, q('#ob-finish'));
+    await sleep(50);
+    t.assert(q('#onboard-screen').classList.contains('hidden'), '建立球隊的畫面沒有收起來');
+    t.assert(!q('#page-team').classList.contains('hidden'), '沒有停在球隊分頁');
+    t.assert(q('#page-home').classList.contains('hidden'), '不該停在首頁');
+  });
+
   await t('首頁的版號放在最下面，不是 LOGO 旁邊', async () => {
     const { q } = await withTeam();
     const ver = q('#shell-version');
@@ -384,7 +403,9 @@ export default async function (t) {
     const fs = await import('fs');
     const dir = 'dist/assets';
     const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
-    t.assert(/\.ob-ver\{[^}]*position:\s*fixed/.test(css), '版號沒有釘在畫面底部');
+    t.assert(/#onboard-screen\.launch\s+\.ob-ver\{[^}]*position:\s*fixed/.test(css), '版號沒有釘在畫面底部');
+    // 建立球隊那兩步是會捲動的長表單，版號浮在上面會蓋住名單與按鈕
+    t.assert(/\.ob-ver\{[^}]*display:\s*none/.test(css), '建立球隊那幾步沒有把版號收起來');
   });
 
   await t('啟動畫面的「比賽進行中」標記要待在按鈕裡，不能飄到畫面左上角', async () => {

@@ -1384,9 +1384,12 @@ body.shell-open #app-container { visibility: hidden; }
     filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.6));
 }
 
-/* 版號：釘在歡迎頁最下面。#onboard-screen 本身是 position:fixed，
-   所以這裡用 fixed 就會貼著螢幕底部，捲動長表單時也不會跟著跑。 */
-.ob-ver {
+/* 版號：只在歡迎頁（第 0 步）出現，釘在最下面。
+   建立球隊那兩步是會捲動的長表單，版號浮在上面會蓋住名單與按鈕，所以收起來。
+   #onboard-screen 本身是 position:fixed，所以這裡用 fixed 就會貼著螢幕底部。 */
+.ob-ver { display: none; }
+#onboard-screen.launch .ob-ver {
+    display: block;
     position: fixed;
     left: 0;
     right: 0;
