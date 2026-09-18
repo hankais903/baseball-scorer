@@ -24,7 +24,35 @@ async function createGame(w, q, { side = 'top', opp = '海盜' } = {}) {
   await sleep(300);
 }
 
+// 沒填名字的球員（建立球隊時直接按下一步就是這樣）
+const TEAM_NO_NAMES = {
+  ...TEAM,
+  players: Array.from({ length: 11 }, (_, i) => ({ _id: 'n' + i, jersey: String(i + 1), name: '', pos: '' })),
+  lineups: [{ id: 'lu1', name: '主力', useDH: true, spots: Array.from({ length: 9 }, (_, i) => 'n' + i), pitcherId: 'n9' }],
+};
+
 export default async function (t) {
+  // 以前板凳是 fill(slot, src, '', '')，沒填名字的人會變成 name === ''（＝沒這個人），
+  // 板凳整排被當成空的，比賽中代打／代跑／換投一個人都選不到。
+  await t('沒填名字的球員進板凳也要有名字，換人時選得到', async () => {
+    const { window: w, q } = await boot({ storage: { baseball_my_team: JSON.stringify(TEAM_NO_NAMES) } });
+    click(w, q('#ob-enter'));
+    await createGame(w, q);
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    const me = gs.teams[gs.mySide || 'a'];
+    const bench = me.roster.filter((r, i) => i >= 9 && i !== 24 && (r.name || '').trim());
+    // 11 人 － 先發 9 － 投手 1 ＝ 板凳 1
+    t.assert(bench.length === 1, '板凳人數不對：' + bench.length + '（應該是 1）');
+    t.assert(bench[0].name === '新莊11', '板凳沒有自動取名：「' + bench[0].name + '」');
+    t.assert(bench[0].jersey === '11', '板凳背號沒帶進來：「' + bench[0].jersey + '」');
+    // 代打真的選得到
+    click(w, q('#play-ball-btn'));
+    click(w, q('#management-btn'));
+    click(w, q('#pinch-hit-btn'));
+    const names = [...w.document.querySelectorAll('#picker-list .picker-item .picker-name')].map(x => x.textContent);
+    t.assert(names.includes('新莊11'), '代打名單裡沒有板凳球員：' + (names.join('、') || '（空的）'));
+  });
+
   await t('比賽分頁是三步流程，第一步不給返回', async () => {
     const { window: w, q } = await withTeam();
     openGame(w, q);

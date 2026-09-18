@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.33';
+const APP_VERSION = 'v2.34';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -1432,12 +1432,16 @@ document.addEventListener('DOMContentLoaded', () => {
             t.pitchers[0].name = pit.name;
             t.activePitcherId = pit._id;
         }
-        // 其餘的人放板凳（跳過投手那一格）
+        // 其餘的人放板凳（跳過投手那一格）。
+        // 沒填名字的一定要補一個（簡稱＋背號），不能留空白：
+        // `name === ''` 在這個專案代表「沒這個人」，板凳會整排被當成空的，
+        // 比賽中代打／代跑／換投就一個人也選不到（踩過一次，已有測試釘住）。
         let slot = LINEUP_SIZE;
-        bench.forEach(src => {
+        bench.forEach((src, k) => {
             while (slot === PITCHER_ROSTER_INDEX) slot++;
             if (slot >= ROSTER_SIZE) return;
-            fill(t.roster[slot], src, '', '');
+            const num = (src && (src.jersey || '').trim()) || String(LINEUP_SIZE + k + 1).padStart(2, '0');
+            fill(t.roster[slot], src, `${t.name}${num}`, num);
             slot++;
         });
         return t;
