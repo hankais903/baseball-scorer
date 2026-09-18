@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.32';
+const APP_VERSION = 'v2.33';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -6384,6 +6384,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'sub': processSubstitution(entry.inId, entry.outId, entry.pos); break;
             case 'swap': processDefensiveSwap(entry.a, entry.b); break;
             case 'dh': applyDHToggle(entry.team, entry.on); break;
+            case 'addp': applyAddPlayer(entry.team, entry.id, entry.name, entry.jersey); break;
         }
     }
 
@@ -6970,21 +6971,81 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!modal || !list || !title) return;
         title.textContent = opts.title;
         if (note) note.textContent = opts.note || '';
-        list.innerHTML = opts.candidates.length
+        const canAdd = !!freeBenchSlot(opts.teamKey);
+        const teamName = gameState.teams[opts.teamKey].name || (opts.teamKey === 'a' ? '客隊' : '主隊');
+        // 比賽中進不去名單頁，所以人不夠時要能就地補一位
+        const addBlock = canAdd
+            ? `<div class="picker-add">
+                   <button type="button" class="picker-add-btn" data-add="1">＋ 臨時新增${teamName}的球員</button>
+                   <div class="picker-add-form hidden">
+                       <input type="text" class="pa-jersey" inputmode="numeric" maxlength="2" placeholder="背號">
+                       <input type="text" class="pa-name" maxlength="10" placeholder="姓名">
+                       <button type="button" class="pa-ok">加入並換上</button>
+                   </div>
+               </div>`
+            : '';
+        list.innerHTML = (opts.candidates.length
             ? opts.candidates.map(p => `
                 <button type="button" class="picker-item" data-player-id="${p._id}">
                     <img src="${playerPhotoSrc(p)}" alt="">
                     <span class="picker-name">${p.name}</span>
                     <span class="picker-sub">${p.jersey ? '#' + p.jersey : ''}${p.pos ? ' ' + p.pos : ''}</span>
                 </button>`).join('')
-            : '<div class="def-empty">沒有可用的球員，請先在名單頁新增板凳球員</div>';
+            : `<div class="def-empty">${teamName}沒有可換的球員了${canAdd ? '，可以在下面臨時補一位' : ''}</div>`)
+            + addBlock;
+        const form = () => list.querySelector('.picker-add-form') as HTMLElement | null;
+        const confirmAdd = () => {
+            const f = form();
+            if (!f) return;
+            const jersey = (f.querySelector('.pa-jersey') as HTMLInputElement).value.trim();
+            const name = (f.querySelector('.pa-name') as HTMLInputElement).value.trim()
+                || `${teamName}${jersey || String(benchOf(opts.teamKey).length + 1).padStart(2, '0')}`;
+            const added = addBenchPlayer(opts.teamKey, name, jersey);
+            if (!added) return;
+            closeModal(modal);
+            opts.onPick(added._id);
+        };
         list.onclick = (e) => {
-            const btn = (e.target as HTMLElement).closest('.picker-item') as HTMLElement | null;
+            const target = e.target as HTMLElement;
+            if (target.closest('.picker-add-btn')) {
+                tapFeedback();
+                form()?.classList.remove('hidden');
+                (target.closest('.picker-add') as HTMLElement)
+                    ?.querySelector<HTMLInputElement>('.pa-jersey')?.focus();
+                return;
+            }
+            if (target.closest('.pa-ok')) { tapFeedback(); confirmAdd(); return; }
+            const btn = target.closest('.picker-item') as HTMLElement | null;
             if (!btn) return;
             closeModal(modal);
             opts.onPick(btn.dataset.playerId);
         };
         openModal(modal);
+    }
+    // 比賽中臨時補一位球員到板凳。
+    // 比賽畫面裡進不去名單頁，人不夠時整個換人流程會卡死，所以要能就地新增。
+    // 一定要記成紙條（重播時重建的是開賽當下的名單，不然這個人會變成沒名字的空格）。
+    function applyAddPlayer(teamKey: 'a' | 'b', slotId: string, name: string, jersey: string) {
+        const team = gameState.teams[teamKey];
+        const slot = team.roster.find(p => p._id === slotId);
+        if (!slot) return null;
+        slot.name = name;
+        slot.jersey = jersey;
+        return slot;
+    }
+    // 找一個還空著的板凳格（跳過先發九棒與投手那一格）
+    function freeBenchSlot(teamKey: 'a' | 'b') {
+        const team = gameState.teams[teamKey];
+        return team.roster.find((p, i) =>
+            i >= LINEUP_SIZE && i !== PITCHER_ROSTER_INDEX && !(p.name || '').trim()) || null;
+    }
+    function addBenchPlayer(teamKey: 'a' | 'b', name: string, jersey: string) {
+        const slot = freeBenchSlot(teamKey);
+        if (!slot) return null;
+        recordLogEntry({ t: 'addp', team: teamKey, id: slot._id, name, jersey });
+        const added = applyAddPlayer(teamKey, slot._id, name, jersey);
+        saveState();
+        return added;
     }
     // 可上場的板凳：有名字、目前不在場上、也沒有被換下過（棒球規則：離場不能再上）
     function benchOf(teamKey: 'a' | 'b') {

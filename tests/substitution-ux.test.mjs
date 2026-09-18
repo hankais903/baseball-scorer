@@ -37,6 +37,53 @@ export default async function (t) {
     t.assert(!!q('#current-batter-display .batter-stats'), '打者卡片數據不見了');
   });
 
+  // 比賽畫面進不去名單頁，板凳沒人時整個換人流程會卡死
+  await t('板凳沒人：選擇球員的視窗可以臨時新增一位，加入就直接換上', async () => {
+    const { window: w, q } = await boot();          // 不加板凳，維持預設名單
+    w.alert = () => {};
+    startGame(w);
+    click(w, q('#management-btn'));
+    click(w, q('#pinch-hit-btn'));
+    t.assert(!q('#picker-list .picker-item'), '預設名單不該有板凳可換');
+    const addBtn = q('#picker-list .picker-add-btn');
+    t.assert(!!addBtn, '沒有「臨時新增」的按鈕');
+    t.assert(q('#picker-list .picker-add-form').classList.contains('hidden'), '一進來就把輸入欄攤開了');
+    click(w, addBtn);
+    t.assert(!q('#picker-list .picker-add-form').classList.contains('hidden'), '按了沒有打開輸入欄');
+    q('#picker-list .pa-jersey').value = '21';
+    q('#picker-list .pa-name').value = '王小明';
+    click(w, q('#picker-list .pa-ok'));
+    await sleep(50);
+    const gs = JSON.parse(w.localStorage.getItem('baseballGameState'));
+    const team = gs.teams[gs.isTop ? 'a' : 'b'];
+    const spot = team.lineupSpots[gs.currentBatterIndex[gs.isTop ? 'a' : 'b']];
+    const who = team.roster.find(r => r._id === spot.activePlayerId);
+    t.assert(who && who.name === '王小明', '沒有換上臨時新增的球員：' + (who && who.name));
+    t.assert(who.jersey === '21', '背號沒存到：' + who.jersey);
+    t.assert(spot.subInfo && spot.subInfo[who._id] === 'PH', '沒有標成代打');
+  });
+
+  await t('臨時新增的球員要記進重播紙條，整場重算後人還在', async () => {
+    const { window: w, q } = await boot();
+    w.alert = () => {};
+    startGame(w);
+    click(w, q('#management-btn'));
+    click(w, q('#pinch-hit-btn'));
+    click(w, q('#picker-list .picker-add-btn'));
+    q('#picker-list .pa-jersey').value = '21';
+    q('#picker-list .pa-name').value = '王小明';
+    click(w, q('#picker-list .pa-ok'));
+    await sleep(50);
+    quickPlay(w, '三振');
+    await sleep(50);
+    const r = w.__replay;
+    t.assert(!!r, '沒有重播引擎');
+    t.assert(r.log().some(e => e.t === 'addp' && e.name === '王小明'), '紙條裡沒有「臨時新增」這一筆');
+    const before = r.digest();
+    r.rebuild();
+    t.assert(r.digest() === before, '重算之後對不上，臨時新增的球員可能不見了');
+  });
+
   await t('代打：一鍵列出板凳、點一下就換完並標 PH', async () => {
     const { w, q, state, pick } = await setup();
     startGame(w);

@@ -3137,3 +3137,53 @@ body:not(.shell-open) #app-container,
 }
 /* 完成前的提醒（「請先完成上方的選擇」「⚠ 犧牲飛球必須⋯」）本來就大一點，再加一點點 */
 #modal-advanced-summary { font-size: 0.98rem; line-height: 1.55; }
+
+/* =====================================================================
+   比賽中臨時新增球員（v2.33）
+   比賽畫面裡進不去名單頁，板凳沒人時整個換人流程會卡死，
+   所以選擇球員的視窗下面放一個「臨時新增」。
+   ===================================================================== */
+.picker-add { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--rec-line, rgba(255,255,255,0.18)); }
+.picker-add-btn {
+    width: 100%;
+    min-height: var(--rec-btn-h, 44px);
+    border-radius: var(--rec-radius, 10px);
+    border: 1px dashed var(--rec-blue, #2f6fd0);
+    background: transparent;
+    color: var(--rec-blue, #2f6fd0);
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.picker-add-btn:active { filter: brightness(1.18); }
+.picker-add-form { display: flex; gap: 8px; margin-top: 8px; }
+/* 這個專案沒有共用的 .hidden，每個要收起來的東西都得自己寫一條 */
+.picker-add-form.hidden { display: none; }
+.picker-add-form input {
+    min-width: 0;
+    min-height: var(--rec-btn-h, 44px);
+    padding: 0 10px;
+    border-radius: var(--rec-radius, 10px);
+    border: 1px solid var(--rec-line, rgba(255,255,255,0.2));
+    background: var(--rec-card, #fff);
+    color: var(--rec-ink, #16324f);
+    font-family: inherit;
+    font-size: 0.95rem;
+}
+.picker-add-form .pa-jersey { flex: 0 0 68px; text-align: center; }
+.picker-add-form .pa-name { flex: 1 1 auto; }
+.picker-add-form .pa-ok {
+    flex: 0 0 auto;
+    min-height: var(--rec-btn-h, 44px);
+    padding: 0 12px;
+    border-radius: var(--rec-radius, 10px);
+    border: 0;
+    background: var(--rec-blue, #2f6fd0);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.picker-add-form .pa-ok:active { filter: brightness(1.12); }
