@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.23';
+const APP_VERSION = 'v2.24';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -1522,6 +1522,9 @@ document.addEventListener('DOMContentLoaded', () => {
         attachTeamSettingsListeners();
         render();
         leaveGameView();
+        // 五分頁主畫面也要收起來。不收的話（例如從「設定 → 清除全部資料」進來時）
+        // 它會跟歡迎頁疊在一起，兩層內容糊成一片（踩過一次，已有測試釘住）。
+        hideShell();
         document.getElementById('onboard-screen')?.classList.add('hidden');
         if (!myTeam) obPlayers = [];
         showOnboard(0);

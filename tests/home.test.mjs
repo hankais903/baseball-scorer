@@ -290,6 +290,20 @@ export default async function (t) {
       '按了繼續比賽卻沒進到比賽畫面');
   });
 
+  await t('設定裡「清除全部資料」要回到歡迎頁，不能跟主畫面疊在一起', async () => {
+    const { window: w, q } = await withTeam();
+    click(w, q('#shell-nav .shell-tab[data-page="settings"]'));
+    click(w, q('#set-reset'));
+    click(w, q('#ask-yes'));          // 確認清除
+    await sleep(50);
+    t.assert(q('#main-shell').classList.contains('hidden'), '主畫面沒有收起來，會跟歡迎頁疊在一起');
+    t.assert(!q('#onboard-screen').classList.contains('hidden'), '沒有回到歡迎頁');
+    // 資料真的清掉了，所以只剩「創建球隊」
+    t.assert(!q('#ob-start').classList.contains('hidden'), '清除後沒有回到「創建球隊」');
+    t.assert(q('#ob-enter').classList.contains('hidden'), '資料都清了還顯示「進入」');
+    t.assert(!w.localStorage.getItem('baseball_my_team'), '球隊資料沒有清掉');
+  });
+
   await t('歡迎頁最下面要寫版號', async () => {
     const { window: w, q } = await launch();
     const ver = q('#ob-version');
