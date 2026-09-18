@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.26';
+const APP_VERSION = 'v2.27';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -906,8 +906,16 @@ document.addEventListener('DOMContentLoaded', () => {
             sub.textContent = `${a.name} ${sa} : ${sb} ${b.name}　${gameState.inning}局${gameState.isTop ? '上' : '下'}${where}`;
         }
     }
+    // 收起一層整片的畫面時先淡出再真的消失。
+    // 立刻加上收起來的記號（功能上就是關了，其他邏輯與測試看到的都是關閉狀態），
+    // 另外加 dl-leaving 讓 CSS 多留 0.18 秒播淡出，時間到再拿掉。
+    function hideWithFade(el: HTMLElement | null, hiddenClass = 'hidden') {
+        if (!el) return;
+        el.classList.add(hiddenClass, 'dl-leaving');
+        window.setTimeout(() => el.classList.remove('dl-leaving'), 220);
+    }
     function closeLaunch() {
-        document.getElementById('onboard-screen')?.classList.add('hidden');
+        hideWithFade(document.getElementById('onboard-screen'));
     }
     let obPlayers: any[] = [];
     function renderOnboardPlayers() {
@@ -944,7 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
         box.classList.remove('hidden');
     }
     function closeAsk() {
-        document.getElementById('ask-modal')?.classList.add('hidden');
+        hideWithFade(document.getElementById('ask-modal'));
         askYes = null;
     }
     function fileToDataUrl(file: File): Promise<string> {
@@ -976,7 +984,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderShell();
     }
     function hideShell() {
-        document.getElementById('main-shell')?.classList.add('hidden');
+        hideWithFade(document.getElementById('main-shell'));
         document.body.classList.remove('shell-open');
     }
     function setShellPage(page) {
@@ -1995,7 +2003,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     function closeModal(modalEl) {
-        modalEl.classList.add('modal-hidden');
+        hideWithFade(modalEl, 'modal-hidden');
     }
     function drag(e: MouseEvent) {
         if (!isDragging || !dragTarget)

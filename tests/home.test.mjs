@@ -322,27 +322,40 @@ export default async function (t) {
       'CSS 裡沒有把歡迎頁改成不垂直置中的規則');
   });
 
-  await t('換頁要淡入、記錄比賽的視窗要放大出現', async () => {
+  await t('出現與消失一律淡出淡入，不做放大縮小', async () => {
     const fs = await import('fs');
     const dir = 'dist/assets';
     const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
-    for (const kf of ['dl-fade-in', 'dl-rise-in', 'dl-pop-in', 'dl-pop-in-centered', 'dl-pop-in-top']) {
-      t.assert(css.includes('@keyframes ' + kf), '少了動畫 ' + kf);
+    t.assert(css.includes('@keyframes dl-fade-in'), '少了淡入');
+    t.assert(css.includes('@keyframes dl-fade-out'), '少了淡出');
+    // 放大縮小的動畫要全部拿掉
+    t.assert(!/dl-pop-in/.test(css), 'CSS 裡還留著放大出現的動畫');
+    t.assert(!/@keyframes dl-rise-in/.test(css), 'CSS 裡還留著上移的動畫');
+    // 幾個一定要淡入的地方
+    for (const sel of ['#main-shell:not\\(\\.hidden\\)', '\\.shell-page:not\\(\\.hidden\\)',
+                       '\\.ob-step:not\\(\\.hidden\\)', '#play-modal:not\\(\\.modal-hidden\\)']) {
+      t.assert(new RegExp(sel).test(css), '這裡沒有接上淡入：' + sel);
     }
-    // 換頁淡入
-    t.assert(/#main-shell:not\(\.hidden\)[^{]*\{[^}]*animation:\s*dl-fade-in/.test(css), '主畫面沒有淡入');
-    t.assert(/\.shell-page:not\(\.hidden\)[^{]*\{[^}]*animation:\s*dl-rise-in/.test(css), '分頁沒有淡入');
-    // 視窗放大出現
-    t.assert(/\.draggable-modal-content:not\(\.is-dragging\)[^{]*\{[^}]*animation:\s*dl-pop-in/.test(css),
-      '記錄比賽的視窗沒有放大出現');
-    // 落點選單本來就用 translateX(-50%) 置中，放大時一定要把它帶著，否則會整個跑到右邊
-    // 壓縮過的 CSS 會把 translateX(-50%) 寫成 translate(-50%)，兩種都算對
-    t.assert(/@keyframes dl-pop-in-centered\{[^}]*translate(X)?\(-50%\)/.test(css),
-      '落點選單放大時沒有保留置中的位移');
-    // 關掉動畫效果的人要看不到動畫
+    // 消失時的淡出：靠 dl-leaving 多留一下下
+    t.assert(/\.dl-leaving[^{]*\{[^}]*animation:\s*dl-fade-out/.test(css), '消失時沒有淡出');
     t.assert(/prefers-reduced-motion:\s*reduce/.test(css), '沒有尊重「減少動態效果」');
-    const rm = css.slice(css.lastIndexOf('prefers-reduced-motion'));
-    t.assert(/animation:\s*none/.test(rm), '減少動態效果時沒有把新動畫關掉');
+  });
+
+  await t('從歡迎頁點下去：離開時淡出、下一步淡入', async () => {
+    const { window: w, q } = await launch();
+    const scr = q('#onboard-screen');
+    // 「創建球隊」→ 換到第 1 步，那一步要能淡入（沒有 hidden 就會播）
+    const first = await boot({});
+    click(first.window, first.q('#ob-start'));
+    const step1 = first.q('#onboard-screen .ob-step[data-step="1"]');
+    t.assert(step1 && !step1.classList.contains('hidden'), '沒有換到建立球隊第一步');
+    // 「進入」→ 歡迎頁立刻算關閉（其他邏輯與測試看到的都是關閉），但先留著播淡出
+    click(w, q('#ob-enter'));
+    t.assert(scr.classList.contains('hidden'), '按了進入，歡迎頁沒有標成關閉');
+    t.assert(scr.classList.contains('dl-leaving'), '歡迎頁沒有播淡出就直接不見');
+    t.assert(!q('#main-shell').classList.contains('hidden'), '主畫面沒有出來');
+    await sleep(300);
+    t.assert(!scr.classList.contains('dl-leaving'), '淡出播完沒有把記號拿掉');
   });
 
   await t('歡迎頁最下面要寫版號', async () => {

@@ -100,20 +100,22 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
   放進 `#ob-resume` 一定要給按鈕 `position:relative` 並把標記改回 `position:static`，
   否則它會飄到整個畫面的左上角（踩過一次，已有測試釘住）。
 
-## 畫面轉場（v2.26）
-- 規則都寫在 `theme.css` 最後面，**純 CSS**：這個專案的東西一律靠 `display:none` 收起來，
-  所以只要在「看得到」的狀態（`:not(.hidden)`／`:not(.modal-hidden)`）掛 `animation`，
-  元素一顯示出來就會自己播一次，不必動 JS。
-- **不要加 fill-mode**（`forwards`／`both`）：萬一動畫沒跑，畫面要停在正常樣子，不能整片不見。
-- 換頁淡入：`#onboard-screen`／`#main-shell`（`dl-fade-in`）、`.shell-page`／`.shell-sub`（`dl-rise-in`，淡入＋上移 6px）、
-  回比賽畫面的 `body:not(.shell-open) #app-container`。
-- 視窗放大出現：黑紗 `dl-fade-in`，視窗本體 `.draggable-modal-content`／`.ask-box`／`.end-reason-box` 用 `dl-pop-in`（0.92→1，尾巴回彈）。
-- **落點結果／打席選單（`#field-result-panel`）本來就用 `transform: translateX(-50%)` 置中**，
-  所以它的放大動畫要用 `dl-pop-in-centered`，關鍵影格裡一定要把那個位移帶著，不然選單會整個跑到右邊。
-- 計時器選單與球場歷史（`#clock-menu`／`.meta-menu`）用 `dl-pop-in-top`，縮放中心在上緣。
-- 每一條都要進 `@media (prefers-reduced-motion: reduce)` 的 `animation: none` 清單。
-- `#field-result-panel > *` 也淡入，所以選單換內容（打席選單→球種→結果）不會硬切；
-  面板內容只有在開選單時才重建（`resultPanel.innerHTML`），不是每次重繪，所以不會閃。
+## 畫面轉場（v2.27）
+- **一律淡出淡入，不做放大縮小**（使用者指定）。規則都在 `theme.css` 最後面。
+- **出現**：純 CSS。這個專案的東西一律靠 `display:none` 收起來，所以只要在「看得到」的狀態
+  （`:not(.hidden)`／`:not(.modal-hidden)`）掛 `animation: dl-fade-in`，元素一顯示就會自己播一次。
+  涵蓋整片畫面（歡迎頁／五分頁主畫面／回比賽的 `#app-container`）、分頁與子頁、
+  **歡迎頁的每一步 `.ob-step`**（按「創建球隊」換下一步也要淡入）、所有視窗、
+  視窗裡換步驟、以及 `#field-result-panel > *`（打席選單換內容）。
+- **消失**：只靠 CSS 做不到（東西一藏起來就不存在了），走 `index.tsx` 的 `hideWithFade(el, 收起來的class)`：
+  立刻加上收起來的記號（功能上就是關了，其他邏輯與測試看到的都是關閉狀態），
+  同時加 `dl-leaving` 讓 CSS 用 `display:flex !important` 把它多留 0.22 秒播 `dl-fade-out`，
+  時間到 JS 再把 `dl-leaving` 拿掉。淡出期間 `pointer-events:none`，免得按到正在消失的畫面。
+  `closeLaunch`／`hideShell`／`closeAsk`／`closeModal` 都走這個。
+- **淡入不要加 fill-mode**（`forwards`／`both`）：萬一動畫沒跑，畫面要停在正常樣子，不能整片不見。
+  淡出那一條可以用 `forwards`，因為 0.22 秒後 JS 一定會把記號拿掉。
+- 每一條都要進 `@media (prefers-reduced-motion: reduce)`：淡入 `animation:none`，
+  正在淡出的直接 `display:none !important` 讓它立刻消失。
 
 ## 我的球隊與五分頁主畫面（v2.0 改版，進行中）
 - **第一次使用只有「創建球隊」**（`#onboard-screen`，三步：簡介 → 球員 → 完成）。
