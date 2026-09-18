@@ -494,6 +494,52 @@ export default async function (t) {
     t.assert(w.document.querySelectorAll('#event-log li').length > 0, '回來之後記不了');
   });
 
+  // 「返回」要一步一步退回去，不能跳到當初被跳過的步驟
+  await t('壘上無人的安打：一按返回就回落點選單（不會跑出沒看過的「是否有失誤」）', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    clickZone(w, 'outfield', 'L');
+    click(w, q('#field-result-panel button[data-play="二安"]'));
+    t.assert(q('#modal-advanced-title').textContent === '二壘安打',
+      '沒有直接進到確認畫面：' + q('#modal-advanced-title').textContent);
+    click(w, q('.back-button-advanced'));
+    t.assert(q('#play-modal').classList.contains('modal-hidden'),
+      '按一次返回就該離開視窗，卻停在：' + q('#modal-advanced-title').textContent);
+    t.assert(!q('#field-result-panel').classList.contains('hidden'), '沒有回到落點結果選單');
+  });
+
+  await t('壘上有人的安打：返回一次退一步（選失誤→是否有失誤→落點選單）', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    quickPlay(w, '四壞');                      // 先讓一壘有人
+    clickZone(w, 'outfield', 'L');
+    click(w, q('#field-result-panel button[data-play="二安"]'));
+    const title = () => q('#modal-advanced-title').textContent;
+    t.assert(title() === '是否有失誤發生?', '第一步不是問失誤：' + title());
+    click(w, q('[data-step="ask-error"][data-choice="yes"]'));
+    t.assert(title().includes('失誤位置'), '沒有進到選失誤：' + title());
+    click(w, q('.back-button-advanced'));
+    t.assert(title() === '是否有失誤發生?', '返回沒有退回問失誤那一步：' + title());
+    click(w, q('.back-button-advanced'));
+    t.assert(q('#play-modal').classList.contains('modal-hidden'), '第二次返回沒有離開視窗');
+    t.assert(!q('#field-result-panel').classList.contains('hidden'), '沒有回到落點結果選單');
+  });
+
+  await t('確認畫面按「加上失誤」，返回要回確認畫面', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    quickPlay(w, '四壞');
+    clickZone(w, 'outfield', 'L');
+    click(w, q('#field-result-panel button[data-play="二安"]'));
+    click(w, q('[data-step="ask-error"][data-choice="no"]'));
+    const title = () => q('#modal-advanced-title').textContent;
+    t.assert(title() === '二壘安打', '沒有到確認畫面：' + title());
+    click(w, q('[data-step="add-error"]'));
+    t.assert(title().includes('失誤位置'), '沒有進到選失誤：' + title());
+    click(w, q('.back-button-advanced'));
+    t.assert(title() === '二壘安打', '返回沒有回到確認畫面：' + title());
+  });
+
   await t('走「其他」那條路進來的，「返回」照舊回結果分類頁', async () => {
     const { window: w, q } = await boot();
     startGame(w);

@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.31';
+const APP_VERSION = 'v2.32';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -2053,6 +2053,12 @@ document.addEventListener('DOMContentLoaded', () => {
             (fcButton as HTMLButtonElement).title = '壘上無人，無法選擇此項';
         }
     }
+    // 進階視窗往前走一步：先把現在這一步記起來，「返回」才退得回原本那一步
+    function advGoStep(next: string) {
+        const st: any = advancedPlayState;
+        (st.stepStack || (st.stepStack = [])).push(st.step);
+        st.step = next;
+    }
     function showModalStep(step) {
         [modalStep1, modalStep2, modalStepAdvanced].forEach(el => el.classList.add('modal-hidden'));
         if (step === 'step1')
@@ -2851,47 +2857,23 @@ document.addEventListener('DOMContentLoaded', () => {
             closeModal(modal); });
         backButton.addEventListener('click', () => showModalStep('step1'));
         backButtonAdvanced.addEventListener('click', () => {
-            if (advancedPlayState.step === 'set-runners') {
-                if (advancedPlayState.play === '野手選擇') {
-                    // Go back to runner selection for Fielder's Choice
-                    advancedPlayState.step = 'select-fc-out';
-                    // Clear the previously selected out runner
-                    const outRunnerKey = `base-${advancedPlayState.outRunnerBase}`;
-                    delete advancedPlayState.runnerDestinations[outRunnerKey];
-                    advancedPlayState.outRunnerBase = null;
-                    renderAdvancedPlayOptions();
-                }
-                else if (advancedPlayState.error) {
-                    advancedPlayState.step = 'select-error';
-                    renderAdvancedPlayOptions();
-                }
-                else if (['內安', '一安', '二安', '三安', '場地二安', '不死三振'].includes(advancedPlayState.play)) {
-                    advancedPlayState.step = 'ask-error';
-                    renderAdvancedPlayOptions();
-                }
-                else {
-                    backFromAdvanced();
-                }
+            const st: any = advancedPlayState;
+            const stack: string[] = st.stepStack || (st.stepStack = []);
+            const cur = st.step;
+            const prev = stack[stack.length - 1];
+            // 退回去之前，先把這一步做過的事情清掉
+            if (cur === 'set-runners' && prev === 'select-fc-out' && st.outRunnerBase !== null) {
+                delete st.runnerDestinations[`base-${st.outRunnerBase}`];
+                st.outRunnerBase = null;
             }
-            else if (advancedPlayState.step === 'select-error') {
-                if (['內安', '一安', '二安', '三安', '場地二安', '不死三振'].includes(advancedPlayState.play)) {
-                    advancedPlayState.error = null;
-                    advancedPlayState.errors = [];
-                    advancedPlayState.step = 'ask-error';
-                    renderAdvancedPlayOptions();
-                }
-                else if (advancedPlayState.batterIsOut) {
-                    // 出局類是從確認畫面按「加上失誤」進來的，返回就回確認畫面
-                    advancedPlayState.step = 'set-runners';
-                    renderAdvancedPlayOptions();
-                }
-                else {
-                    backFromAdvanced();
-                }
+            if (cur === 'select-error' && prev === 'ask-error') {
+                st.error = null;
+                st.errors = [];
             }
-            else {
-                backFromAdvanced();
-            }
+            // 已經在第一步了：離開視窗，回到原本叫出它的地方
+            if (!stack.length) { backFromAdvanced(); return; }
+            st.step = stack.pop();
+            renderAdvancedPlayOptions();
         });
         doneButtonAdvanced.addEventListener('click', processAdvancedPlay);
         undoBtn.addEventListener('click', handleUndo);
@@ -3027,7 +3009,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderAdvancedPlayOptions();
                 }
                 else if (step === 'add-error') {
-                    advancedPlayState.step = 'select-error';
+                    advGoStep('select-error');
                     renderAdvancedPlayOptions();
                 }
                 else if (step === 'clear-error') {
@@ -3036,16 +3018,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderAdvancedPlayOptions();
                 }
                 else if (step === 'ask-error') {
-                    if (choice === 'yes') {
-                        advancedPlayState.step = 'select-error';
-                    }
-                    else {
-                        advancedPlayState.step = 'set-runners';
-                    }
+                    advGoStep(choice === 'yes' ? 'select-error' : 'set-runners');
                     renderAdvancedPlayOptions();
                 }
                 else if (step === 'select-error') {
-                    advancedPlayState.step = 'set-runners';
+                    advGoStep('set-runners');
                     advancedPlayState.errors = [...(advancedPlayState.errors || []), errorPos];
                     advancedPlayState.error = advancedPlayState.errors[0];
                     // 失誤分兩種（手冊 2-41）：
@@ -3090,7 +3067,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         advancedPlayState.batterDestination = { dest: 1, isUnearned: false };
                         advancedPlayState.runnerDestinations[`base-${who}`] = { dest: 0, isUnearned: false };
                     }
-                    advancedPlayState.step = 'set-runners';
+                    advGoStep('set-runners');
                     renderAdvancedPlayOptions();
                 }
                 else if (step === 'select-fc-out') {
@@ -3103,7 +3080,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Pre-set the runner as out
                         advancedPlayState.runnerDestinations[`base-${outRunnerBaseIndex}`] = { dest: 0, isUnearned: false };
                     }
-                    advancedPlayState.step = 'set-runners';
+                    advGoStep('set-runners');
                     renderAdvancedPlayOptions();
                 }
                 else if (step === 'set-runners') {
@@ -5511,6 +5488,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const noRunners = advancedPlayState.originalBases.every(r => !r);
             advancedPlayState.step = noRunners ? 'set-runners' : 'ask-error';
         }
+        // 「返回」要一步一步退回去，所以從第一步開始記。空的就代表已經在第一步，
+        // 再按一次就離開視窗——不能往回跳到當初被跳過的步驟
+        // （例如壘上無人的安打會直接跳到確認畫面，「是否有失誤」根本沒出現過）。
+        advancedPlayState.stepStack = [];
         renderAdvancedPlayOptions();
         showModalStep('advanced');
     }
