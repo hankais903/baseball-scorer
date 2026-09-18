@@ -401,9 +401,18 @@
             <img class="ob-logo" src="./img/logo.webp" alt="Diamond Log">
 
             <!-- 第 0 步：只有一個選項 -->
+            <!-- 第 0 步＝啟動畫面。第一次使用只有「創建球隊」；
+                 已經建過球隊就換成「進入／繼續比賽／我的球隊」。 -->
             <section class="ob-step" data-step="0">
-                <p class="ob-hello">歡迎！先建立你的球隊，之後記比賽都會用到。</p>
+                <p class="ob-hello" id="ob-hello">歡迎！先建立你的球隊，之後記比賽都會用到。</p>
                 <button type="button" id="ob-start" class="ob-primary">創建球隊</button>
+                <button type="button" id="ob-enter" class="ob-primary ob-launch hidden">進入</button>
+                <button type="button" id="ob-resume" class="ob-launch ob-resume hidden">
+                    <span class="live-badge"><i></i>比賽進行中</span>
+                    <span class="ob-resume-label">繼續比賽</span>
+                    <span class="ob-resume-sub" id="ob-resume-sub"></span>
+                </button>
+                <button type="button" id="ob-team" class="ob-launch ob-second hidden">我的球隊</button>
             </section>
 
             <!-- 第 1 步：球隊簡介 -->

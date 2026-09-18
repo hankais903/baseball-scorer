@@ -9,8 +9,16 @@ const TEAM = {
   players: Array.from({ length: 9 }, (_, i) => ({ _id: 'm' + i, jersey: String(i + 1), name: i < 3 ? '選手' + i : '', pos: '' })),
   lineups: [],
 };
-// 已經建過球隊的狀態（大部分測試從這裡開始）
-const withTeam = (extra = {}) => boot({ storage: { baseball_my_team: JSON.stringify(TEAM), ...extra } });
+// 已經建過球隊的狀態（大部分測試從這裡開始）。
+// v2.22 起開機一律停在啟動畫面，所以這裡幫忙按一下「進入」到主畫面。
+// 要驗啟動畫面本身的測試改用 launch()。
+const launch = (extra = {}) => boot({ storage: { baseball_my_team: JSON.stringify(TEAM), ...extra } });
+const withTeam = async (extra = {}) => {
+  const ctx = await launch(extra);
+  const enter = ctx.q('#ob-enter');
+  if (enter && !enter.classList.contains('hidden')) click(ctx.window, enter);
+  return ctx;
+};
 const type = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); el.dispatchEvent(new w.Event('change', { bubbles: true })); };
 
 export default async function (t) {
@@ -61,10 +69,23 @@ export default async function (t) {
     t.assert(q('#ob-shortname').value === '只有全名的隊'.slice(0, 5), '沒有自動用全名前五字當簡稱：' + q('#ob-shortname').value);
   });
 
-  await t('已經有球隊就不再出現建立流程', async () => {
-    const { q } = await withTeam();
-    t.assert(q('#onboard-screen').classList.contains('hidden'), '又跳出建立球隊');
-    t.assert(!q('#main-shell').classList.contains('hidden'), '沒有進到主畫面');
+  await t('已經有球隊：啟動畫面換成進入／我的球隊，不再叫你建立球隊', async () => {
+    const { window: w, q } = await launch();
+    t.assert(!q('#onboard-screen').classList.contains('hidden'), '啟動畫面沒有出現');
+    t.assert(q('#ob-start').classList.contains('hidden'), '已經有球隊還叫人創建球隊');
+    t.assert(!q('#ob-enter').classList.contains('hidden'), '沒有「進入」');
+    t.assert(!q('#ob-team').classList.contains('hidden'), '沒有「我的球隊」');
+    t.assert(q('#ob-resume').classList.contains('hidden'), '沒有比賽卻顯示繼續比賽');
+    click(w, q('#ob-enter'));
+    t.assert(!q('#main-shell').classList.contains('hidden'), '按了進入沒有到主畫面');
+    t.assert(q('#onboard-screen').classList.contains('hidden'), '啟動畫面沒有收起來');
+  });
+
+  await t('已經有球隊：按「我的球隊」直接到球隊分頁', async () => {
+    const { window: w, q } = await launch();
+    click(w, q('#ob-team'));
+    t.assert(!q('#main-shell').classList.contains('hidden'), '沒有到主畫面');
+    t.assert(!q('#page-team').classList.contains('hidden'), '停的不是球隊分頁');
   });
 
   // === 五個分頁 ===
@@ -251,20 +272,33 @@ export default async function (t) {
       '返回後人數沒有更新：' + q('#team-players-count').textContent);
   });
 
-  await t('首頁：一開機一律停在首頁，比賽由「繼續比賽」接回去', async () => {
+  await t('一開機停在啟動畫面，有未完成的比賽就多一顆「繼續比賽」', async () => {
     const first = await withTeam();
     startGame(first.window);
     quickPlay(first.window, '四壞');
     await sleep(300);
     const saved = first.window.localStorage.getItem('baseballGameState');
-    const { window: w, q } = await withTeam({ baseballGameState: saved });
-    t.assert(!q('#main-shell').classList.contains('hidden'), '開機沒有停在主畫面');
-    t.assert(w.document.body.classList.contains('shell-open'), '主畫面沒有真的打開');
-    t.assert(!q('#page-home').classList.contains('hidden'), '停的不是首頁那一頁');
-    t.assert(!q('#home-continue').classList.contains('hidden'), '沒有顯示「繼續比賽」');
+    const { window: w, q } = await launch({ baseballGameState: saved });
+    t.assert(!q('#onboard-screen').classList.contains('hidden'), '開機沒有停在啟動畫面');
+    t.assert(q('#main-shell').classList.contains('hidden'), '不該直接進主畫面');
+    t.assert(!q('#ob-resume').classList.contains('hidden'), '沒有顯示「繼續比賽」');
+    t.assert(/局[上下]/.test(q('#ob-resume-sub').textContent), '沒有寫出比分與局數：'
+      + q('#ob-resume-sub').textContent);
     // 按了才進比賽畫面
-    click(w, q('#home-continue'));
-    t.assert(q('#main-shell').classList.contains('hidden'), '按了繼續比賽卻沒進到比賽畫面');
+    click(w, q('#ob-resume'));
+    t.assert(q('#main-shell').classList.contains('hidden') && q('#onboard-screen').classList.contains('hidden'),
+      '按了繼續比賽卻沒進到比賽畫面');
+  });
+
+  await t('啟動畫面的「比賽進行中」標記要待在按鈕裡，不能飄到畫面左上角', async () => {
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    // .live-badge 本來是 position:absolute（首頁那張卡用的），
+    // 按鈕沒有定位基準的話標記會飄到整個畫面的左上角。
+    t.assert(/\.ob-resume\{[^}]*position:\s*relative/.test(css), '.ob-resume 沒有當定位基準');
+    t.assert(/\.ob-resume\s+\.live-badge\{[^}]*position:\s*static/.test(css),
+      '「比賽進行中」標記沒有改成照順序排在按鈕裡');
   });
 
   await t('首頁：回到主畫面時，「繼續比賽」會寫出比分與局數', async () => {

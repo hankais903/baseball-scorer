@@ -2924,3 +2924,45 @@ body.playing #game-meta-static span + span::before {
     font-size: 0.7rem; opacity: 0.85; font-weight: 400;
 }
 .advanced-play-modifiers .err-del { min-width: 56px; }
+
+/* ===== 啟動畫面（v2.22）=====
+   第一次使用只有「創建球隊」；已經建過球隊就換成「進入／繼續比賽／我的球隊」。
+   這個專案沒有共用的 .hidden，所以每一顆都要自己寫一條收起來的規則。 */
+.ob-launch.hidden,
+#ob-start.hidden { display: none; }
+
+.ob-launch { width: 100%; margin-top: 10px; font-family: inherit; cursor: pointer; }
+
+/* 「繼續比賽」用亮橘＋跳動的標記，跟首頁那張卡一致，要一眼看得到 */
+.ob-resume {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    position: relative;
+    min-height: 66px;
+    padding: 10px 14px;
+    border-radius: 13px;
+    border: 1px solid rgba(244, 124, 32, 0.85);
+    background: linear-gradient(180deg, #f0762a, #d75d15);
+    box-shadow: 0 8px 22px rgba(215, 93, 21, 0.38);
+    color: #fff;
+    text-align: left;
+}
+/* 「比賽進行中」那個標記本來是浮起來貼在卡片左上角的（首頁那張卡用的），
+   放進這顆按鈕要先把按鈕設成定位基準，並讓標記照順序排在第一行，
+   否則它會飄到整個畫面的左上角（踩過一次，已有測試釘住）。 */
+.ob-resume .live-badge { position: static; align-self: flex-start; }
+.ob-resume .ob-resume-label { font-size: 1rem; font-weight: 800; }
+.ob-resume .ob-resume-sub { font-size: 0.78rem; opacity: 0.92; }
+
+.ob-second {
+    min-height: 52px;
+    border-radius: 13px;
+    border: 1px solid var(--th-line);
+    background: rgba(13, 30, 51, 0.86);
+    color: #cfe2f8;
+    font-size: 0.96rem;
+    font-weight: 600;
+}
+.ob-launch:active { filter: brightness(1.18); }

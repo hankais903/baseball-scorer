@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.21';
+const APP_VERSION = 'v2.22';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -873,7 +873,37 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#onboard-screen .ob-step').forEach(s => {
             s.classList.toggle('hidden', Number((s as HTMLElement).dataset.step) !== step);
         });
+        if (step === 0) renderLaunchButtons();
         if (step === 2) renderOnboardPlayers();
+    }
+    // 啟動畫面（第 0 步）的按鈕：
+    //   還沒建過球隊 → 只有「創建球隊」
+    //   已經建過     → 進入／繼續比賽（有未完成的比賽才出現）／我的球隊
+    function renderLaunchButtons() {
+        const has = !!myTeam;
+        const show = (id: string, on: boolean) =>
+            document.getElementById(id)?.classList.toggle('hidden', !on);
+        show('ob-start', !has);
+        show('ob-enter', has);
+        show('ob-team', has);
+        show('ob-resume', has && canContinue());
+        const hello = document.getElementById('ob-hello');
+        if (hello) {
+            hello.textContent = has
+                ? `${myTeam.fullName || myTeam.shortName || '我的球隊'}　要做什麼？`
+                : '歡迎！先建立你的球隊，之後記比賽都會用到。';
+        }
+        const sub = document.getElementById('ob-resume-sub');
+        if (sub && has && canContinue()) {
+            const a = gameState.teams.a, b = gameState.teams.b;
+            const sa = a.score.reduce((x, y) => x + (y || 0), 0);
+            const sb = b.score.reduce((x, y) => x + (y || 0), 0);
+            const where = gameState.stadium ? `　${gameState.stadium}` : '';
+            sub.textContent = `${a.name} ${sa} : ${sb} ${b.name}　${gameState.inning}局${gameState.isTop ? '上' : '下'}${where}`;
+        }
+    }
+    function closeLaunch() {
+        document.getElementById('onboard-screen')?.classList.add('hidden');
     }
     let obPlayers: any[] = [];
     function renderOnboardPlayers() {
@@ -1491,8 +1521,8 @@ document.addEventListener('DOMContentLoaded', () => {
         render();
         leaveGameView();
         document.getElementById('onboard-screen')?.classList.add('hidden');
-        if (!myTeam) { obPlayers = []; showOnboard(0); }
-        else showShell('home');
+        if (!myTeam) obPlayers = [];
+        showOnboard(0);
     }
 
     // --- 比賽中的畫面：底部分頁藏起來，紀錄改成從下面滑出 ---
@@ -1719,12 +1749,9 @@ document.addEventListener('DOMContentLoaded', () => {
         addEventListeners();
         render();
         updateLayout(); // Set initial layout based on screen size
-        // 開啟 APP 一律停在主畫面的首頁（使用者要求）。
-        // 有沒有打完的比賽由首頁那張「繼續比賽」負責，按了才進比賽畫面。
-        // 以前是「有比賽在進行就直接進比賽」，改掉的原因是每次開 APP
-        // 都被丟進比賽裡，想看球隊或紀錄還要先退出來。
-        if (!myTeam) showOnboard(0);
-        else showShell('home');
+        // 開啟 APP 一律停在啟動畫面（大 LOGO 那一頁，使用者要求）：
+        // 第一次使用只有「創建球隊」；已經建過球隊就是「進入／繼續比賽／我的球隊」。
+        showOnboard(0);
     }
     // 拖曳只改了 DOM 順序，輸入欄上的 data-index 仍是舊的位置。
     // 套用前先依畫面上的排列把 roster 重新排好（整個球員物件一起搬，統計數據跟著走）。
@@ -2390,6 +2417,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target === document.getElementById('ask-modal')) closeAsk();
         });
         document.getElementById('ob-start')?.addEventListener('click', () => { tapFeedback(); gotoOnboardStep(1); });
+        document.getElementById('ob-enter')?.addEventListener('click', () => {
+            tapFeedback(); closeLaunch(); showShell('home');
+        });
+        document.getElementById('ob-resume')?.addEventListener('click', () => {
+            tapFeedback(); closeLaunch(); enterGameView();
+        });
+        document.getElementById('ob-team')?.addEventListener('click', () => {
+            tapFeedback(); closeLaunch(); showShell('team');
+        });
         document.querySelectorAll('#onboard-screen .ob-back').forEach(b => {
             b.addEventListener('click', () => { collectOnboardPlayers(); gotoOnboardStep(Number((b as HTMLElement).dataset.goto)); });
         });
