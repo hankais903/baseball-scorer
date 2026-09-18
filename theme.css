@@ -2988,3 +2988,112 @@ body.playing #game-meta-static span + span::before {
     font-weight: 600;
 }
 .ob-launch:active { filter: brightness(1.18); }
+
+/* =====================================================================
+   畫面轉場（v2.26）
+   1. 換頁／換畫面 → 淡入
+   2. 記錄比賽時跳出來的視窗 → 從小放大出現，不要硬切
+   這個專案的東西一律靠 display:none 收起來，所以只要在「看得到」的狀態
+   掛上 animation，元素一顯示出來就會自己播一次，不必動到 JS。
+   都不用 fill-mode：萬一動畫沒跑，畫面還是停在正常樣子，不會整片不見。
+   ===================================================================== */
+@keyframes dl-fade-in {
+    from { opacity: 0; }
+}
+@keyframes dl-rise-in {
+    from { opacity: 0; transform: translateY(6px); }
+}
+@keyframes dl-pop-in {
+    from { opacity: 0; transform: scale(0.92); }
+}
+/* 落點結果選單本來就靠 translateX(-50%) 置中，放大時要把它一起帶著 */
+@keyframes dl-pop-in-centered {
+    from { opacity: 0; transform: translateX(-50%) scale(0.92); }
+}
+/* 從按鈕下面掉出來的小選單，縮放的中心點在上緣 */
+@keyframes dl-pop-in-top {
+    from { opacity: 0; transform: scale(0.94) translateY(-6px); }
+}
+
+/* --- 1. 換頁：淡入 --- */
+#onboard-screen:not(.hidden),
+#main-shell:not(.hidden) {
+    animation: dl-fade-in 0.2s ease-out;
+}
+.shell-page:not(.hidden),
+.shell-sub:not(.hidden) {
+    animation: dl-rise-in 0.2s ease-out;
+}
+/* 從主畫面回到比賽畫面（#app-container 從藏起來變回看得見） */
+body:not(.shell-open) #app-container {
+    animation: dl-fade-in 0.22s ease-out;
+}
+/* 視窗裡換步驟（選完球種進下一步、進階視窗）也淡一下 */
+#modal-step-2:not(.modal-hidden),
+#modal-step-advanced:not(.modal-hidden),
+#runner-action-step-2:not(.modal-hidden),
+#field-result-panel > * {
+    animation: dl-fade-in 0.18s ease-out;
+}
+
+/* --- 2. 記錄比賽的視窗：放大出現 --- */
+/* 背後那層黑紗淡入 */
+#play-modal:not(.modal-hidden),
+#runner-action-modal:not(.modal-hidden),
+#confirm-modal:not(.modal-hidden),
+#event-edit-modal:not(.modal-hidden),
+#picker-modal:not(.modal-hidden),
+#management-modal:not(.modal-hidden),
+#box-score-modal:not(.modal-hidden),
+#load-roster-modal:not(.modal-hidden),
+#ask-modal:not(.hidden),
+#end-reason-modal:not(.hidden) {
+    animation: dl-fade-in 0.18s ease-out;
+}
+/* 視窗本體從 92% 放大到原尺寸，尾巴帶一點點回彈 */
+.draggable-modal-content:not(.is-dragging),
+.ask-box,
+.end-reason-box {
+    animation: dl-pop-in 0.22s cubic-bezier(0.34, 1.32, 0.64, 1);
+}
+/* 打席選單與落點結果選單（同一個面板） */
+#field-result-panel:not(.hidden) {
+    animation: dl-pop-in-centered 0.22s cubic-bezier(0.34, 1.32, 0.64, 1);
+}
+/* 計時器選單、用過的球場清單 */
+#clock-menu:not(.modal-hidden),
+.meta-menu:not(.modal-hidden) {
+    transform-origin: top center;
+    animation: dl-pop-in-top 0.18s ease-out;
+}
+
+/* 使用者在系統設定裡關掉動畫效果的話，這裡全部不播 */
+@media (prefers-reduced-motion: reduce) {
+    #onboard-screen:not(.hidden),
+    #main-shell:not(.hidden),
+    .shell-page:not(.hidden),
+    .shell-sub:not(.hidden),
+    body:not(.shell-open) #app-container,
+    #modal-step-2:not(.modal-hidden),
+    #modal-step-advanced:not(.modal-hidden),
+    #runner-action-step-2:not(.modal-hidden),
+    #field-result-panel > *,
+    #play-modal:not(.modal-hidden),
+    #runner-action-modal:not(.modal-hidden),
+    #confirm-modal:not(.modal-hidden),
+    #event-edit-modal:not(.modal-hidden),
+    #picker-modal:not(.modal-hidden),
+    #management-modal:not(.modal-hidden),
+    #box-score-modal:not(.modal-hidden),
+    #load-roster-modal:not(.modal-hidden),
+    #ask-modal:not(.hidden),
+    #end-reason-modal:not(.hidden),
+    .draggable-modal-content:not(.is-dragging),
+    .ask-box,
+    .end-reason-box,
+    #field-result-panel:not(.hidden),
+    #clock-menu:not(.modal-hidden),
+    .meta-menu:not(.modal-hidden) {
+        animation: none;
+    }
+}

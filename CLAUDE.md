@@ -100,6 +100,21 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
   放進 `#ob-resume` 一定要給按鈕 `position:relative` 並把標記改回 `position:static`，
   否則它會飄到整個畫面的左上角（踩過一次，已有測試釘住）。
 
+## 畫面轉場（v2.26）
+- 規則都寫在 `theme.css` 最後面，**純 CSS**：這個專案的東西一律靠 `display:none` 收起來，
+  所以只要在「看得到」的狀態（`:not(.hidden)`／`:not(.modal-hidden)`）掛 `animation`，
+  元素一顯示出來就會自己播一次，不必動 JS。
+- **不要加 fill-mode**（`forwards`／`both`）：萬一動畫沒跑，畫面要停在正常樣子，不能整片不見。
+- 換頁淡入：`#onboard-screen`／`#main-shell`（`dl-fade-in`）、`.shell-page`／`.shell-sub`（`dl-rise-in`，淡入＋上移 6px）、
+  回比賽畫面的 `body:not(.shell-open) #app-container`。
+- 視窗放大出現：黑紗 `dl-fade-in`，視窗本體 `.draggable-modal-content`／`.ask-box`／`.end-reason-box` 用 `dl-pop-in`（0.92→1，尾巴回彈）。
+- **落點結果／打席選單（`#field-result-panel`）本來就用 `transform: translateX(-50%)` 置中**，
+  所以它的放大動畫要用 `dl-pop-in-centered`，關鍵影格裡一定要把那個位移帶著，不然選單會整個跑到右邊。
+- 計時器選單與球場歷史（`#clock-menu`／`.meta-menu`）用 `dl-pop-in-top`，縮放中心在上緣。
+- 每一條都要進 `@media (prefers-reduced-motion: reduce)` 的 `animation: none` 清單。
+- `#field-result-panel > *` 也淡入，所以選單換內容（打席選單→球種→結果）不會硬切；
+  面板內容只有在開選單時才重建（`resultPanel.innerHTML`），不是每次重繪，所以不會閃。
+
 ## 我的球隊與五分頁主畫面（v2.0 改版，進行中）
 - **第一次使用只有「創建球隊」**（`#onboard-screen`，三步：簡介 → 球員 → 完成）。
   簡介＝全名（≤15）、簡稱（≤5，記分板顯示這個）、LOGO、代表色；成立時間自動記當天。

@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.25';
+const APP_VERSION = 'v2.26';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;

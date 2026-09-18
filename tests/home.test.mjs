@@ -322,6 +322,29 @@ export default async function (t) {
       'CSS 裡沒有把歡迎頁改成不垂直置中的規則');
   });
 
+  await t('換頁要淡入、記錄比賽的視窗要放大出現', async () => {
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    for (const kf of ['dl-fade-in', 'dl-rise-in', 'dl-pop-in', 'dl-pop-in-centered', 'dl-pop-in-top']) {
+      t.assert(css.includes('@keyframes ' + kf), '少了動畫 ' + kf);
+    }
+    // 換頁淡入
+    t.assert(/#main-shell:not\(\.hidden\)[^{]*\{[^}]*animation:\s*dl-fade-in/.test(css), '主畫面沒有淡入');
+    t.assert(/\.shell-page:not\(\.hidden\)[^{]*\{[^}]*animation:\s*dl-rise-in/.test(css), '分頁沒有淡入');
+    // 視窗放大出現
+    t.assert(/\.draggable-modal-content:not\(\.is-dragging\)[^{]*\{[^}]*animation:\s*dl-pop-in/.test(css),
+      '記錄比賽的視窗沒有放大出現');
+    // 落點選單本來就用 translateX(-50%) 置中，放大時一定要把它帶著，否則會整個跑到右邊
+    // 壓縮過的 CSS 會把 translateX(-50%) 寫成 translate(-50%)，兩種都算對
+    t.assert(/@keyframes dl-pop-in-centered\{[^}]*translate(X)?\(-50%\)/.test(css),
+      '落點選單放大時沒有保留置中的位移');
+    // 關掉動畫效果的人要看不到動畫
+    t.assert(/prefers-reduced-motion:\s*reduce/.test(css), '沒有尊重「減少動態效果」');
+    const rm = css.slice(css.lastIndexOf('prefers-reduced-motion'));
+    t.assert(/animation:\s*none/.test(rm), '減少動態效果時沒有把新動畫關掉');
+  });
+
   await t('歡迎頁最下面要寫版號', async () => {
     const { window: w, q } = await launch();
     const ver = q('#ob-version');
