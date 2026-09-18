@@ -358,6 +358,20 @@ export default async function (t) {
     t.assert(!scr.classList.contains('dl-leaving'), '淡出播完沒有把記號拿掉');
   });
 
+  await t('首頁的版號放在最下面，不是 LOGO 旁邊', async () => {
+    const { q } = await withTeam();
+    const ver = q('#shell-version');
+    t.assert(!!ver, '首頁沒有版號');
+    t.assert(!q('.shell-head .shell-ver'), '版號還留在 LOGO 旁邊');
+    const home = q('#page-home');
+    t.assert(home.lastElementChild === ver, '版號不是首頁的最後一個元素');
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    t.assert(/#page-home\{[^}]*min-height:\s*100%/.test(css), '首頁沒有撐滿高度，版號會黏在內容下面');
+    t.assert(/\.shell-ver\{[^}]*margin:\s*auto 0 0/.test(css), '版號沒有被推到最下面');
+  });
+
   await t('歡迎頁最下面要寫版號', async () => {
     const { window: w, q } = await launch();
     const ver = q('#ob-version');

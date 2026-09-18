@@ -1595,7 +1595,17 @@ body.shell-open #app-container { visibility: hidden; }
 
 .shell-head { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .shell-logo { width: min(66%, 260px); filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.6)); }
-.shell-ver { font-size: 0.7rem; color: rgba(190, 210, 232, 0.5); letter-spacing: 0.06em; }
+/* 版號放在首頁最下面（跟歡迎頁一致）：
+   首頁先撐滿看得到的高度，版號再用 margin-top:auto 被推到底。 */
+#page-home { min-height: 100%; }
+.shell-ver {
+    margin: auto 0 0;
+    padding-top: 10px;
+    text-align: center;
+    font-size: 0.7rem;
+    color: rgba(190, 210, 232, 0.5);
+    letter-spacing: 0.06em;
+}
 
 .shell-title { margin: 4px 0 0; font-size: 1.15rem; color: #eaf2ff; }
 .shell-section { margin: 6px 0 -4px; font-size: 0.82rem; font-weight: 700; color: rgba(198, 218, 240, 0.7); letter-spacing: 0.04em; }
