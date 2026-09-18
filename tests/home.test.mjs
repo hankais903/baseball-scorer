@@ -290,6 +290,21 @@ export default async function (t) {
       '按了繼續比賽卻沒進到比賽畫面');
   });
 
+  await t('歡迎頁最下面要寫版號', async () => {
+    const { window: w, q } = await launch();
+    const ver = q('#ob-version');
+    t.assert(!!ver, '歡迎頁沒有版號那一行');
+    t.assert(/^v\d+\.\d+/.test(ver.textContent.trim()), '版號格式不對：' + ver.textContent);
+    // 跟主畫面首頁顯示的是同一個版號
+    click(w, q('#ob-enter'));
+    t.assert(q('#shell-version').textContent.trim() === ver.textContent.trim(),
+      '歡迎頁與首頁的版號不一樣');
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    t.assert(/\.ob-ver\{[^}]*position:\s*fixed/.test(css), '版號沒有釘在畫面底部');
+  });
+
   await t('啟動畫面的「比賽進行中」標記要待在按鈕裡，不能飄到畫面左上角', async () => {
     const fs = await import('fs');
     const dir = 'dist/assets';

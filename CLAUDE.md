@@ -90,6 +90,8 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
   - 另外有沒打完的比賽（`canContinue()`）→ 中間多一顆「繼續比賽」（`#ob-resume`，亮橘），
     副標寫比分與局數，按了 `enterGameView()` 直接回比賽。
 - 收起按鈕靠 `.ob-launch.hidden, #ob-start.hidden { display:none }`（這個專案沒有共用的 `.hidden`）。
+- 版號（`#ob-version`）釘在歡迎頁最下面（`.ob-ver` 用 `position:fixed`，因為 `#onboard-screen` 本身就是 fixed），
+  跟主畫面首頁的 `#shell-version` 同一個值。
 - 「比賽進行中」那個綠點標記（`.live-badge`）原本是 `position:absolute`（首頁那張卡用的），
   放進 `#ob-resume` 一定要給按鈕 `position:relative` 並把標記改回 `position:static`，
   否則它會飄到整個畫面的左上角（踩過一次，已有測試釘住）。

@@ -1377,6 +1377,21 @@ body.shell-open #app-container { visibility: hidden; }
     filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.6));
 }
 
+/* 版號：釘在歡迎頁最下面。#onboard-screen 本身是 position:fixed，
+   所以這裡用 fixed 就會貼著螢幕底部，捲動長表單時也不會跟著跑。 */
+.ob-ver {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--sab) + 8px);
+    margin: 0;
+    text-align: center;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: rgba(190, 210, 232, 0.5);
+    pointer-events: none;
+}
+
 .ob-hello {
     margin: 0;
     text-align: center;
