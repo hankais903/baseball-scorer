@@ -97,6 +97,10 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 版號（`#ob-version`）釘在歡迎頁最下面（`.ob-ver` 用 `position:fixed`，因為 `#onboard-screen` 本身就是 fixed），
   跟主畫面首頁的 `#shell-version` 同一個值。**只在第 0 步顯示**（靠 `#onboard-screen.launch .ob-ver`）：
   建立球隊那兩步是會捲動的長表單，版號浮著會蓋住名單與按鈕（踩過一次，已有測試釘住）。
+- 上面那張圖（`.ob-logo`）：**填了球隊 LOGO 之後，下一頁（球員名單，第 2 步）就換成球隊自己的**，
+  沒填就一直用 APP 的（`syncOnboardLogo(step)`，`gotoOnboardStep` 每次都叫）。
+  APP LOGO 的網址第一次進來時記在 `appLogoSrc`，**不能寫死 `./img/logo.webp`**（預覽檔會換成內嵌圖）。
+  換成球隊 LOGO 時加 `.is-team`：球隊圖不一定是方的，所以框成正方形、`object-fit:contain` 不裁切。
 - 建立球隊最後一顆鍵寫「完成，進入球隊頁面」，按了 `closeLaunch()` ＋ `showShell('team')`（不是首頁）。
 - 「比賽進行中」那個綠點標記（`.live-badge`）原本是 `position:absolute`（首頁那張卡用的），
   放進 `#ob-resume` 一定要給按鈕 `position:relative` 並把標記改回 `position:static`，

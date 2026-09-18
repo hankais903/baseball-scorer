@@ -358,6 +358,40 @@ export default async function (t) {
     t.assert(!scr.classList.contains('dl-leaving'), '淡出播完沒有把記號拿掉');
   });
 
+  await t('建立球隊：有上傳球隊 LOGO，下一頁就換成球隊的；沒上傳就繼續用 APP 的', async () => {
+    const { window: w, q } = await boot({});
+    const top = () => q('#onboard-screen .ob-logo');
+    const appLogo = top().getAttribute('src');
+    click(w, q('#ob-start'));
+    t.assert(top().getAttribute('src') === appLogo, '第一步不該換圖');
+    // 沒上傳 → 下一頁還是 APP 的 LOGO（要先填隊名才走得到下一頁）
+    q('#ob-shortname').value = '新莊';
+    click(w, q('#ob-to-players'));
+    t.assert(top().getAttribute('src') === appLogo, '沒上傳球隊 LOGO，卻換掉了');
+    t.assert(!top().classList.contains('is-team'), '沒上傳卻標成球隊 LOGO');
+
+    // 上傳一張 → 下一頁換成球隊的
+    const { window: w2, q: q2 } = await boot({});
+    const fake = 'data:image/png;base64,iVBORw0KGgo=';
+    const app2 = q2('#onboard-screen .ob-logo').getAttribute('src');
+    click(w2, q2('#ob-start'));
+    q2('#ob-shortname').value = '新莊';
+    q2('#ob-logo-preview').setAttribute('src', fake);
+    q2('#ob-logo-pick').classList.add('has-logo');
+    click(w2, q2('#ob-to-players'));
+    const top2 = q2('#onboard-screen .ob-logo');
+    t.assert(top2.getAttribute('src') === fake, '沒有換成球隊的 LOGO：' + top2.getAttribute('src'));
+    t.assert(top2.classList.contains('is-team'), '沒有標成球隊 LOGO');
+    // 退回上一步就換回 APP 的
+    click(w2, q2('#onboard-screen .ob-back[data-goto="1"]'));
+    t.assert(q2('#onboard-screen .ob-logo').getAttribute('src') === app2, '退回上一步沒有換回 APP 的 LOGO');
+
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    t.assert(/\.ob-logo\.is-team\{[^}]*object-fit:\s*contain/.test(css), '球隊 LOGO 沒有框成不裁切');
+  });
+
   await t('創建球隊最後一顆鍵寫「完成，進入球隊頁面」，按了就到球隊分頁', async () => {
     const { window: w, q } = await boot({});
     click(w, q('#ob-start'));

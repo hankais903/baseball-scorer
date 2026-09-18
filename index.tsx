@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.29';
+const APP_VERSION = 'v2.30';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -871,12 +871,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ver) ver.textContent = APP_VERSION;
         gotoOnboardStep(step);
     }
+    // 建立球隊上面那張圖：填了球隊 LOGO 之後，下一頁（球員名單）就換成球隊自己的 LOGO；
+    // 沒填就一直用 APP 的 LOGO。APP LOGO 的網址第一次進來時記下來（預覽檔會把它換成內嵌圖，不能寫死路徑）。
+    let appLogoSrc = '';
+    function syncOnboardLogo(step: number) {
+        const img = document.querySelector('#onboard-screen .ob-logo') as HTMLImageElement | null;
+        if (!img) return;
+        if (!appLogoSrc) appLogoSrc = img.getAttribute('src') || '';
+        const picked = (document.getElementById('ob-logo-preview') as HTMLImageElement | null)?.getAttribute('src') || '';
+        const useTeam = step >= 2 && picked.startsWith('data:');
+        const want = useTeam ? picked : appLogoSrc;
+        if (img.getAttribute('src') !== want) img.setAttribute('src', want);
+        img.classList.toggle('is-team', useTeam);
+    }
     function gotoOnboardStep(step) {
         document.querySelectorAll('#onboard-screen .ob-step').forEach(s => {
             s.classList.toggle('hidden', Number((s as HTMLElement).dataset.step) !== step);
         });
         // 歡迎頁（第 0 步）的 LOGO 要往上靠，建立球隊那兩步是長表單，仍照原本排。
         document.getElementById('onboard-screen')?.classList.toggle('launch', step === 0);
+        syncOnboardLogo(step);
         if (step === 0) renderLaunchButtons();
         if (step === 2) renderOnboardPlayers();
     }
