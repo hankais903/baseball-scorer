@@ -92,6 +92,8 @@ npm run build:preview       # 產生單檔預覽 HTML 到 preview/（會先自�
 - 收起按鈕靠 `.ob-launch.hidden, #ob-start.hidden { display:none }`（這個專案沒有共用的 `.hidden`）。
 - `restartApp()`（清除全部資料／還原備份）除了叫出歡迎頁，**一定要先 `hideShell()`**，
   否則五分頁主畫面會留在下面，兩層內容疊在一起糊成一片（踩過一次，已有測試釘住）。
+- LOGO 的高度：第 0 步時 `#onboard-screen` 會帶上 `launch` 記號，`.ob-inner` 改成 `margin:0 auto` ＋ `padding-top:10vh`，
+  LOGO 就落在畫面上緣約兩成的位置（使用者指定）。建立球隊那兩步是長表單，不加這個記號。
 - 版號（`#ob-version`）釘在歡迎頁最下面（`.ob-ver` 用 `position:fixed`，因為 `#onboard-screen` 本身就是 fixed），
   跟主畫面首頁的 `#shell-version` 同一個值。
 - 「比賽進行中」那個綠點標記（`.live-badge`）原本是 `position:absolute`（首頁那張卡用的），

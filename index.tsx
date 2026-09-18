@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.24';
+const APP_VERSION = 'v2.25';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -875,6 +875,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('#onboard-screen .ob-step').forEach(s => {
             s.classList.toggle('hidden', Number((s as HTMLElement).dataset.step) !== step);
         });
+        // 歡迎頁（第 0 步）的 LOGO 要往上靠，建立球隊那兩步是長表單，仍照原本排。
+        document.getElementById('onboard-screen')?.classList.toggle('launch', step === 0);
         if (step === 0) renderLaunchButtons();
         if (step === 2) renderOnboardPlayers();
     }

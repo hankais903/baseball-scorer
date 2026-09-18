@@ -304,6 +304,24 @@ export default async function (t) {
     t.assert(!w.localStorage.getItem('baseball_my_team'), '球隊資料沒有清掉');
   });
 
+  await t('歡迎頁的 LOGO 往上靠，建立球隊那幾步不受影響', async () => {
+    const { window: w, q } = await launch();
+    const scr = q('#onboard-screen');
+    t.assert(scr.classList.contains('launch'), '歡迎頁沒有加上往上靠的記號');
+    click(w, q('#ob-enter'));
+    click(w, q('#shell-nav .shell-tab[data-page="team"]'));
+    // 從主畫面回歡迎頁以外的步驟（建立球隊）時要拿掉記號
+    const first = await boot({});
+    click(first.window, first.q('#ob-start'));
+    t.assert(!first.q('#onboard-screen').classList.contains('launch'),
+      '建立球隊那一步還留著往上靠的記號，長表單會被推下去');
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    t.assert(/#onboard-screen\.launch\s+\.ob-inner\{[^}]*margin:\s*0 auto/.test(css),
+      'CSS 裡沒有把歡迎頁改成不垂直置中的規則');
+  });
+
   await t('歡迎頁最下面要寫版號', async () => {
     const { window: w, q } = await launch();
     const ver = q('#ob-version');

@@ -1370,6 +1370,13 @@ body.shell-open #app-container { visibility: hidden; }
     gap: 14px;
 }
 
+/* 歡迎頁：整塊不要垂直置中，LOGO 往上移到畫面上緣約兩成的位置（使用者指定）。
+   建立球隊那兩步是長表單，維持原本的置中排法。 */
+#onboard-screen.launch .ob-inner {
+    margin: 0 auto;
+    padding-top: 10vh;
+}
+
 .ob-logo {
     display: block;
     width: min(62%, 240px);
