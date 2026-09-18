@@ -47,7 +47,8 @@ export default async function (t) {
     t.assert(heads.slice(1, 10).join() === '1,2,3,4,5,6,7,8,9', '局數欄不對：' + heads.join());
     t.assert(heads.slice(10).join() === '打數,安打,全壘打,打點,得分,打擊率', '統計欄不對：' + heads.join());
     const rows = [...table.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('td')].map(x => x.textContent.trim()));
-    t.assert(rows[0][1] === '一安' && rows[1][1] === '左飛' && rows[2][1] === '捕滾' && rows[3][1] === '三振', '第一局縮寫不對：' + rows.slice(0, 4).map(r => r[1]).join());
+    // v2.36 起安打的簡稱＝方向＋壘數：中安（中外野方向的一壘安打）、中2（二壘安打）
+    t.assert(rows[0][1] === '中安' && rows[1][1] === '左飛' && rows[2][1] === '捕滾' && rows[3][1] === '三振', '第一局縮寫不對：' + rows.slice(0, 4).map(r => r[1]).join());
     t.assert(rows[4][2] === '三振', '第二局的三振沒有落在第 2 欄：' + rows[4].join('|'));
     const total = [...table.querySelectorAll('tfoot td')].map(x => x.textContent);
     t.assert(total[0] === 'Total' && total[10] === '6' && total[11] === '2', '合計不對：' + total.join('|'));
@@ -63,7 +64,7 @@ export default async function (t) {
     t.assert(names[i6 + 1].includes('代打王') && names[i6 + 1].includes('(PH)'), '代打沒有接在第 6 棒下方並標 (PH)：' + names[i6 + 1]);
     t.assert(rows[i6 + 1].classList.contains('substitute-row'), '替補列沒有縮排樣式');
     const subCells = [...rows[i6 + 1].querySelectorAll('td')].map(x => x.textContent.trim());
-    t.assert(subCells[2] === '二安', '代打的二安沒有記在第 2 局：' + subCells.join('|'));
+    t.assert(subCells[2] === '中2', '代打的二壘安打沒有記在第 2 局：' + subCells.join('|'));
     t.assert(names.length === 10, `應有 9 位先發 + 1 位替補，共 ${names.length} 列`);
   });
 

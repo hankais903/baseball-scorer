@@ -38,6 +38,28 @@ export default async function (t) {
   });
 
   // 比賽畫面進不去名單頁，板凳沒人時整個換人流程會卡死
+  // 守備中途換人不是代打：以前一律寫成「代打」，換個守備員也記成代打
+  await t('守備替補不要記成代打', async () => {
+    const { w, q, state, pick } = await setup();
+    click(w, q('#play-ball-btn'));
+    click(w, q('#management-btn'));
+    // 用守位圖：點板凳籌碼再點一個不是現在打者的守位
+    const chips = [...w.document.querySelectorAll('.def-chip')];
+    t.assert(chips.length > 0, '守位圖沒有板凳籌碼');
+    click(w, chips[0]);
+    const nodes = [...w.document.querySelectorAll('.def-node')];
+    const cur = state().teams.a.lineupSpots[state().currentBatterIndex.a].activePlayerId;
+    const target = nodes.find(n => n.dataset.playerId && n.dataset.playerId !== cur);
+    if (!target) return;                       // 沒有可換的守位就跳過
+    click(w, target);
+    await sleep(60);
+    const texts = [...w.document.querySelectorAll('#event-log li')].map(x => x.textContent);
+    const sub = texts.find(x => x.includes('球員調度'));
+    t.assert(sub, '沒有留下換人的事件');
+    t.assert(!sub.includes('代打'), '守備換人卻記成代打：' + sub);
+    t.assert(sub.includes('守備替補'), '沒有寫出是守備替補：' + sub);
+  });
+
   await t('板凳沒人：選擇球員的視窗可以臨時新增一位，加入就直接換上', async () => {
     const { window: w, q } = await boot();          // 不加板凳，維持預設名單
     w.alert = () => {};

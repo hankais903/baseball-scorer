@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.35';
+const APP_VERSION = 'v2.36';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -4377,12 +4377,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const slg = batter.ab > 0 ? (batter.tb / batter.ab) : 0;
             // 分層排版：姓名最大，隊伍與棒次為次要，數據做成小方塊，
             // 本場打席結果獨立一行以標籤呈現
-            const results = (batter.abResults || []).map(raw => {
-                const res = String(raw).split('#')[0];     // 去掉局數標記
-                const [name, dir] = res.split('@');
-                const label = PLAY_ABBREVIATIONS[name] || name;
-                return dir ? `${label}${dir}` : label;
-            });
+            // 本場打席結果用跟戰況表同一套簡稱（左2＝左外野二壘安打、二安＝二壘方向安打）
+            const results = (batter.abResults || []).map(raw => situationLabel(raw));
             mainInfoEl.innerHTML = `
                 <div class="batter-name-row">
                     <span class="batter-order">${team.name || ''} ${batterIndex + 1}棒</span>
@@ -4484,6 +4480,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (m) { bt = m[1]; if (dir) dir = dir.replace(/~[LF]$/, ''); else name = name.replace(/~[LF]$/, ''); }
         const first = dir ? dir[0] : '';
         switch (name) {
+            // 安打的簡稱：中文數字／方位＝球打去哪個方向，阿拉伯數字＝上到第幾壘（使用者指定）
+            //   左2＝左外野方向的二壘安打；二安＝二壘方向的一壘安打
+            case '一安': return first ? `${first}安` : '安';
+            case '二安': return first ? `${first}2` : '2';
+            case '三安': return first ? `${first}3` : '3';
+            case '本打': return first ? `${first}H` : 'HR';
+            case '場內全打': return first ? `${first}H場內` : 'HR場內';
+            case '內安': return first ? `${first}內安` : '內安';
+            case '場地二安': return first ? `${first}場2` : '場2';
             case '滾地': return first ? `${first}滾` : '滾地';
             case '飛球': return first ? `${first}飛` : '飛球';
             case '界飛': return '界飛';
@@ -7436,12 +7441,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (spotIndex !== -1) {
             team.lineupSpots[spotIndex].activePlayerId = playerInId;
             team.lineupSpots[spotIndex].history.push(playerInId);
-            subType = '代打';
+            // 只有「這一刻正要打擊的人被換掉」才是代打；
+            // 守備中途換人（換下的人不是現在的打者）要寫守備替補，
+            // 以前一律寫成「代打」，換個守備員也會記成代打（踩過一次）。
+            if (!subType) subType = wasBattingNow ? '代打' : '守備替補';
         }
         if (baseIndex !== -1) {
             gameState.bases[baseIndex].runnerId = playerInId;
             subType = '代跑';
         }
+        if (!subType) subType = '守備替補';
         // 戰況表／成績表要標示替補類型：代打 PH、代跑 PR、守備替補寫守位
         if (spotIndex !== -1) {
             const spot = team.lineupSpots[spotIndex] as any;
