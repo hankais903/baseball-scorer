@@ -241,7 +241,8 @@ class GameListUI {
         const isTop = game.isTop !== false;
         const stadium = game.stadium || '';
 
-        const isCurrent = game.id === this.gameManager.currentGameId;
+        // 「使用中」只算還在記錄中的那一場；已經打完的就算還掛著記號也刪得掉
+        const isCurrent = game.id === this.gameManager.currentGameId && !game.isGameOver;
 
         return `
             <div class="game-card" data-game-id="${game.id}" style="

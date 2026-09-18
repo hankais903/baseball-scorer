@@ -3187,3 +3187,74 @@ body:not(.shell-open) #app-container,
     cursor: pointer;
 }
 .picker-add-form .pa-ok:active { filter: brightness(1.12); }
+
+
+/* =====================================================================
+   球場上的半身圖示用球隊代表色（v2.35，使用者要求）
+   --team-fig 由 renderFieldBatter() 依進攻方設定；只套主球場，
+   球員調度的守位圖（.def-node）不受影響。
+   ===================================================================== */
+#main-field .mf-batter .mf-runner-body,
+#main-field .mf-batter .mf-runner-head,
+#main-field .mf-runner .mf-runner-body,
+#main-field .mf-runner .mf-runner-head {
+    fill: var(--team-fig, #fbbf24);
+    stroke: rgba(0, 0, 0, 0.6);
+    stroke-width: 2;
+}
+
+/* 首頁的比賽紀錄卡（v2.35，使用者指定）：
+   左邊日期／時間／球場，右邊比數，比數字級放大。 */
+.gl-item-2col {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.gl-item-2col .gl-when { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.gl-item-2col .gl-when .gl-sub { font-size: 0.8rem; }
+.gl-item-2col .gl-score {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex: 0 0 auto;
+}
+.gl-item-2col .gl-score-line { display: flex; align-items: baseline; gap: 8px; }
+.gl-item-2col .gl-score-line b { font-size: 0.88rem; font-weight: 700; color: #cfe2f8; }
+.gl-item-2col .gl-score-line i {
+    font-style: normal;
+    font-weight: 800;
+    font-size: 1.45rem;
+    line-height: 1.1;
+    color: #9fd0ff;
+    font-variant-numeric: tabular-nums;
+    min-width: 1.4em;
+    text-align: right;
+}
+.gl-item-2col .gl-res { margin-top: 2px; }
+
+/* =====================================================================
+   每個視窗最上方那行說明再放大（v2.35，使用者要求「大兩倍」）
+   指的是視窗最上面那一行「現在要做什麼」的字，不是下面的選項按鈕。
+   ===================================================================== */
+/* 打席選單／落點結果選單：「第N棒 ○○○　這球怎麼了？」「落點：內野　滾地球　選擇結果」 */
+#field-result-panel .frp-title span { font-size: 1.28rem; line-height: 1.35; font-weight: 800; }
+/* 選單標題旁那張小球場也跟著放大，否則會顯得很小 */
+#field-result-panel .frp-map { flex: 0 0 46px; width: 46px; height: 46px; }
+
+/* 記錄比賽各視窗最上方的標題：進階視窗、壘間事件、選擇球員、確認、比賽結束原因 */
+#modal-advanced-title,
+#modal-step-2-title,
+#runner-action-title-step-2,
+#picker-title,
+#modal-content > div > h3.modal-drag-handle,
+#runner-action-modal-content > div > h3.modal-drag-handle,
+.confirm-modal-content h3.modal-drag-handle,
+#ask-text {
+    font-size: 1.28rem;
+    line-height: 1.35;
+}
+/* 標題底下那行補充說明（打者是誰、可選幾個⋯）也一起放大一點 */
+#picker-note,
+#modal-step-advanced .runner-name { font-size: 1rem; }

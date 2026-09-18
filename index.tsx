@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.34';
+const APP_VERSION = 'v2.35';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -1077,11 +1077,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const sa = totalRuns(g.teams?.a?.score), sb = totalRuns(g.teams?.b?.score);
             const mine = mySideOf(g);
             const mark = mine ? ` <em class="gl-res gl-${resultOf(g)}">${RESULT_WORD[resultOf(g)]}</em>` : '';
+            // 左邊：日期／時間／球場；右邊：比數（放大）。使用者指定的排法。
+            const time = (g as any).gameTime ? `　${(g as any).gameTime}` : '';
             return `<div class="gl-row">
-                <button type="button" class="gl-item" data-game="${g.id}">
-                    <span class="gl-main"><b>${a}</b> <i>${sa} : ${sb}</i> <b>${b}</b>${mark}</span>
-                    <span class="gl-sub">${fullDate(g.gameDate || g.lastModified)}</span>
-                    <span class="gl-sub">${g.stadium || '未填球場'}　${WEATHER_WORD[g.weather] || '－'}</span>
+                <button type="button" class="gl-item gl-item-2col" data-game="${g.id}">
+                    <span class="gl-when">
+                        <span class="gl-sub">${fullDate(g.gameDate || g.lastModified)}${time}</span>
+                        <span class="gl-sub">${g.stadium || '未填球場'}　${WEATHER_WORD[g.weather] || '－'}</span>
+                    </span>
+                    <span class="gl-score">
+                        <span class="gl-score-line"><b>${a}</b> <i>${sa}</i></span>
+                        <span class="gl-score-line"><b>${b}</b> <i>${sb}</i></span>
+                        ${mark}
+                    </span>
                 </button>
                 <button type="button" class="gl-del" data-del="${g.id}" aria-label="刪除這場比賽">×</button>
             </div>`;
@@ -3348,7 +3356,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const ballWord = (BALL_KINDS.find(b => b.key === ball) || { label: '' }).label;
             const fits = (o: any) => (!o.zones || o.zones.indexOf(zone) >= 0)
                 && (!ball || !o.balls || o.balls.indexOf(ball) >= 0);
-            const btn = (o: any) => `<button type="button" data-play="${o.play}" class="${o.out ? 'is-out' : ''}">${o.label}</button>`;
+            // 出局數不夠就按不動：雙殺至少要再抓 2 個、三殺要 3 個
+            const needOuts = { 雙殺: 2, 三殺: 3 };
+            const btn = (o: any) => {
+                const need = needOuts[o.play] || 0;
+                const short = need && gameState.outs + need > 3;
+                const why = short ? ` disabled title="已經${gameState.outs}人出局，湊不到${o.label}"` : '';
+                return `<button type="button" data-play="${o.play}" class="${o.out ? 'is-out' : ''}"${why}>${o.label}</button>`;
+            };
             const section = (items: any[]) => groups.map(g => {
                 const inGroup = items.filter(o => o.group === g);
                 if (!inGroup.length) return '';
@@ -3403,7 +3418,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     advancedPlayState.pointConfirmed = true;
                     const auto = fielderInZone(fielderFromMiniPoint(mini), mini, pendingZone);
                     if (auto) {
-                        setFielderChain(defaultFielderChain(play, auto));
+                        // 全壘打沒有野手「處理」，但方向還是要留著（左外野全壘打），
+                        // 敘述的方向就是守備鏈的第一個人，所以只放一個、不接後面的傳球。
+                        setFielderChain(play === '本打' ? [auto] : defaultFielderChain(play, auto));
                         advancedPlayState.directionAuto = true;
                     }
                 }
@@ -4310,6 +4327,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderFieldBatter() {
         const g = document.getElementById('mf-batter');
         if (!g) return;
+        // 球場上的半身圖示（打者與壘上跑者）用進攻方的球隊代表色（使用者要求）
+        const field = document.getElementById('main-field');
+        if (field) {
+            const atk = gameState.teams[gameState.isTop ? 'a' : 'b'];
+            (field as any).style.setProperty('--team-fig', atk?.color || '#fbbf24');
+        }
         const live = gameState.started && !gameState.isGameOver;
         g.classList.toggle('hidden', !live);
         // 等標落點的時候把打者鎖住，免得點球場時誤觸
@@ -4548,14 +4571,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const log = document.getElementById('event-log');
         // FIX: Renamed 'event' to 'gameEvent' to avoid conflict with the global 'Event' type.
         refreshEventOwner();
-        log.innerHTML = (gameState.events || []).map((gameEvent, i) => {
+        const evs = gameState.events || [];
+        // 半局的最後一則：下一行是局數標題（沒有 teamKey），或者整場就到這裡為止
+        const isHalfEnd = (i: number) => {
+            for (let k = i + 1; k < evs.length; k++) return !evs[k].teamKey;
+            return true;
+        };
+        // 沒得分的事件本身不帶比分，所以一路把最近一次的比分帶下來
+        let running = { a: 0, b: 0 };
+        log.innerHTML = evs.map((gameEvent, i) => {
             if (!gameEvent.teamKey) return `<li class="ev-inning">${gameEvent.text}</li>`;
             const [title, ...rest] = String(gameEvent.text).split('\n');
             const body = rest.join(' ');
-            const scoreChip = (gameEvent as any).scored && (gameEvent as any).score
+            if ((gameEvent as any).score) running = (gameEvent as any).score;
+            // 有得分的那一則照舊附比分；另外每半局的最後一則也附一次，
+            // 半局結束時一眼看得到目前比數（使用者要求）
+            const showScore = ((gameEvent as any).scored && (gameEvent as any).score) || isHalfEnd(i);
+            const sc = (gameEvent as any).score || running;
+            const scoreChip = showScore
                 ? `<span class="ev-score">`
                     + `<b style="color:${gameState.teams.a.color}">${gameState.teams.a.name}</b>`
-                    + `<i>${(gameEvent as any).score.a} : ${(gameEvent as any).score.b}</i>`
+                    + `<i>${sc.a} : ${sc.b}</i>`
                     + `<b style="color:${gameState.teams.b.color}">${gameState.teams.b.name}</b></span>`
                 : '';
             // 比分小標放在敘述外面（自己一行），敘述本身維持乾淨
@@ -5663,6 +5699,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     return idxs.length ? `<i class="dir-order">${idxs.join(',')}</i>` : '';
                 };
                 const fBtn = d => `<button data-step="set-fielder" data-dir="${d}" class="dir-btn ${chain.includes(d) ? 'selected' : ''}">${d}${orderMark(d)}</button>`;
+                // 全壘打球飛出場，沒有野手處理，所以不問「處理野手」（方向還是要留著：左外野全壘打）
+                const noFielder = advancedPlayState.play === '本打';
+                const fielderPick = noFielder ? '' : `
+                        <span class="hit-direction-label fielder-label">處理野手
+                            <em>${'@@CHAIN@@'}</em>
+                        </span>
+                        <div class="hit-direction-row">${HIT_DIRECTIONS.outfield.map(fBtn).join('')}</div>
+                        <div class="hit-direction-row">${HIT_DIRECTIONS.infield.map(fBtn).join('')}</div>`;
                 const isMultiOut = ['雙殺', '三殺'].includes(advancedPlayState.play);
                 const bt = advancedPlayState.ballType || 'G';
                 const ballTypeRow = isMultiOut ? `
@@ -5690,11 +5734,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="hit-direction-label">擊球落點
                             <em>已在球場標記${advancedPlayState.direction ? `：${advancedPlayState.direction}方向` : ''}${fielderFromMiniPoint(mark) === null ? '（界外）' : ''}　要改請按「返回」重點一次</em>
                         </span>
-                        <span class="hit-direction-label fielder-label">處理野手
-                            <em>${chainLabel}</em>
-                        </span>
-                        <div class="hit-direction-row">${HIT_DIRECTIONS.outfield.map(fBtn).join('')}</div>
-                        <div class="hit-direction-row">${HIT_DIRECTIONS.infield.map(fBtn).join('')}</div>
+                        ${fielderPick.replace('@@CHAIN@@', chainLabel)}
                     </div>`;
                 }
                 else directionHTML = `
@@ -5718,11 +5758,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <path class="hf-hit ${isFoulPlay ? 'off' : ''}" d="M100 170 L18 88 A116 116 0 0 1 182 88 Z"${isFoulPlay ? '' : ' data-step="set-point"'}/>
                             ${mark ? `<circle class="hf-mark" cx="${mark.x}" cy="${mark.y}" r="5"/>` : ''}
                         </svg>
-                        <span class="hit-direction-label fielder-label">處理野手
-                            <em>${chainLabel}</em>
-                        </span>
-                        <div class="hit-direction-row">${HIT_DIRECTIONS.outfield.map(fBtn).join('')}</div>
-                        <div class="hit-direction-row">${HIT_DIRECTIONS.infield.map(fBtn).join('')}</div>
+                        ${fielderPick.replace('@@CHAIN@@', chainLabel)}
                     </div>`;
             }
             // 只要有一樣修飾（失誤、妨礙跑壘、擊球方向）就要把這一區畫出來，

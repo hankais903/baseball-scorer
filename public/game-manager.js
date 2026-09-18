@@ -135,7 +135,11 @@ class GameManager {
 
     // 刪除遊戲（正在記的那一場不給刪，刪了畫面會整個空掉）
     deleteGame(gameId) {
-        if (gameId === this.currentGameId) {
+        const all = this.getAllGames();
+        const g = all[gameId];
+        // 只有「還在記錄中」的那一場不能刪。已經結束的比賽雖然還掛著 currentGameId，
+        // 但它已經打完了，首頁的紀錄卡要刪得掉（踩過一次：按了刪除完全沒反應）。
+        if (gameId === this.currentGameId && !(g && g.isGameOver)) {
             this.showNotification('這是正在記錄的比賽，不能刪除', 'error');
             return false;
         }
@@ -143,6 +147,11 @@ class GameManager {
             const games = this.getAllGames();
             delete games[gameId];
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(games));
+            // 刪掉的正好是目前掛著的那一場（已結束）：把記號清掉，免得指向不存在的比賽
+            if (gameId === this.currentGameId) {
+                this.currentGameId = null;
+                try { localStorage.removeItem(this.CURRENT_GAME_KEY); } catch (e) { /* 存檔滿了就算了 */ }
+            }
             this.showNotification('✓ 比賽已刪除', 'success');
             return true;
         } catch (error) {

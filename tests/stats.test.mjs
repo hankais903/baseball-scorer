@@ -40,7 +40,9 @@ export default async function (t) {
     t.assert(txt.includes('2026年3月8日'), '沒有完整日期：' + txt);
     t.assert(txt.includes('新莊球場'), '沒有球場：' + txt);
     t.assert(txt.includes('晴'), '沒有天氣：' + txt);
-    t.assert(txt.includes('3 : 1'), '比數不對：' + txt);
+    // v2.35 起改成左右兩欄：左邊日期／球場，右邊兩隊各一行比數（數字放大）
+    t.assert(/新莊\s*3/.test(txt) && /海盜\s*1/.test(txt), '比數不對：' + txt);
+    t.assert(!!item.querySelector('.gl-when') && !!item.querySelector('.gl-score'), '不是左右兩欄的排法');
     t.assert(!!item.querySelector('.gl-res.gl-win'), '沒有標出這場是贏的');
   });
 
