@@ -468,6 +468,52 @@ export default async function (t) {
     t.assert(q('#field-result-panel .frp-title').textContent.includes('外野'), '圖上方的落點應判為外野');
   });
 
+  // 以前按到進階視窗最前面那一步再按「返回」，會跳到沒有填過內容的分類頁，
+  // 結果是一個只剩「返回」的空視窗，整個卡住。
+  await t('標了落點選完結果，按「返回」要回到落點結果選單', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    clickZone(w, 'infield', 'G');
+    const before = q('#field-result-panel .frp-title').textContent;
+    click(w, q('#field-result-panel button[data-play="一安"]'));
+    t.assert(!q('#play-modal').classList.contains('modal-hidden'), '沒有進到進階視窗');
+    // 一路按返回，最多按 6 次
+    for (let i = 0; i < 6 && !q('#play-modal').classList.contains('modal-hidden'); i++) {
+      click(w, q('.back-button-advanced'));
+    }
+    t.assert(q('#play-modal').classList.contains('modal-hidden'), '按到底了進階視窗還沒關掉');
+    t.assert(!q('#field-result-panel').classList.contains('hidden'), '沒有回到落點結果選單');
+    t.assert(q('#field-result-panel .frp-title').textContent === before,
+      '回來的選單跟原本不一樣：' + q('#field-result-panel .frp-title').textContent);
+    // 落點的紅點要放回去，球種也要留著
+    t.assert(q('#mf-mark').style.display !== 'none', '紅點沒有放回球場上');
+    t.assert(before.includes('滾地'), '球種沒有留著：' + before);
+    // 回來之後還能正常記完一筆
+    click(w, q('#field-result-panel button[data-play="一安"]'));
+    click(w, q('#modal-advanced-done'));
+    t.assert(w.document.querySelectorAll('#event-log li').length > 0, '回來之後記不了');
+  });
+
+  await t('走「其他」那條路進來的，「返回」照舊回結果分類頁', async () => {
+    const { window: w, q } = await boot();
+    startGame(w);
+    openAtBatMenu(w);
+    click(w, q('#field-result-panel button[data-play="__more"]'));
+    t.assert(!q('#play-modal').classList.contains('modal-hidden'), '沒有打開結果分類');
+    const cat = w.document.querySelector('#modal-step-1 button[data-step], #play-modal .modal-options button');
+    click(w, cat);
+    const play = w.document.querySelector('#modal-options-step-2 button');
+    t.assert(!!play, '分類頁沒有列出結果');
+    click(w, play);
+    if (q('#modal-step-advanced').classList.contains('modal-hidden')) return;   // 這個結果不進進階視窗
+    for (let i = 0; i < 6 && q('#modal-step-2').classList.contains('modal-hidden')
+         && !q('#play-modal').classList.contains('modal-hidden'); i++) {
+      click(w, q('.back-button-advanced'));
+    }
+    t.assert(!q('#modal-step-2').classList.contains('modal-hidden'), '沒有回到結果分類頁');
+    t.assert(q('#field-result-panel').classList.contains('hidden'), '不該跑去落點結果選單');
+  });
+
   await t('落點區域改由幾何判斷：內野／外野／界外', async () => {
     const { window: w, q } = await boot();
     click(w, q('#play-ball-btn'));

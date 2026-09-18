@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.30';
+const APP_VERSION = 'v2.31';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -2869,11 +2869,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     advancedPlayState.step = 'ask-error';
                     renderAdvancedPlayOptions();
                 }
-                else if (advancedPlayState.play === '本打') {
-                    showModalStep('step2'); // Go back to play selection for Home Run
-                }
                 else {
-                    showModalStep('step2');
+                    backFromAdvanced();
                 }
             }
             else if (advancedPlayState.step === 'select-error') {
@@ -2889,11 +2886,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderAdvancedPlayOptions();
                 }
                 else {
-                    showModalStep('step2');
+                    backFromAdvanced();
                 }
             }
             else {
-                showModalStep('step2');
+                backFromAdvanced();
             }
         });
         doneButtonAdvanced.addEventListener('click', processAdvancedPlay);
@@ -3340,6 +3337,9 @@ document.addEventListener('DOMContentLoaded', () => {
             { key: 'B', label: '短打' },
         ];
         let pendingBall: string | null = null;
+        // 從球場落點進到進階視窗時，把落點記著；按「返回」才回得到落點結果選單。
+        // 走「其他」那條路（打席選單 → 分類 → 結果）進來的設成 null，返回照舊回分類頁。
+        let lastFieldPick: { point: any; zone: any; ball: string | null } | null = null;
         function fieldMiniMap() {
             const dot = pendingPoint
                 ? `<circle class="frp-map-dot" cx="${pendingPoint.x}" cy="${pendingPoint.y}" r="26"/>` : '';
@@ -3426,6 +3426,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         advancedPlayState.directionAuto = true;
                     }
                 }
+                lastFieldPick = pendingPoint
+                    ? { point: pendingPoint, zone: pendingZone, ball: pendingBall } : null;
                 renderAdvancedPlayOptions();
                 openModal(modal, modalContent);
                 showModalStep('advanced');
@@ -3434,6 +3436,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 handlePlay(play);
             }
             clearPendingPoint();
+        }
+
+        // 進階視窗最前面那一步再按「返回」要回哪裡：
+        // 從球場落點進來的就回落點結果選單（紅點放回去），
+        // 從「其他」進來的才回原本的分類頁。以前一律回分類頁，
+        // 但那條路沒有填過內容，會變成一個只剩「返回」的空視窗（踩過一次）。
+        function backFromAdvanced() {
+            if (!lastFieldPick) { showModalStep('step2'); return; }
+            closeModal(modal);
+            pendingPoint = lastFieldPick.point;
+            pendingZone = lastFieldPick.zone;
+            awaitingPoint = false;
+            moveMarkTo(pendingPoint);
+            renderFieldBatter();
+            showResultOptions(pendingZone, lastFieldPick.ball);
         }
 
         // 落點標記：把紅點移到座標上（拖曳過程中也一直呼叫）
@@ -3541,6 +3558,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btn.dataset.play === '__more') {
                     tapFeedback();
                     clearPendingPoint();
+                    lastFieldPick = null;
                     showModalStep('step1');
                     openModal(modal, modalContent);
                     return;

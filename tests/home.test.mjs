@@ -411,6 +411,23 @@ export default async function (t) {
     t.assert(q('#page-home').classList.contains('hidden'), '不該停在首頁');
   });
 
+  await t('記錄比賽的視窗：說明文字要夠大（場邊看得清楚）', async () => {
+    const fs = await import('fs');
+    const dir = 'dist/assets';
+    const css = fs.readdirSync(dir).filter(f => f.endsWith('.css')).map(f => fs.readFileSync(dir + '/' + f, 'utf8')).join('\n');
+    // 同一個選擇器可能被設定好幾次，最後一次才是實際生效的
+    const rem = (re, name) => {
+      const all = css.match(new RegExp(re.source, 'g'));
+      t.assert(all && all.length, '找不到' + name + '的字級設定');
+      return Number(all[all.length - 1].match(re)[1]);
+    };
+    t.assert(rem(/#field-result-panel \.frp-title span\{font-size:([\d.]+)rem/, '落點選單標題') >= 0.82,
+      '落點選單標題太小');
+    t.assert(rem(/#field-result-panel \.frp-group-label\{font-size:([\d.]+)rem/, '落點選單分組') >= 0.8,
+      '落點選單分組標籤太小');
+    t.assert(/font-size:\s*\.82rem/.test(css) || /font-size:0\.82rem/.test(css), '視窗裡的說明文字沒有放大');
+  });
+
   await t('首頁的版號放在最下面，不是 LOGO 旁邊', async () => {
     const { q } = await withTeam();
     const ver = q('#shell-version');

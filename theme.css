@@ -3119,3 +3119,21 @@ body:not(.shell-open) #app-container,
         animation: none;
     }
 }
+
+/* =====================================================================
+   記錄比賽時各視窗的「說明文字」放大（v2.31，使用者要求）
+   原本 11～12px，在場邊看太小。按鈕與標題維持原樣，只動說明類的字。
+   ===================================================================== */
+/* 落點結果選單：標題（落點：內野　選擇結果）與分組標籤（安打／出局／其他） */
+#field-result-panel .frp-title span { font-size: 0.84rem; }
+#field-result-panel .frp-group-label { font-size: 0.82rem; }
+
+/* 進階視窗、壘間事件、選擇球員：提示與補充說明 */
+:is(#modal-content, #runner-action-modal-content, .picker-content,
+    .confirm-modal-content, .ask-box, .end-reason-box)
+    :is(em, small, .picker-note, .sub-note, .hit-direction-label) {
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+/* 完成前的提醒（「請先完成上方的選擇」「⚠ 犧牲飛球必須⋯」）本來就大一點，再加一點點 */
+#modal-advanced-summary { font-size: 0.98rem; line-height: 1.55; }
