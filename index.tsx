@@ -6,7 +6,7 @@ import { RULE_BOOK, RULE_SOURCE } from './rules-data';
 
 // --- Default Placeholder Images (SVG encoded in Base64) ---
 // APP 版號：顯示在主頁標題右邊。**每次交付都要往上加**（小改動加最後一碼）。
-const APP_VERSION = 'v2.20';
+const APP_VERSION = 'v2.21';
 const TEAM_NAME_MAX = 4;
 // 延長局上限，平手打滿即為和局（CPBL 例行賽為 12 局）
 const MAX_INNINGS = 12;
@@ -1719,9 +1719,11 @@ document.addEventListener('DOMContentLoaded', () => {
         addEventListeners();
         render();
         updateLayout(); // Set initial layout based on screen size
-        // 還沒建立球隊 → 只給「創建球隊」；有比賽在進行 → 直接進比賽；其餘停在主畫面
+        // 開啟 APP 一律停在主畫面的首頁（使用者要求）。
+        // 有沒有打完的比賽由首頁那張「繼續比賽」負責，按了才進比賽畫面。
+        // 以前是「有比賽在進行就直接進比賽」，改掉的原因是每次開 APP
+        // 都被丟進比賽裡，想看球隊或紀錄還要先退出來。
         if (!myTeam) showOnboard(0);
-        else if (gameInProgress()) enterGameView();
         else showShell('home');
     }
     // 拖曳只改了 DOM 順序，輸入欄上的 data-index 仍是舊的位置。

@@ -251,15 +251,20 @@ export default async function (t) {
       '返回後人數沒有更新：' + q('#team-players-count').textContent);
   });
 
-  await t('首頁：有比賽在進行時，一開機直接進比賽', async () => {
+  await t('首頁：一開機一律停在首頁，比賽由「繼續比賽」接回去', async () => {
     const first = await withTeam();
     startGame(first.window);
     quickPlay(first.window, '四壞');
     await sleep(300);
     const saved = first.window.localStorage.getItem('baseballGameState');
     const { window: w, q } = await withTeam({ baseballGameState: saved });
-    t.assert(q('#main-shell').classList.contains('hidden'), '有比賽在進行卻停在主畫面');
-    t.assert(!w.document.body.classList.contains('shell-open'), '主畫面沒有真的關掉');
+    t.assert(!q('#main-shell').classList.contains('hidden'), '開機沒有停在主畫面');
+    t.assert(w.document.body.classList.contains('shell-open'), '主畫面沒有真的打開');
+    t.assert(!q('#page-home').classList.contains('hidden'), '停的不是首頁那一頁');
+    t.assert(!q('#home-continue').classList.contains('hidden'), '沒有顯示「繼續比賽」');
+    // 按了才進比賽畫面
+    click(w, q('#home-continue'));
+    t.assert(q('#main-shell').classList.contains('hidden'), '按了繼續比賽卻沒進到比賽畫面');
   });
 
   await t('首頁：回到主畫面時，「繼續比賽」會寫出比分與局數', async () => {
